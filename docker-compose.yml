@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: berezhok-db
+    environment:
+      POSTGRES_HOST: ${DB_HOST}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - ./out/pgdata:/var/lib/postgresql/data
+    restart: on-failure
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -q -d ${DB_NAME} -U ${DB_USER}"]
+      timeout: 10s
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:latest
+    container_name: berezhok-redis
+    hostname: redis
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - ./out/redis-data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
+
+volumes:
+  pgdata:
+  redis-data:
