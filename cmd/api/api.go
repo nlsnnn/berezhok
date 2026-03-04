@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/jackc/pgx/v5"
 	"github.com/nlsnnn/berezhok/internal/shared/config"
 )
 
@@ -32,7 +33,6 @@ func (app *application) mount() http.Handler {
 }
 
 func (app *application) run(log *slog.Logger, h http.Handler) error {
-
 	log.Info("starting server", slog.String("address", app.cfg.Address))
 
 	srv := &http.Server{
@@ -50,4 +50,6 @@ func (app *application) run(log *slog.Logger, h http.Handler) error {
 
 type application struct {
 	cfg *config.Config
+	db  *pgx.Conn
+	log *slog.Logger
 }

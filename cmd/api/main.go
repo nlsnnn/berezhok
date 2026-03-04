@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"os"
 
+	"github.com/nlsnnn/berezhok/internal/adapters/postgresql"
 	"github.com/nlsnnn/berezhok/internal/shared/config"
+	"github.com/nlsnnn/berezhok/internal/shared/logger/sl"
 )
 
 const (
@@ -14,17 +17,27 @@ const (
 )
 
 func main() {
+	ctx := context.Background()
 	cfg := config.MustLoad()
 	log := setupLogger(cfg.Env)
 
 	log.Info("start app", slog.String("env", cfg.Env))
 
+	db, err := postgresql.New(ctx, cfg.Db)
+	if err != nil {
+		log.Error("failed to init storage", sl.Err(err))
+		os.Exit(1)
+	}
+	defer db.Close(ctx)
+
 	api := application{
 		cfg: cfg,
+		db:  db,
+		log: log,
 	}
 
 	if err := api.run(log, api.mount()); err != nil {
-		log.Error("failed to start server")
+		log.Error("failed to start server", sl.Err(err))
 		os.Exit(1)
 	}
 }
