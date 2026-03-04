@@ -8,6 +8,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5"
+	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
+	"github.com/nlsnnn/berezhok/internal/modules/partner/handlers"
+	"github.com/nlsnnn/berezhok/internal/modules/partner/service"
 	"github.com/nlsnnn/berezhok/internal/shared/config"
 )
 
@@ -27,6 +30,30 @@ func (app *application) mount() http.Handler {
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("OK"))
+	})
+
+	// Partner Module
+	// Application
+	appRepo := sqlc.New(app.db)
+	appSvc := service.NewApplicationService(appRepo)
+	appHandler := handlers.NewApplicationHandler(app.log, appSvc)
+
+	r.Route("/api/v1/", func(r chi.Router) {
+		// == Public Routes ==
+
+		// Application
+		r.Post("/applications", appHandler.Create)
+		r.Get("/applications", appHandler.List)
+		r.Get("/applications/{id}", appHandler.GetByID)
+		r.Delete("/applications/{id}", appHandler.Delete)
+		r.Post("/applications/{id}/approve", appHandler.Approve)
+		r.Post("/applications/{id}/reject", appHandler.Reject)
+
+		// == Customer Routes ==
+
+		// == Partner Routes ==
+
+		// == Admin Routes ==
 	})
 
 	return r
