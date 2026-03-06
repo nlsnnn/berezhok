@@ -10,12 +10,18 @@ import (
 )
 
 type appService struct {
-	repo sqlc.Querier
+	repo        sqlc.Querier
+	partService partnerSvc
 }
 
-func NewApplicationService(appRepo sqlc.Querier) *appService {
+type partnerSvc interface {
+	Create(ctx context.Context, arg sqlc.CreatePartnerParams) (sqlc.Partner, error)
+}
+
+func NewApplicationService(appRepo sqlc.Querier, partSvc partnerSvc) *appService {
 	return &appService{
-		repo: appRepo,
+		repo:        appRepo,
+		partService: partSvc,
 	}
 }
 
@@ -50,6 +56,13 @@ func (a *appService) Approve(ctx context.Context, id uuid.UUID) error {
 
 	if app.Status != "pending" {
 		return partner.ErrInvalidStatusTransition
+	}
+
+	if _, err := a.partService.Create(ctx, sqlc.CreatePartnerParams{
+		LegalName: app.BusinessName,
+		Status:    "pending_documents",
+	}); err != nil {
+		return err
 	}
 
 	return a.Update(ctx, sqlc.UpdateApplicationParams{

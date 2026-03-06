@@ -60,6 +60,56 @@ func (q *Queries) CreateApplication(ctx context.Context, arg CreateApplicationPa
 	return i, err
 }
 
+const createPartner = `-- name: CreatePartner :one
+INSERT INTO partners (
+    legal_name, brand_name, logo_url, parent_partner_id, account_type, 
+    commission_rate, promo_commission_rate, promo_commission_until, status
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, legal_name, brand_name, logo_url, parent_partner_id, account_type, commission_rate, promo_commission_rate, promo_commission_until, status, created_at, updated_at
+`
+
+type CreatePartnerParams struct {
+	LegalName            string         `json:"legal_name"`
+	BrandName            pgtype.Text    `json:"brand_name"`
+	LogoUrl              pgtype.Text    `json:"logo_url"`
+	ParentPartnerID      pgtype.UUID    `json:"parent_partner_id"`
+	AccountType          pgtype.Text    `json:"account_type"`
+	CommissionRate       pgtype.Numeric `json:"commission_rate"`
+	PromoCommissionRate  pgtype.Numeric `json:"promo_commission_rate"`
+	PromoCommissionUntil pgtype.Date    `json:"promo_commission_until"`
+	Status               string         `json:"status"`
+}
+
+func (q *Queries) CreatePartner(ctx context.Context, arg CreatePartnerParams) (Partner, error) {
+	row := q.db.QueryRow(ctx, createPartner,
+		arg.LegalName,
+		arg.BrandName,
+		arg.LogoUrl,
+		arg.ParentPartnerID,
+		arg.AccountType,
+		arg.CommissionRate,
+		arg.PromoCommissionRate,
+		arg.PromoCommissionUntil,
+		arg.Status,
+	)
+	var i Partner
+	err := row.Scan(
+		&i.ID,
+		&i.LegalName,
+		&i.BrandName,
+		&i.LogoUrl,
+		&i.ParentPartnerID,
+		&i.AccountType,
+		&i.CommissionRate,
+		&i.PromoCommissionRate,
+		&i.PromoCommissionUntil,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const deleteApplication = `-- name: DeleteApplication :exec
 DELETE FROM partner_applications WHERE id = $1
 `
@@ -93,10 +143,35 @@ func (q *Queries) FindApplicationByID(ctx context.Context, id uuid.UUID) (Partne
 	return i, err
 }
 
+const findPartnerByID = `-- name: FindPartnerByID :one
+SELECT id, legal_name, brand_name, logo_url, parent_partner_id, account_type, commission_rate, promo_commission_rate, promo_commission_until, status, created_at, updated_at FROM partners WHERE id = $1
+`
+
+func (q *Queries) FindPartnerByID(ctx context.Context, id uuid.UUID) (Partner, error) {
+	row := q.db.QueryRow(ctx, findPartnerByID, id)
+	var i Partner
+	err := row.Scan(
+		&i.ID,
+		&i.LegalName,
+		&i.BrandName,
+		&i.LogoUrl,
+		&i.ParentPartnerID,
+		&i.AccountType,
+		&i.CommissionRate,
+		&i.PromoCommissionRate,
+		&i.PromoCommissionUntil,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const listApplications = `-- name: ListApplications :many
 SELECT id, contact_name, contact_email, contact_phone, business_name, category_code, address, description, status, reviewed_at, rejection_reason, created_at FROM partner_applications
 `
 
+// Заявки на партнёрство
 func (q *Queries) ListApplications(ctx context.Context) ([]PartnerApplication, error) {
 	rows, err := q.db.Query(ctx, listApplications)
 	if err != nil {
@@ -130,6 +205,44 @@ func (q *Queries) ListApplications(ctx context.Context) ([]PartnerApplication, e
 	return items, nil
 }
 
+const listPartners = `-- name: ListPartners :many
+SELECT id, legal_name, brand_name, logo_url, parent_partner_id, account_type, commission_rate, promo_commission_rate, promo_commission_until, status, created_at, updated_at FROM partners
+`
+
+// Партнёры (юридические лица)
+func (q *Queries) ListPartners(ctx context.Context) ([]Partner, error) {
+	rows, err := q.db.Query(ctx, listPartners)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Partner
+	for rows.Next() {
+		var i Partner
+		if err := rows.Scan(
+			&i.ID,
+			&i.LegalName,
+			&i.BrandName,
+			&i.LogoUrl,
+			&i.ParentPartnerID,
+			&i.AccountType,
+			&i.CommissionRate,
+			&i.PromoCommissionRate,
+			&i.PromoCommissionUntil,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateApplication = `-- name: UpdateApplication :exec
 UPDATE partner_applications
 SET status = $1, reviewed_at = $2, rejection_reason = $3
@@ -148,6 +261,43 @@ func (q *Queries) UpdateApplication(ctx context.Context, arg UpdateApplicationPa
 		arg.Status,
 		arg.ReviewedAt,
 		arg.RejectionReason,
+		arg.ID,
+	)
+	return err
+}
+
+const updatePartner = `-- name: UpdatePartner :exec
+UPDATE partners
+SET legal_name = $1, brand_name = $2, logo_url = $3, parent_partner_id = $4, 
+    account_type = $5, commission_rate = $6, promo_commission_rate = $7, 
+    promo_commission_until = $8, status = $9
+WHERE id = $10
+`
+
+type UpdatePartnerParams struct {
+	LegalName            string         `json:"legal_name"`
+	BrandName            pgtype.Text    `json:"brand_name"`
+	LogoUrl              pgtype.Text    `json:"logo_url"`
+	ParentPartnerID      pgtype.UUID    `json:"parent_partner_id"`
+	AccountType          pgtype.Text    `json:"account_type"`
+	CommissionRate       pgtype.Numeric `json:"commission_rate"`
+	PromoCommissionRate  pgtype.Numeric `json:"promo_commission_rate"`
+	PromoCommissionUntil pgtype.Date    `json:"promo_commission_until"`
+	Status               string         `json:"status"`
+	ID                   uuid.UUID      `json:"id"`
+}
+
+func (q *Queries) UpdatePartner(ctx context.Context, arg UpdatePartnerParams) error {
+	_, err := q.db.Exec(ctx, updatePartner,
+		arg.LegalName,
+		arg.BrandName,
+		arg.LogoUrl,
+		arg.ParentPartnerID,
+		arg.AccountType,
+		arg.CommissionRate,
+		arg.PromoCommissionRate,
+		arg.PromoCommissionUntil,
+		arg.Status,
 		arg.ID,
 	)
 	return err

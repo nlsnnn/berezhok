@@ -15,3 +15,9 @@ type appSvc interface {
 	Reject(ctx context.Context, id uuid.UUID, reason string) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
+
+type partnerSvc interface {
+	List(ctx context.Context) ([]sqlc.Partner, error)
+	FindByID(ctx context.Context, id uuid.UUID) (sqlc.Partner, error)
+	Create(ctx context.Context, arg sqlc.CreatePartnerParams) (sqlc.Partner, error)
+}

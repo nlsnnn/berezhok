@@ -11,6 +11,22 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+// Партнёры (юридические лица)
+type Partner struct {
+	ID                   uuid.UUID      `json:"id"`
+	LegalName            string         `json:"legal_name"`
+	BrandName            pgtype.Text    `json:"brand_name"`
+	LogoUrl              pgtype.Text    `json:"logo_url"`
+	ParentPartnerID      pgtype.UUID    `json:"parent_partner_id"`
+	AccountType          pgtype.Text    `json:"account_type"`
+	CommissionRate       pgtype.Numeric `json:"commission_rate"`
+	PromoCommissionRate  pgtype.Numeric `json:"promo_commission_rate"`
+	PromoCommissionUntil pgtype.Date    `json:"promo_commission_until"`
+	Status               string         `json:"status"`
+	CreatedAt            time.Time      `json:"created_at"`
+	UpdatedAt            time.Time      `json:"updated_at"`
+}
+
 type PartnerApplication struct {
 	ID              uuid.UUID          `json:"id"`
 	ContactName     string             `json:"contact_name"`

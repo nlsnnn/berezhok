@@ -15,19 +15,22 @@ import (
 )
 
 type appHandler struct {
-	log        *slog.Logger
-	appService appSvc
-	validator  *validator.Validator
+	log         *slog.Logger
+	validator   *validator.Validator
+	appService  appSvc
+	partService partnerSvc
 }
 
 func NewApplicationHandler(
 	log *slog.Logger,
 	svc appSvc,
+	partSvc partnerSvc,
 ) appHandler {
 	return appHandler{
 		log:        log,
 		appService: svc,
 		validator:  validator.New(),
+		partService: partSvc,
 	}
 }
 

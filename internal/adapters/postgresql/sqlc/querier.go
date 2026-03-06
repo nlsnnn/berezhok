@@ -12,10 +12,16 @@ import (
 
 type Querier interface {
 	CreateApplication(ctx context.Context, arg CreateApplicationParams) (PartnerApplication, error)
+	CreatePartner(ctx context.Context, arg CreatePartnerParams) (Partner, error)
 	DeleteApplication(ctx context.Context, id uuid.UUID) error
 	FindApplicationByID(ctx context.Context, id uuid.UUID) (PartnerApplication, error)
+	FindPartnerByID(ctx context.Context, id uuid.UUID) (Partner, error)
+	// Заявки на партнёрство
 	ListApplications(ctx context.Context) ([]PartnerApplication, error)
+	// Партнёры (юридические лица)
+	ListPartners(ctx context.Context) ([]Partner, error)
 	UpdateApplication(ctx context.Context, arg UpdateApplicationParams) error
+	UpdatePartner(ctx context.Context, arg UpdatePartnerParams) error
 }
 
 var _ Querier = (*Queries)(nil)

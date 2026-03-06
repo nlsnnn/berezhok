@@ -33,10 +33,13 @@ func (app *application) mount() http.Handler {
 	})
 
 	// Partner Module
+	partRepo := sqlc.New(app.db)
+	partService := service.NewPartnerService(partRepo)
+
 	// Application
 	appRepo := sqlc.New(app.db)
-	appSvc := service.NewApplicationService(appRepo)
-	appHandler := handlers.NewApplicationHandler(app.log, appSvc)
+	appSvc := service.NewApplicationService(appRepo, partService)
+	appHandler := handlers.NewApplicationHandler(app.log, appSvc, partService)
 
 	r.Route("/api/v1/", func(r chi.Router) {
 		// == Public Routes ==
