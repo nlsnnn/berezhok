@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:16-alpine
+    image: postgis/postgis:16-master
     container_name: berezhok-db
     environment:
       POSTGRES_HOST: ${DB_HOST}
