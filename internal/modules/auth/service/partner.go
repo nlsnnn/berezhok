@@ -46,5 +46,6 @@ func (a *partnerAuthenticator) Authenticate(ctx context.Context, email, password
 	}
 
 	claims.Access = token
+	claims.UserData = part
 	return &claims, nil
 }

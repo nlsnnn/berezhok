@@ -501,3 +501,20 @@ func (q *Queries) UpdatePartnerEmployee(ctx context.Context, arg UpdatePartnerEm
 	)
 	return err
 }
+
+const updatePartnerEmployeePassword = `-- name: UpdatePartnerEmployeePassword :exec
+UPDATE partner_employees
+SET password_hash = $1, must_change_password = $2
+WHERE id = $3
+`
+
+type UpdatePartnerEmployeePasswordParams struct {
+	PasswordHash       string      `json:"password_hash"`
+	MustChangePassword pgtype.Bool `json:"must_change_password"`
+	ID                 uuid.UUID   `json:"id"`
+}
+
+func (q *Queries) UpdatePartnerEmployeePassword(ctx context.Context, arg UpdatePartnerEmployeePasswordParams) error {
+	_, err := q.db.Exec(ctx, updatePartnerEmployeePassword, arg.PasswordHash, arg.MustChangePassword, arg.ID)
+	return err
+}

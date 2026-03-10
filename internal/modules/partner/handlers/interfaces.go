@@ -20,4 +20,5 @@ type partnerSvc interface {
 	List(ctx context.Context) ([]sqlc.Partner, error)
 	FindByID(ctx context.Context, id uuid.UUID) (sqlc.Partner, error)
 	Create(ctx context.Context, arg sqlc.CreatePartnerParams) (sqlc.Partner, error)
+	ChangePassword(ctx context.Context, partnerID uuid.UUID, currentPassword, newPassword string) error
 }

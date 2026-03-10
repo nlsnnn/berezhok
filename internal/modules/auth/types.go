@@ -8,4 +8,5 @@ type TokenClaims struct {
 	Role     string    `json:"role,omitempty"`
 	Access   string    `json:"access,omitempty"`
 	Refresh  string    `json:"refresh,omitempty"`
+	UserData any       `json:"user_data,omitempty"`
 }

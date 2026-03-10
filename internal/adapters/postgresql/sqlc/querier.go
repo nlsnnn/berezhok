@@ -30,6 +30,7 @@ type Querier interface {
 	UpdateApplication(ctx context.Context, arg UpdateApplicationParams) error
 	UpdatePartner(ctx context.Context, arg UpdatePartnerParams) error
 	UpdatePartnerEmployee(ctx context.Context, arg UpdatePartnerEmployeeParams) error
+	UpdatePartnerEmployeePassword(ctx context.Context, arg UpdatePartnerEmployeePasswordParams) error
 }
 
 var _ Querier = (*Queries)(nil)

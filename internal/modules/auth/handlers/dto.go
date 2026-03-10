@@ -13,3 +13,9 @@ type LoginResponse struct {
 	UserID string `json:"user_id"`
 	Token  string `json:"token"`
 }
+
+type LoginPartnerResponse struct {
+	UserID     string `json:"user_id"`
+	Token      string `json:"token"`
+	MustChange bool   `json:"must_change_password"`
+}

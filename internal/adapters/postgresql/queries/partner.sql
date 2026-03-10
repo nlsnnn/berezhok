@@ -67,5 +67,10 @@ SET partner_id = $1, location_id = $2, email = $3, password_hash = $4,
     role = $5, name = $6
 WHERE id = $7;
 
+-- name: UpdatePartnerEmployeePassword :exec
+UPDATE partner_employees
+SET password_hash = $1, must_change_password = $2
+WHERE id = $3;
+
 -- name: DeletePartnerEmployee :exec
 DELETE FROM partner_employees WHERE id = $1;

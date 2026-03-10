@@ -15,6 +15,7 @@ import (
 	partnerServices "github.com/nlsnnn/berezhok/internal/modules/partner/service"
 	"github.com/nlsnnn/berezhok/internal/shared/config"
 	"github.com/nlsnnn/berezhok/internal/shared/jwt"
+	middlewares "github.com/nlsnnn/berezhok/internal/shared/middleware"
 	"github.com/nlsnnn/berezhok/internal/shared/validator"
 )
 
@@ -38,10 +39,12 @@ func (app *application) mount() http.Handler {
 
 	// General
 	validator := validator.New()
+	jwtService := jwt.NewTokenService([]byte("supersecretkey"))
 
 	// Partner Module
 	partRepo := sqlc.New(app.db)
 	partService := partnerServices.NewPartnerService(partRepo)
+	partHandler := partnerHandlers.NewPartnerHandler(partService, app.log)
 
 	// Employee
 	employeeRepo := sqlc.New(app.db)
@@ -53,9 +56,11 @@ func (app *application) mount() http.Handler {
 	appHandler := partnerHandlers.NewApplicationHandler(app.log, appSvc, partService)
 
 	// Auth Module
-	jwtService := jwt.NewTokenService([]byte("supersecretkey"))
 	partnerAuthService := authServices.NewPartnerAuthenticator(partRepo, jwtService)
 	authHandler := authHandlers.NewAuthHandler(validator, app.log, partnerAuthService)
+
+	// Middlewares
+	authMiddleware := middlewares.NewAuthMiddleware(jwtService)
 
 	r.Route("/api/v1/", func(r chi.Router) {
 		// == Public Routes ==
@@ -75,8 +80,22 @@ func (app *application) mount() http.Handler {
 		// == Customer Routes ==
 
 		// == Partner Routes ==
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequireAuth("partner"))
+
+			r.Post("/partner/change-password", partHandler.ChangePassword)
+			// r.Get("/partner/profile", partHandler.GetProfile)
+			// r.Put("/partner/profile", partHandler.UpdateProfile)
+			// r.Get("/partner/employees", partHandler.ListEmployees)
+			// r.Post("/partner/employees", partHandler.CreateEmployee)
+			// r.Delete("/partner/employees/{id}", partHandler.DeleteEmployee)
+		})
 
 		// == Admin Routes ==
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequireAuth("admin"))
+
+		})
 	})
 
 	return r

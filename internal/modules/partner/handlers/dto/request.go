@@ -13,3 +13,8 @@ type CreateApplicationRequest struct {
 type RejectApplicationRequest struct {
 	RejectionReason string `json:"rejection_reason" validate:"required"`
 }
+
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password" validate:"required,min=8"`
+	NewPassword     string `json:"new_password" validate:"required,min=8"`
+}
