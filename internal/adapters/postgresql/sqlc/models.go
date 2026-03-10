@@ -11,6 +11,33 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+// Заведения (точки партнёров)
+type Location struct {
+	ID            uuid.UUID        `json:"id"`
+	PartnerID     uuid.UUID        `json:"partner_id"`
+	CategoryCode  string           `json:"category_code"`
+	Name          string           `json:"name"`
+	Address       string           `json:"address"`
+	Location      interface{}      `json:"location"`
+	Phone         pgtype.Text      `json:"phone"`
+	LogoUrl       pgtype.Text      `json:"logo_url"`
+	CoverImageUrl pgtype.Text      `json:"cover_image_url"`
+	GalleryUrls   []string         `json:"gallery_urls"`
+	WorkingHours  []byte           `json:"working_hours"`
+	Status        string           `json:"status"`
+	CreatedAt     pgtype.Timestamp `json:"created_at"`
+	UpdatedAt     pgtype.Timestamp `json:"updated_at"`
+}
+
+type LocationCategory struct {
+	Code      string      `json:"code"`
+	NameRu    string      `json:"name_ru"`
+	NameEn    pgtype.Text `json:"name_en"`
+	IconUrl   pgtype.Text `json:"icon_url"`
+	Color     pgtype.Text `json:"color"`
+	SortOrder pgtype.Int4 `json:"sort_order"`
+}
+
 // Партнёры (юридические лица)
 type Partner struct {
 	ID                   uuid.UUID      `json:"id"`
@@ -40,4 +67,30 @@ type PartnerApplication struct {
 	ReviewedAt      pgtype.Timestamptz `json:"reviewed_at"`
 	RejectionReason pgtype.Text        `json:"rejection_reason"`
 	CreatedAt       time.Time          `json:"created_at"`
+}
+
+// Сотрудники партнёров
+type PartnerEmployee struct {
+	ID                 uuid.UUID          `json:"id"`
+	PartnerID          uuid.UUID          `json:"partner_id"`
+	LocationID         pgtype.UUID        `json:"location_id"`
+	Email              string             `json:"email"`
+	PasswordHash       string             `json:"password_hash"`
+	Role               string             `json:"role"`
+	Name               pgtype.Text        `json:"name"`
+	MustChangePassword pgtype.Bool        `json:"must_change_password"`
+	LastLoginAt        pgtype.Timestamptz `json:"last_login_at"`
+	CreatedAt          time.Time          `json:"created_at"`
+	UpdatedAt          time.Time          `json:"updated_at"`
+}
+
+// Юридическая информация партнёров
+type PartnerLegalInfo struct {
+	PartnerID    uuid.UUID        `json:"partner_id"`
+	Inn          string           `json:"inn"`
+	Ogrn         pgtype.Text      `json:"ogrn"`
+	Kpp          pgtype.Text      `json:"kpp"`
+	LegalAddress string           `json:"legal_address"`
+	CreatedAt    pgtype.Timestamp `json:"created_at"`
+	UpdatedAt    pgtype.Timestamp `json:"updated_at"`
 }

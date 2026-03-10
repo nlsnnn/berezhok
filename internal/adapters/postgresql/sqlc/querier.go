@@ -13,15 +13,23 @@ import (
 type Querier interface {
 	CreateApplication(ctx context.Context, arg CreateApplicationParams) (PartnerApplication, error)
 	CreatePartner(ctx context.Context, arg CreatePartnerParams) (Partner, error)
+	CreatePartnerEmployee(ctx context.Context, arg CreatePartnerEmployeeParams) (PartnerEmployee, error)
 	DeleteApplication(ctx context.Context, id uuid.UUID) error
+	DeletePartnerEmployee(ctx context.Context, id uuid.UUID) error
 	FindApplicationByID(ctx context.Context, id uuid.UUID) (PartnerApplication, error)
 	FindPartnerByID(ctx context.Context, id uuid.UUID) (Partner, error)
+	FindPartnerEmployeeByEmail(ctx context.Context, email string) (PartnerEmployee, error)
+	FindPartnerEmployeeByID(ctx context.Context, id uuid.UUID) (PartnerEmployee, error)
 	// Заявки на партнёрство
 	ListApplications(ctx context.Context) ([]PartnerApplication, error)
+	ListEmployeesByPartnerID(ctx context.Context, partnerID uuid.UUID) ([]PartnerEmployee, error)
+	// Сотрудники партнёров
+	ListPartnerEmployees(ctx context.Context) ([]PartnerEmployee, error)
 	// Партнёры (юридические лица)
 	ListPartners(ctx context.Context) ([]Partner, error)
 	UpdateApplication(ctx context.Context, arg UpdateApplicationParams) error
 	UpdatePartner(ctx context.Context, arg UpdatePartnerParams) error
+	UpdatePartnerEmployee(ctx context.Context, arg UpdatePartnerEmployeeParams) error
 }
 
 var _ Querier = (*Queries)(nil)

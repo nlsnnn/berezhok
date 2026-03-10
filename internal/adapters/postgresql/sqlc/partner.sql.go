@@ -110,12 +110,62 @@ func (q *Queries) CreatePartner(ctx context.Context, arg CreatePartnerParams) (P
 	return i, err
 }
 
+const createPartnerEmployee = `-- name: CreatePartnerEmployee :one
+INSERT INTO partner_employees (
+    partner_id, location_id, email, password_hash, role, name
+) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, partner_id, location_id, email, password_hash, role, name, must_change_password, last_login_at, created_at, updated_at
+`
+
+type CreatePartnerEmployeeParams struct {
+	PartnerID    uuid.UUID   `json:"partner_id"`
+	LocationID   pgtype.UUID `json:"location_id"`
+	Email        string      `json:"email"`
+	PasswordHash string      `json:"password_hash"`
+	Role         string      `json:"role"`
+	Name         pgtype.Text `json:"name"`
+}
+
+func (q *Queries) CreatePartnerEmployee(ctx context.Context, arg CreatePartnerEmployeeParams) (PartnerEmployee, error) {
+	row := q.db.QueryRow(ctx, createPartnerEmployee,
+		arg.PartnerID,
+		arg.LocationID,
+		arg.Email,
+		arg.PasswordHash,
+		arg.Role,
+		arg.Name,
+	)
+	var i PartnerEmployee
+	err := row.Scan(
+		&i.ID,
+		&i.PartnerID,
+		&i.LocationID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Role,
+		&i.Name,
+		&i.MustChangePassword,
+		&i.LastLoginAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const deleteApplication = `-- name: DeleteApplication :exec
 DELETE FROM partner_applications WHERE id = $1
 `
 
 func (q *Queries) DeleteApplication(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteApplication, id)
+	return err
+}
+
+const deletePartnerEmployee = `-- name: DeletePartnerEmployee :exec
+DELETE FROM partner_employees WHERE id = $1
+`
+
+func (q *Queries) DeletePartnerEmployee(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deletePartnerEmployee, id)
 	return err
 }
 
@@ -167,6 +217,52 @@ func (q *Queries) FindPartnerByID(ctx context.Context, id uuid.UUID) (Partner, e
 	return i, err
 }
 
+const findPartnerEmployeeByEmail = `-- name: FindPartnerEmployeeByEmail :one
+SELECT id, partner_id, location_id, email, password_hash, role, name, must_change_password, last_login_at, created_at, updated_at FROM partner_employees WHERE email = $1
+`
+
+func (q *Queries) FindPartnerEmployeeByEmail(ctx context.Context, email string) (PartnerEmployee, error) {
+	row := q.db.QueryRow(ctx, findPartnerEmployeeByEmail, email)
+	var i PartnerEmployee
+	err := row.Scan(
+		&i.ID,
+		&i.PartnerID,
+		&i.LocationID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Role,
+		&i.Name,
+		&i.MustChangePassword,
+		&i.LastLoginAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const findPartnerEmployeeByID = `-- name: FindPartnerEmployeeByID :one
+SELECT id, partner_id, location_id, email, password_hash, role, name, must_change_password, last_login_at, created_at, updated_at FROM partner_employees WHERE id = $1
+`
+
+func (q *Queries) FindPartnerEmployeeByID(ctx context.Context, id uuid.UUID) (PartnerEmployee, error) {
+	row := q.db.QueryRow(ctx, findPartnerEmployeeByID, id)
+	var i PartnerEmployee
+	err := row.Scan(
+		&i.ID,
+		&i.PartnerID,
+		&i.LocationID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Role,
+		&i.Name,
+		&i.MustChangePassword,
+		&i.LastLoginAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const listApplications = `-- name: ListApplications :many
 SELECT id, contact_name, contact_email, contact_phone, business_name, category_code, address, description, status, reviewed_at, rejection_reason, created_at FROM partner_applications
 `
@@ -194,6 +290,79 @@ func (q *Queries) ListApplications(ctx context.Context) ([]PartnerApplication, e
 			&i.ReviewedAt,
 			&i.RejectionReason,
 			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listEmployeesByPartnerID = `-- name: ListEmployeesByPartnerID :many
+SELECT id, partner_id, location_id, email, password_hash, role, name, must_change_password, last_login_at, created_at, updated_at FROM partner_employees WHERE partner_id = $1
+`
+
+func (q *Queries) ListEmployeesByPartnerID(ctx context.Context, partnerID uuid.UUID) ([]PartnerEmployee, error) {
+	rows, err := q.db.Query(ctx, listEmployeesByPartnerID, partnerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PartnerEmployee
+	for rows.Next() {
+		var i PartnerEmployee
+		if err := rows.Scan(
+			&i.ID,
+			&i.PartnerID,
+			&i.LocationID,
+			&i.Email,
+			&i.PasswordHash,
+			&i.Role,
+			&i.Name,
+			&i.MustChangePassword,
+			&i.LastLoginAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPartnerEmployees = `-- name: ListPartnerEmployees :many
+SELECT id, partner_id, location_id, email, password_hash, role, name, must_change_password, last_login_at, created_at, updated_at FROM partner_employees
+`
+
+// Сотрудники партнёров
+func (q *Queries) ListPartnerEmployees(ctx context.Context) ([]PartnerEmployee, error) {
+	rows, err := q.db.Query(ctx, listPartnerEmployees)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PartnerEmployee
+	for rows.Next() {
+		var i PartnerEmployee
+		if err := rows.Scan(
+			&i.ID,
+			&i.PartnerID,
+			&i.LocationID,
+			&i.Email,
+			&i.PasswordHash,
+			&i.Role,
+			&i.Name,
+			&i.MustChangePassword,
+			&i.LastLoginAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -298,6 +467,36 @@ func (q *Queries) UpdatePartner(ctx context.Context, arg UpdatePartnerParams) er
 		arg.PromoCommissionRate,
 		arg.PromoCommissionUntil,
 		arg.Status,
+		arg.ID,
+	)
+	return err
+}
+
+const updatePartnerEmployee = `-- name: UpdatePartnerEmployee :exec
+UPDATE partner_employees
+SET partner_id = $1, location_id = $2, email = $3, password_hash = $4, 
+    role = $5, name = $6
+WHERE id = $7
+`
+
+type UpdatePartnerEmployeeParams struct {
+	PartnerID    uuid.UUID   `json:"partner_id"`
+	LocationID   pgtype.UUID `json:"location_id"`
+	Email        string      `json:"email"`
+	PasswordHash string      `json:"password_hash"`
+	Role         string      `json:"role"`
+	Name         pgtype.Text `json:"name"`
+	ID           uuid.UUID   `json:"id"`
+}
+
+func (q *Queries) UpdatePartnerEmployee(ctx context.Context, arg UpdatePartnerEmployeeParams) error {
+	_, err := q.db.Exec(ctx, updatePartnerEmployee,
+		arg.PartnerID,
+		arg.LocationID,
+		arg.Email,
+		arg.PasswordHash,
+		arg.Role,
+		arg.Name,
 		arg.ID,
 	)
 	return err

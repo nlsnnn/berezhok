@@ -41,3 +41,31 @@ SET legal_name = $1, brand_name = $2, logo_url = $3, parent_partner_id = $4,
     account_type = $5, commission_rate = $6, promo_commission_rate = $7, 
     promo_commission_until = $8, status = $9
 WHERE id = $10;
+
+
+-- Сотрудники партнёров
+-- name: ListPartnerEmployees :many
+SELECT * FROM partner_employees;
+
+-- name: ListEmployeesByPartnerID :many
+SELECT * FROM partner_employees WHERE partner_id = $1;
+
+-- name: FindPartnerEmployeeByID :one
+SELECT * FROM partner_employees WHERE id = $1;
+
+-- name: FindPartnerEmployeeByEmail :one
+SELECT * FROM partner_employees WHERE email = $1;
+
+-- name: CreatePartnerEmployee :one
+INSERT INTO partner_employees (
+    partner_id, location_id, email, password_hash, role, name
+) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;
+
+-- name: UpdatePartnerEmployee :exec
+UPDATE partner_employees
+SET partner_id = $1, location_id = $2, email = $3, password_hash = $4, 
+    role = $5, name = $6
+WHERE id = $7;
+
+-- name: DeletePartnerEmployee :exec
+DELETE FROM partner_employees WHERE id = $1;

@@ -9,9 +9,13 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5"
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
-	"github.com/nlsnnn/berezhok/internal/modules/partner/handlers"
-	"github.com/nlsnnn/berezhok/internal/modules/partner/service"
+	authHandlers "github.com/nlsnnn/berezhok/internal/modules/auth/handlers"
+	authServices "github.com/nlsnnn/berezhok/internal/modules/auth/service"
+	partnerHandlers "github.com/nlsnnn/berezhok/internal/modules/partner/handlers"
+	partnerServices "github.com/nlsnnn/berezhok/internal/modules/partner/service"
 	"github.com/nlsnnn/berezhok/internal/shared/config"
+	"github.com/nlsnnn/berezhok/internal/shared/jwt"
+	"github.com/nlsnnn/berezhok/internal/shared/validator"
 )
 
 func (app *application) mount() http.Handler {
@@ -32,17 +36,33 @@ func (app *application) mount() http.Handler {
 		w.Write([]byte("OK"))
 	})
 
+	// General
+	validator := validator.New()
+
 	// Partner Module
 	partRepo := sqlc.New(app.db)
-	partService := service.NewPartnerService(partRepo)
+	partService := partnerServices.NewPartnerService(partRepo)
+
+	// Employee
+	employeeRepo := sqlc.New(app.db)
+	employeeService := partnerServices.NewEmployeeService(employeeRepo)
 
 	// Application
 	appRepo := sqlc.New(app.db)
-	appSvc := service.NewApplicationService(appRepo, partService)
-	appHandler := handlers.NewApplicationHandler(app.log, appSvc, partService)
+	appSvc := partnerServices.NewApplicationService(appRepo, partService, employeeService)
+	appHandler := partnerHandlers.NewApplicationHandler(app.log, appSvc, partService)
+
+	// Auth Module
+	jwtService := jwt.NewTokenService([]byte("supersecretkey"))
+	partnerAuthService := authServices.NewPartnerAuthenticator(partRepo, jwtService)
+	authHandler := authHandlers.NewAuthHandler(validator, app.log, partnerAuthService)
 
 	r.Route("/api/v1/", func(r chi.Router) {
 		// == Public Routes ==
+
+		// Auth
+		r.Post("/partner/auth/login", authHandler.PartnerLogin)
+		// r.Post("/admin/auth/login", authHandler.AdminLogin)
 
 		// Application
 		r.Post("/applications", appHandler.Create)

@@ -2,26 +2,36 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
 	"github.com/nlsnnn/berezhok/internal/modules/partner"
+	"github.com/nlsnnn/berezhok/internal/shared/auth"
+	"github.com/nlsnnn/berezhok/internal/shared/generator"
 )
 
 type appService struct {
-	repo        sqlc.Querier
-	partService partnerSvc
+	repo            sqlc.Querier
+	partService     partnerSvc
+	employeeService employeeSvc
 }
 
 type partnerSvc interface {
 	Create(ctx context.Context, arg sqlc.CreatePartnerParams) (sqlc.Partner, error)
 }
 
-func NewApplicationService(appRepo sqlc.Querier, partSvc partnerSvc) *appService {
+type employeeSvc interface {
+	Create(ctx context.Context, arg sqlc.CreatePartnerEmployeeParams) (sqlc.PartnerEmployee, error)
+}
+
+func NewApplicationService(appRepo sqlc.Querier, partSvc partnerSvc, employeeSvc employeeSvc) *appService {
 	return &appService{
-		repo:        appRepo,
-		partService: partSvc,
+		repo:            appRepo,
+		partService:     partSvc,
+		employeeService: employeeSvc,
 	}
 }
 
@@ -58,16 +68,37 @@ func (a *appService) Approve(ctx context.Context, id uuid.UUID) error {
 		return partner.ErrInvalidStatusTransition
 	}
 
-	if _, err := a.partService.Create(ctx, sqlc.CreatePartnerParams{
+	partner, err := a.partService.Create(ctx, sqlc.CreatePartnerParams{
 		LegalName: app.BusinessName,
 		Status:    "pending_documents",
+	})
+	if err != nil {
+		return err
+	}
+
+	password := generator.GeneratePassword()
+	passwordHash, err := auth.Hash(password)
+	if err != nil {
+		return err
+	}
+
+	if _, err := a.employeeService.Create(ctx, sqlc.CreatePartnerEmployeeParams{
+		PartnerID:    partner.ID,
+		Name:         pgtype.Text{String: app.ContactName, Valid: true},
+		Email:        app.ContactEmail,
+		Role:         "owner",
+		PasswordHash: passwordHash,
 	}); err != nil {
 		return err
 	}
 
+	// send email with credentials
+	fmt.Printf("Partner approved. Contact: %s, Password: %s\n", app.ContactEmail, password)
+
 	return a.Update(ctx, sqlc.UpdateApplicationParams{
-		ID:     id,
-		Status: "approved",
+		ID:         id,
+		Status:     "approved",
+		ReviewedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 	})
 }
 
@@ -85,5 +116,6 @@ func (a *appService) Reject(ctx context.Context, id uuid.UUID, reason string) er
 		ID:              id,
 		Status:          "rejected",
 		RejectionReason: pgtype.Text{String: reason, Valid: true},
+		ReviewedAt:      pgtype.Timestamptz{Time: time.Now(), Valid: true},
 	})
 }
