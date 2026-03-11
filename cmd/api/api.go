@@ -84,7 +84,7 @@ func (app *application) mount() http.Handler {
 			r.Use(authMiddleware.RequireAuth("partner"))
 
 			r.Post("/partner/change-password", partHandler.ChangePassword)
-			// r.Get("/partner/profile", partHandler.GetProfile)
+			r.Get("/partner/profile", partHandler.Profile)
 			// r.Put("/partner/profile", partHandler.UpdateProfile)
 			// r.Get("/partner/employees", partHandler.ListEmployees)
 			// r.Post("/partner/employees", partHandler.CreateEmployee)

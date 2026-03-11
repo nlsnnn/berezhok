@@ -62,3 +62,52 @@ func (h *partnerHandler) ChangePassword(w http.ResponseWriter, r *http.Request) 
 
 	response.Success(w, map[string]string{"message": "password changed successfully"})
 }
+
+func (h *partnerHandler) Profile(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value("user_id").(uuid.UUID)
+	if !ok {
+		h.log.Error("user_id not found in context")
+		response.InternalError(w, nil)
+		return
+	}
+
+	profile, err := h.partService.Profile(r.Context(), userID)
+	if err != nil {
+		h.log.Error("failed to get profile", sl.Err(err))
+		response.InternalError(w, nil)
+		return
+	}
+
+	commissionRate, _ := profile.CommissionRate.Float64Value()
+
+	res := dto.PartnerProfileResponse{
+		Partner: dto.PartnerResponse{
+			ID:             profile.PartnerID,
+			LegalName:      profile.LegalName,
+			BrandName:      profile.BrandName.String,
+			Status:         profile.PartnerStatus,
+			CommissionRate: commissionRate.Float64,
+		},
+		Employee: dto.EmployeeResponse{
+			ID:    profile.EmployeeID,
+			Email: profile.Email,
+			Name:  profile.EmployeeName.String,
+			Role:  profile.Role,
+		},
+	}
+
+	if profile.PromoCommissionUntil.Valid {
+		promoTime := profile.PromoCommissionUntil.Time
+		res.Partner.PromoUntil = &promoTime
+	}
+
+	if profile.LocationID.Valid {
+		res.Location = &dto.LocationResponse{
+			ID:      profile.LocationID.Bytes,
+			Name:    profile.LocationName.String,
+			Address: profile.LocationAddress.String,
+		}
+	}
+
+	response.Success(w, res)
+}

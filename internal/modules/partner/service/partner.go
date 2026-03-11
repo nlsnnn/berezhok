@@ -57,3 +57,7 @@ func (s *partService) ChangePassword(ctx context.Context, userID uuid.UUID, curr
 		MustChangePassword: pgtype.Bool{Valid: true, Bool: false},
 	})
 }
+
+func (s *partService) Profile(ctx context.Context, userID uuid.UUID) (sqlc.GetPartnerProfileRow, error) {
+	return s.repo.GetPartnerProfile(ctx, userID)
+}

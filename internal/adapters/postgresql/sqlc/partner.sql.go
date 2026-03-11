@@ -263,6 +263,55 @@ func (q *Queries) FindPartnerEmployeeByID(ctx context.Context, id uuid.UUID) (Pa
 	return i, err
 }
 
+const getPartnerProfile = `-- name: GetPartnerProfile :one
+SELECT 
+    e.id as employee_id, e.name as employee_name, e.email, e.role,
+    p.id as partner_id, p.legal_name, p.brand_name, p.status as partner_status,
+    p.commission_rate, p.promo_commission_until,
+    l.id as location_id, l.name as location_name, l.address as location_address
+FROM partner_employees e
+JOIN partners p ON e.partner_id = p.id
+LEFT JOIN locations l ON e.location_id = l.id
+WHERE e.id = $1
+`
+
+type GetPartnerProfileRow struct {
+	EmployeeID           uuid.UUID      `json:"employee_id"`
+	EmployeeName         pgtype.Text    `json:"employee_name"`
+	Email                string         `json:"email"`
+	Role                 string         `json:"role"`
+	PartnerID            uuid.UUID      `json:"partner_id"`
+	LegalName            string         `json:"legal_name"`
+	BrandName            pgtype.Text    `json:"brand_name"`
+	PartnerStatus        string         `json:"partner_status"`
+	CommissionRate       pgtype.Numeric `json:"commission_rate"`
+	PromoCommissionUntil pgtype.Date    `json:"promo_commission_until"`
+	LocationID           pgtype.UUID    `json:"location_id"`
+	LocationName         pgtype.Text    `json:"location_name"`
+	LocationAddress      pgtype.Text    `json:"location_address"`
+}
+
+func (q *Queries) GetPartnerProfile(ctx context.Context, id uuid.UUID) (GetPartnerProfileRow, error) {
+	row := q.db.QueryRow(ctx, getPartnerProfile, id)
+	var i GetPartnerProfileRow
+	err := row.Scan(
+		&i.EmployeeID,
+		&i.EmployeeName,
+		&i.Email,
+		&i.Role,
+		&i.PartnerID,
+		&i.LegalName,
+		&i.BrandName,
+		&i.PartnerStatus,
+		&i.CommissionRate,
+		&i.PromoCommissionUntil,
+		&i.LocationID,
+		&i.LocationName,
+		&i.LocationAddress,
+	)
+	return i, err
+}
+
 const listApplications = `-- name: ListApplications :many
 SELECT id, contact_name, contact_email, contact_phone, business_name, category_code, address, description, status, reviewed_at, rejection_reason, created_at FROM partner_applications
 `

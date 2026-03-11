@@ -22,6 +22,36 @@ type ApplicationResponse struct {
 	CreatedAt       time.Time  `json:"created_at"`
 }
 
+type PartnerProfileResponse struct {
+	Partner  PartnerResponse   `json:"partner"`
+	Employee EmployeeResponse  `json:"employee"`
+	Location *LocationResponse `json:"location,omitempty"`
+}
+
+type PartnerResponse struct {
+	ID             uuid.UUID  `json:"id"`
+	LegalName      string     `json:"legal_name"`
+	BrandName      string     `json:"brand_name"`
+	Status         string     `json:"status"`
+	CommissionRate float64    `json:"commission_rate"`
+	PromoUntil     *time.Time `json:"promo_until,omitempty"`
+}
+
+type EmployeeResponse struct {
+	ID                 uuid.UUID `json:"id"`
+	Email              string    `json:"email"`
+	Name               string    `json:"name"`
+	Role               string    `json:"role"`
+	MustChangePassword bool      `json:"must_change_password"`
+	CreatedAt          time.Time `json:"created_at"`
+}
+
+type LocationResponse struct {
+	ID      uuid.UUID `json:"id"`
+	Name    string    `json:"name"`
+	Address string    `json:"address"`
+}
+
 func FromApplication(m sqlc.PartnerApplication) ApplicationResponse {
 	var reviewedAt *time.Time
 	if m.ReviewedAt.Valid {

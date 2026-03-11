@@ -28,6 +28,17 @@ SELECT * FROM partners;
 -- name: FindPartnerByID :one
 SELECT * FROM partners WHERE id = $1;
 
+-- name: GetPartnerProfile :one
+SELECT 
+    e.id as employee_id, e.name as employee_name, e.email, e.role,
+    p.id as partner_id, p.legal_name, p.brand_name, p.status as partner_status,
+    p.commission_rate, p.promo_commission_until,
+    l.id as location_id, l.name as location_name, l.address as location_address
+FROM partner_employees e
+JOIN partners p ON e.partner_id = p.id
+LEFT JOIN locations l ON e.location_id = l.id
+WHERE e.id = $1;
+
 -- name: CreatePartner :one
 INSERT INTO partners (
     legal_name, brand_name, logo_url, parent_partner_id, account_type, 
