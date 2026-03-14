@@ -1,14 +1,9 @@
 package dto
 
-import (
-	"time"
-
-	"github.com/google/uuid"
-	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
-)
+import "time"
 
 type ApplicationResponse struct {
-	ID              uuid.UUID  `json:"id"`
+	ID              string     `json:"id"`
 	ContactName     string     `json:"contact_name"`
 	ContactEmail    string     `json:"contact_email"`
 	ContactPhone    string     `json:"contact_phone"`
@@ -29,7 +24,7 @@ type PartnerProfileResponse struct {
 }
 
 type PartnerResponse struct {
-	ID             uuid.UUID  `json:"id"`
+	ID             string     `json:"id"`
 	LegalName      string     `json:"legal_name"`
 	BrandName      string     `json:"brand_name"`
 	Status         string     `json:"status"`
@@ -38,7 +33,7 @@ type PartnerResponse struct {
 }
 
 type EmployeeResponse struct {
-	ID                 uuid.UUID `json:"id"`
+	ID                 string    `json:"id"`
 	Email              string    `json:"email"`
 	Name               string    `json:"name"`
 	Role               string    `json:"role"`
@@ -50,26 +45,4 @@ type LocationResponse struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
 	Address string `json:"address"`
-}
-
-func FromApplication(m sqlc.PartnerApplication) ApplicationResponse {
-	var reviewedAt *time.Time
-	if m.ReviewedAt.Valid {
-		reviewedAt = &m.ReviewedAt.Time
-	}
-
-	return ApplicationResponse{
-		ID:              m.ID,
-		ContactName:     m.ContactName,
-		ContactEmail:    m.ContactEmail,
-		ContactPhone:    m.ContactPhone,
-		BusinessName:    m.BusinessName,
-		CategoryCode:    m.CategoryCode.String,
-		Address:         m.Address.String,
-		Description:     m.Description.String,
-		Status:          m.Status,
-		ReviewedAt:      reviewedAt,
-		RejectionReason: m.RejectionReason.String,
-		CreatedAt:       m.CreatedAt,
-	}
 }

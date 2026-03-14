@@ -1,23 +1,21 @@
 package handlers
 
 import (
-	"errors"
 	"log/slog"
 	"net/http"
 
-	"github.com/google/uuid"
-	"github.com/nlsnnn/berezhok/internal/modules/partner"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/handlers/dto"
+	partnerErrors "github.com/nlsnnn/berezhok/internal/modules/partner/errors"
 	"github.com/nlsnnn/berezhok/internal/shared/logger/sl"
 	"github.com/nlsnnn/berezhok/internal/shared/response"
 	"github.com/nlsnnn/berezhok/internal/shared/validator"
+	"errors"
 )
 
 type locationHandler struct {
 	log       *slog.Logger
 	validator *validator.Validator
 	svc       locationSvc
-	// partService partnerSvc
 }
 
 func NewLocationHandler(
@@ -30,7 +28,6 @@ func NewLocationHandler(
 		log:       log,
 		svc:       svc,
 		validator: validator,
-		// partService: partSvc,
 	}
 }
 
@@ -48,12 +45,6 @@ func (h *locationHandler) Create(w http.ResponseWriter, r *http.Request) {
 		response.InternalError(w, nil)
 		return
 	}
-	partnerUUID, err := uuid.Parse(partnerID)
-	if err != nil {
-		log.Error("invalid partner_id in context", sl.Err(err))
-		response.InternalError(w, nil)
-		return
-	}
 
 	var req dto.CreateLocationRequest
 
@@ -63,30 +54,14 @@ func (h *locationHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// location, err := h.svc.Create(r.Context(), sqlc.CreateLocationParams{
-	// 	Name:          req.Name,
-	// 	Address:       req.Address,
-	// 	PartnerID:     partnerUUID,
-	// 	Status:        "inactive",
-	// 	CategoryCode:  req.CategoryCode,
-	// 	StMakepoint:   req.Latitude,
-	// 	StMakepoint_2: req.Longitude,
-	// })
-
-	location, err := h.svc.Create(r.Context(), partnerUUID,
-		req.CategoryCode,
-		req.Name,
-		req.Address,
-		req.Latitude,
-		req.Longitude,
-	)
+	location, err := h.svc.Create(r.Context(), req.ToInput(partnerID))
 
 	if err != nil {
 		switch {
-		case errors.Is(err, partner.ErrPartnerNotFound):
+		case errors.Is(err, partnerErrors.ErrPartnerNotFound):
 			log.Error("partner not found", sl.Err(err))
 			response.BadRequest(w, "partner not found")
-		case errors.Is(err, partner.ErrLocationCategoryNotFound):
+		case errors.Is(err, partnerErrors.ErrLocationCategoryNotFound):
 			log.Error("location category not found", sl.Err(err))
 			response.BadRequest(w, "invalid category code")
 		default:

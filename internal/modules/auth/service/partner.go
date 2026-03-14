@@ -3,8 +3,9 @@ package service
 import (
 	"context"
 
-	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
+	"github.com/google/uuid"
 	"github.com/nlsnnn/berezhok/internal/modules/auth"
+	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 	hasher "github.com/nlsnnn/berezhok/internal/shared/auth"
 )
 
@@ -13,12 +14,16 @@ type TokenService interface {
 	Validate(tokenString string) (*auth.TokenClaims, error)
 }
 
+type employeeFinder interface {
+	FindByEmail(ctx context.Context, email string) (domain.Employee, error)
+}
+
 type partnerAuthenticator struct {
-	repo         *sqlc.Queries
+	repo         employeeFinder
 	tokenService TokenService
 }
 
-func NewPartnerAuthenticator(repo *sqlc.Queries, tokenService TokenService) *partnerAuthenticator {
+func NewPartnerAuthenticator(repo employeeFinder, tokenService TokenService) *partnerAuthenticator {
 	return &partnerAuthenticator{
 		repo:         repo,
 		tokenService: tokenService,
@@ -26,20 +31,29 @@ func NewPartnerAuthenticator(repo *sqlc.Queries, tokenService TokenService) *par
 }
 
 func (a *partnerAuthenticator) Authenticate(ctx context.Context, email, password string) (*auth.TokenClaims, error) {
-	part, err := a.repo.FindPartnerEmployeeByEmail(ctx, email)
+	emp, err := a.repo.FindByEmail(ctx, email)
 	if err != nil {
 		return nil, err
 	}
 
-	if !hasher.Compare(part.PasswordHash, password) {
+	if !hasher.Compare(emp.PasswordHash, password) {
 		return nil, auth.ErrInvalidCredentials
 	}
 
+	userID, err := uuid.Parse(emp.ID)
+	if err != nil {
+		return nil, err
+	}
+	partnerID, err := uuid.Parse(emp.PartnerID)
+	if err != nil {
+		return nil, err
+	}
+
 	claims := auth.TokenClaims{
-		UserID:   part.ID,
+		UserID:   userID,
 		UserType: "partner",
-		Role:     part.Role,
-		UserData: part.PartnerID,
+		Role:     string(emp.Role),
+		UserData: partnerID,
 	}
 	token, err := a.tokenService.Generate(claims)
 	if err != nil {
@@ -47,6 +61,6 @@ func (a *partnerAuthenticator) Authenticate(ctx context.Context, email, password
 	}
 
 	claims.Access = token
-	claims.UserData = part
+	claims.UserData = emp
 	return &claims, nil
 }

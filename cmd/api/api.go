@@ -12,8 +12,8 @@ import (
 	authHandlers "github.com/nlsnnn/berezhok/internal/modules/auth/handlers"
 	authServices "github.com/nlsnnn/berezhok/internal/modules/auth/service"
 	partnerHandlers "github.com/nlsnnn/berezhok/internal/modules/partner/handlers"
+	partnerRepos "github.com/nlsnnn/berezhok/internal/modules/partner/repository"
 	partnerServices "github.com/nlsnnn/berezhok/internal/modules/partner/service"
-	partnerRepos "github.com/nlsnnn/berezhok/internal/repository/partner"
 	"github.com/nlsnnn/berezhok/internal/shared/config"
 	"github.com/nlsnnn/berezhok/internal/shared/jwt"
 	middlewares "github.com/nlsnnn/berezhok/internal/shared/middleware"
@@ -23,49 +23,41 @@ import (
 func (app *application) mount() http.Handler {
 	r := chi.NewRouter()
 
-	// A good base middleware stack
-	r.Use(middleware.RequestID) // important for rate limiting
-	r.Use(middleware.RealIP)    // import for rate limiting and analytics and tracing
+	r.Use(middleware.RequestID)
+	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer) // recover from crashes
-
-	// Set a timeout value on the request context (ctx), that will signal
-	// through ctx.Done() that the request has timed out and further
-	// processing should be stopped.
+	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("OK"))
 	})
 
-	// General
+	// Shared infrastructure
 	queries := sqlc.New(app.db)
-	validator := validator.New()
+	v := validator.New()
 	jwtService := jwt.NewTokenService([]byte("supersecretkey"))
 
-	// Partner Module
-	partRepo := sqlc.New(app.db)
-	partService := partnerServices.NewPartnerService(partRepo)
-	partHandler := partnerHandlers.NewPartnerHandler(partService, app.log)
-
-	// Employee
-	employeeRepo := sqlc.New(app.db)
-	employeeService := partnerServices.NewEmployeeService(employeeRepo)
-
-	// Application
-	appRepo := sqlc.New(app.db)
-	appSvc := partnerServices.NewApplicationService(appRepo, partService, employeeService)
-	appHandler := partnerHandlers.NewApplicationHandler(app.log, appSvc, partService)
-
-	// Location
-	// locationRepo := sqlc.New(app.db)
+	// Partner module — repositories
+	partnerRepo := partnerRepos.NewPartnerRepo(queries)
+	employeeRepo := partnerRepos.NewEmployeeRepo(queries)
+	appRepo := partnerRepos.NewApplicationRepo(queries)
 	locationRepo := partnerRepos.NewLocationRepo(queries)
-	locationService := partnerServices.NewLocationService(appRepo, locationRepo)
-	locationHandler := partnerHandlers.NewLocationHandler(app.log, validator, &locationService, partService)
 
-	// Auth Module
-	partnerAuthService := authServices.NewPartnerAuthenticator(partRepo, jwtService)
-	authHandler := authHandlers.NewAuthHandler(validator, app.log, partnerAuthService)
+	// Partner module — services
+	partnerSvc := partnerServices.NewPartnerService(partnerRepo, employeeRepo)
+	employeeSvc := partnerServices.NewEmployeeService(employeeRepo)
+	appSvc := partnerServices.NewApplicationService(appRepo, partnerSvc, employeeSvc)
+	locationSvc := partnerServices.NewLocationService(locationRepo)
+
+	// Partner module — handlers
+	partHandler := partnerHandlers.NewPartnerHandler(partnerSvc, app.log)
+	appHandler := partnerHandlers.NewApplicationHandler(app.log, appSvc)
+	locationHandler := partnerHandlers.NewLocationHandler(app.log, v, &locationSvc, partnerSvc)
+
+	// Auth module
+	partnerAuthSvc := authServices.NewPartnerAuthenticator(employeeRepo, jwtService)
+	authHandler := authHandlers.NewAuthHandler(v, app.log, partnerAuthSvc)
 
 	// Middlewares
 	authMiddleware := middlewares.NewAuthMiddleware(jwtService)
@@ -75,7 +67,6 @@ func (app *application) mount() http.Handler {
 
 		// Auth
 		r.Post("/partner/auth/login", authHandler.PartnerLogin)
-		// r.Post("/admin/auth/login", authHandler.AdminLogin)
 
 		// Application
 		r.Post("/applications", appHandler.Create)
@@ -85,18 +76,12 @@ func (app *application) mount() http.Handler {
 		r.Post("/applications/{id}/approve", appHandler.Approve)
 		r.Post("/applications/{id}/reject", appHandler.Reject)
 
-		// == Customer Routes ==
-
 		// == Partner Routes ==
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequireAuth("partner"))
 
 			r.Post("/partner/change-password", partHandler.ChangePassword)
 			r.Get("/partner/profile", partHandler.Profile)
-			// r.Put("/partner/profile", partHandler.UpdateProfile)
-			// r.Get("/partner/employees", partHandler.ListEmployees)
-			// r.Post("/partner/employees", partHandler.CreateEmployee)
-			// r.Delete("/partner/employees/{id}", partHandler.DeleteEmployee)
 
 			// Location
 			r.Get("/partner/locations", locationHandler.List)
@@ -106,7 +91,6 @@ func (app *application) mount() http.Handler {
 		// == Admin Routes ==
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequireAuth("admin"))
-
 		})
 	})
 

@@ -1,20 +1,47 @@
 package dto
 
 import (
-	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
-	"github.com/nlsnnn/berezhok/internal/domain"
+	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
+	"github.com/nlsnnn/berezhok/internal/modules/partner/service"
 )
 
-func (r CreateApplicationRequest) ToModel() sqlc.CreateApplicationParams {
-	return sqlc.CreateApplicationParams{
+func (r CreateApplicationRequest) ToInput() service.CreateApplicationInput {
+	return service.CreateApplicationInput{
 		ContactName:  r.ContactName,
 		ContactEmail: r.ContactEmail,
 		ContactPhone: r.ContactPhone,
 		BusinessName: r.BusinessName,
-		CategoryCode: ToText(r.CategoryCode),
-		Address:      ToText(r.Address),
-		Description:  ToText(r.Description),
-		Status:       "pending",
+		CategoryCode: r.CategoryCode,
+		Address:      r.Address,
+		Description:  r.Description,
+	}
+}
+
+func (r CreateLocationRequest) ToInput(partnerID string) service.CreateLocationInput {
+	return service.CreateLocationInput{
+		PartnerID:    partnerID,
+		CategoryCode: r.CategoryCode,
+		Name:         r.Name,
+		Address:      r.Address,
+		Latitude:     r.Latitude,
+		Longitude:    r.Longitude,
+	}
+}
+
+func FromApplication(a domain.Application) ApplicationResponse {
+	return ApplicationResponse{
+		ID:              a.ID,
+		ContactName:     a.ContactName,
+		ContactEmail:    a.ContactEmail,
+		ContactPhone:    a.ContactPhone,
+		BusinessName:    a.BusinessName,
+		CategoryCode:    a.CategoryCode,
+		Address:         a.Address,
+		Description:     a.Description,
+		Status:          string(a.Status),
+		ReviewedAt:      a.ReviewedAt,
+		RejectionReason: a.RejectionReason,
+		CreatedAt:       a.CreatedAt,
 	}
 }
 

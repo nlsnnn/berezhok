@@ -3,75 +3,91 @@ package service
 import (
 	"context"
 	"fmt"
-	"time"
 
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
-	"github.com/nlsnnn/berezhok/internal/modules/partner"
+	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
+	"github.com/nlsnnn/berezhok/internal/modules/partner/errors"
 	"github.com/nlsnnn/berezhok/internal/shared/auth"
 	"github.com/nlsnnn/berezhok/internal/shared/generator"
 )
 
+type CreateApplicationInput struct {
+	ContactName  string
+	ContactEmail string
+	ContactPhone string
+	BusinessName string
+	CategoryCode string
+	Address      string
+	Description  string
+}
+
 type appService struct {
-	repo            sqlc.Querier
-	partService     partnerSvc
-	employeeService employeeSvc
+	repo        appRepo
+	partnerSvc  partnerCreator
+	employeeSvc employeeCreator
 }
 
-type partnerSvc interface {
-	Create(ctx context.Context, arg sqlc.CreatePartnerParams) (sqlc.Partner, error)
+type appRepo interface {
+	FindByID(ctx context.Context, id string) (domain.Application, error)
+	List(ctx context.Context) ([]domain.Application, error)
+	Create(ctx context.Context, app domain.Application) (domain.Application, error)
+	UpdateStatus(ctx context.Context, id string, status domain.ApplicationStatus, rejectionReason string) error
+	Delete(ctx context.Context, id string) error
 }
 
-type employeeSvc interface {
-	Create(ctx context.Context, arg sqlc.CreatePartnerEmployeeParams) (sqlc.PartnerEmployee, error)
+type partnerCreator interface {
+	Create(ctx context.Context, legalName string) (domain.Partner, error)
 }
 
-func NewApplicationService(appRepo sqlc.Querier, partSvc partnerSvc, employeeSvc employeeSvc) *appService {
+type employeeCreator interface {
+	Create(ctx context.Context, partnerID, email, passwordHash, name string, role domain.EmployeeRole) (domain.Employee, error)
+}
+
+func NewApplicationService(repo appRepo, partnerSvc partnerCreator, employeeSvc employeeCreator) *appService {
 	return &appService{
-		repo:            appRepo,
-		partService:     partSvc,
-		employeeService: employeeSvc,
+		repo:        repo,
+		partnerSvc:  partnerSvc,
+		employeeSvc: employeeSvc,
 	}
 }
 
-func (a *appService) Create(ctx context.Context, arg sqlc.CreateApplicationParams) (sqlc.PartnerApplication, error) {
-	if arg.ContactName == "" {
-		return sqlc.PartnerApplication{}, partner.ErrInvalidInput
+func (s *appService) Create(ctx context.Context, input CreateApplicationInput) (domain.Application, error) {
+	if input.ContactName == "" {
+		return domain.Application{}, errors.ErrInvalidInput
 	}
-	return a.repo.CreateApplication(ctx, arg)
+	return s.repo.Create(ctx, domain.Application{
+		ContactName:  input.ContactName,
+		ContactEmail: input.ContactEmail,
+		ContactPhone: input.ContactPhone,
+		BusinessName: input.BusinessName,
+		CategoryCode: input.CategoryCode,
+		Address:      input.Address,
+		Description:  input.Description,
+	})
 }
 
-func (a *appService) GetByID(ctx context.Context, id uuid.UUID) (sqlc.PartnerApplication, error) {
-	return a.repo.FindApplicationByID(ctx, id)
+func (s *appService) GetByID(ctx context.Context, id string) (domain.Application, error) {
+	return s.repo.FindByID(ctx, id)
 }
 
-func (a *appService) List(ctx context.Context) ([]sqlc.PartnerApplication, error) {
-	return a.repo.ListApplications(ctx)
+func (s *appService) List(ctx context.Context) ([]domain.Application, error) {
+	return s.repo.List(ctx)
 }
 
-func (a *appService) Update(ctx context.Context, arg sqlc.UpdateApplicationParams) error {
-	return a.repo.UpdateApplication(ctx, arg)
+func (s *appService) Delete(ctx context.Context, id string) error {
+	return s.repo.Delete(ctx, id)
 }
 
-func (a *appService) Delete(ctx context.Context, id uuid.UUID) error {
-	return a.repo.DeleteApplication(ctx, id)
-}
-
-func (a *appService) Approve(ctx context.Context, id uuid.UUID) error {
-	app, err := a.GetByID(ctx, id)
+func (s *appService) Approve(ctx context.Context, id string) error {
+	app, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	if app.Status != "pending" {
-		return partner.ErrInvalidStatusTransition
+	if app.Status != domain.ApplicationStatusPending {
+		return errors.ErrInvalidStatusTransition
 	}
 
-	partner, err := a.partService.Create(ctx, sqlc.CreatePartnerParams{
-		LegalName: app.BusinessName,
-		Status:    "pending_documents",
-	})
+	partner, err := s.partnerSvc.Create(ctx, app.BusinessName)
 	if err != nil {
 		return err
 	}
@@ -82,40 +98,25 @@ func (a *appService) Approve(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 
-	if _, err := a.employeeService.Create(ctx, sqlc.CreatePartnerEmployeeParams{
-		PartnerID:    partner.ID,
-		Name:         pgtype.Text{String: app.ContactName, Valid: true},
-		Email:        app.ContactEmail,
-		Role:         "owner",
-		PasswordHash: passwordHash,
-	}); err != nil {
+	if _, err := s.employeeSvc.Create(ctx, partner.ID, app.ContactEmail, passwordHash, app.ContactName, domain.EmployeeRoleOwner); err != nil {
 		return err
 	}
 
-	// send email with credentials
+	// TODO: send email with credentials
 	fmt.Printf("Partner approved. Contact: %s, Password: %s\n", app.ContactEmail, password)
 
-	return a.Update(ctx, sqlc.UpdateApplicationParams{
-		ID:         id,
-		Status:     "approved",
-		ReviewedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
-	})
+	return s.repo.UpdateStatus(ctx, id, domain.ApplicationStatusApproved, "")
 }
 
-func (a *appService) Reject(ctx context.Context, id uuid.UUID, reason string) error {
-	app, err := a.GetByID(ctx, id)
+func (s *appService) Reject(ctx context.Context, id string, reason string) error {
+	app, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	if app.Status != "pending" {
-		return partner.ErrInvalidStatusTransition
+	if app.Status != domain.ApplicationStatusPending {
+		return errors.ErrInvalidStatusTransition
 	}
 
-	return a.Update(ctx, sqlc.UpdateApplicationParams{
-		ID:              id,
-		Status:          "rejected",
-		RejectionReason: pgtype.Text{String: reason, Valid: true},
-		ReviewedAt:      pgtype.Timestamptz{Time: time.Now(), Valid: true},
-	})
+	return s.repo.UpdateStatus(ctx, id, domain.ApplicationStatusRejected, reason)
 }

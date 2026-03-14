@@ -3,38 +3,41 @@ package service
 import (
 	"context"
 
-	"github.com/google/uuid"
-	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
+	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 )
 
 type empService struct {
-	repo sqlc.Querier
+	repo empRepo
 }
 
-func NewEmployeeService(repo sqlc.Querier) *empService {
+type empRepo interface {
+	FindByID(ctx context.Context, id string) (domain.Employee, error)
+	List(ctx context.Context) ([]domain.Employee, error)
+	ListByPartnerID(ctx context.Context, partnerID string) ([]domain.Employee, error)
+	Create(ctx context.Context, partnerID, email, passwordHash, name string, role domain.EmployeeRole) (domain.Employee, error)
+	Delete(ctx context.Context, id string) error
+}
+
+func NewEmployeeService(repo empRepo) *empService {
 	return &empService{repo: repo}
 }
 
-func (s *empService) List(ctx context.Context) ([]sqlc.PartnerEmployee, error) {
-	return s.repo.ListPartnerEmployees(ctx)
+func (s *empService) List(ctx context.Context) ([]domain.Employee, error) {
+	return s.repo.List(ctx)
 }
 
-func (s *empService) ListByPartnerID(ctx context.Context, partnerID uuid.UUID) ([]sqlc.PartnerEmployee, error) {
-	return s.repo.ListEmployeesByPartnerID(ctx, partnerID)
+func (s *empService) ListByPartnerID(ctx context.Context, partnerID string) ([]domain.Employee, error) {
+	return s.repo.ListByPartnerID(ctx, partnerID)
 }
 
-func (s *empService) FindByID(ctx context.Context, id uuid.UUID) (sqlc.PartnerEmployee, error) {
-	return s.repo.FindPartnerEmployeeByID(ctx, id)
+func (s *empService) FindByID(ctx context.Context, id string) (domain.Employee, error) {
+	return s.repo.FindByID(ctx, id)
 }
 
-func (s *empService) Create(ctx context.Context, arg sqlc.CreatePartnerEmployeeParams) (sqlc.PartnerEmployee, error) {
-	return s.repo.CreatePartnerEmployee(ctx, arg)
+func (s *empService) Create(ctx context.Context, partnerID, email, passwordHash, name string, role domain.EmployeeRole) (domain.Employee, error) {
+	return s.repo.Create(ctx, partnerID, email, passwordHash, name, role)
 }
 
-func (s *empService) Update(ctx context.Context, arg sqlc.UpdatePartnerEmployeeParams) error {
-	return s.repo.UpdatePartnerEmployee(ctx, arg)
-}
-
-func (s *empService) Delete(ctx context.Context, id uuid.UUID) error {
-	return s.repo.DeletePartnerEmployee(ctx, id)
+func (s *empService) Delete(ctx context.Context, id string) error {
+	return s.repo.Delete(ctx, id)
 }

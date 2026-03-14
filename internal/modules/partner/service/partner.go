@@ -2,62 +2,73 @@ package service
 
 import (
 	"context"
-	"math/big"
 
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
-	"github.com/nlsnnn/berezhok/internal/modules/partner"
+	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
+	"github.com/nlsnnn/berezhok/internal/modules/partner/errors"
 	"github.com/nlsnnn/berezhok/internal/shared/auth"
 )
 
+type ChangePasswordInput struct {
+	UserID          string
+	CurrentPassword string
+	NewPassword     string
+}
+
 type partService struct {
-	repo sqlc.Querier
+	repo    partnerRepo
+	empRepo employeeRepoForPartner
 }
 
-func NewPartnerService(repo sqlc.Querier) *partService {
-	return &partService{repo: repo}
+type partnerRepo interface {
+	FindByID(ctx context.Context, id string) (domain.Partner, error)
+	List(ctx context.Context) ([]domain.Partner, error)
+	Create(ctx context.Context, legalName string) (domain.Partner, error)
+	GetProfile(ctx context.Context, employeeID string) (domain.PartnerProfile, error)
+	UpdateEmployeePassword(ctx context.Context, employeeID, newHash string) error
 }
 
-func (s *partService) List(ctx context.Context) ([]sqlc.Partner, error) {
-	return s.repo.ListPartners(ctx)
+type employeeRepoForPartner interface {
+	FindByID(ctx context.Context, id string) (domain.Employee, error)
 }
 
-func (s *partService) FindByID(ctx context.Context, id uuid.UUID) (sqlc.Partner, error) {
-	return s.repo.FindPartnerByID(ctx, id)
+func NewPartnerService(repo partnerRepo, empRepo employeeRepoForPartner) *partService {
+	return &partService{repo: repo, empRepo: empRepo}
 }
 
-func (s *partService) Create(ctx context.Context, arg sqlc.CreatePartnerParams) (sqlc.Partner, error) {
-	arg.CommissionRate = pgtype.Numeric{Int: big.NewInt(20), Exp: -2, Valid: true} // default commission rate
-	return s.repo.CreatePartner(ctx, arg)
+func (s *partService) List(ctx context.Context) ([]domain.Partner, error) {
+	return s.repo.List(ctx)
 }
 
-func (s *partService) ChangePassword(ctx context.Context, userID uuid.UUID, currentPassword, newPassword string) error {
-	user, err := s.repo.FindPartnerEmployeeByID(ctx, userID)
+func (s *partService) FindByID(ctx context.Context, id string) (domain.Partner, error) {
+	return s.repo.FindByID(ctx, id)
+}
+
+func (s *partService) Create(ctx context.Context, legalName string) (domain.Partner, error) {
+	return s.repo.Create(ctx, legalName)
+}
+
+func (s *partService) ChangePassword(ctx context.Context, input ChangePasswordInput) error {
+	employee, err := s.empRepo.FindByID(ctx, input.UserID)
 	if err != nil {
 		return err
 	}
 
-	if !auth.Compare(user.PasswordHash, currentPassword) {
-		return partner.ErrInvalidCredentials
+	if !auth.Compare(employee.PasswordHash, input.CurrentPassword) {
+		return errors.ErrInvalidCredentials
 	}
 
-	if currentPassword == newPassword {
-		return partner.ErrPasswordUnchanged
+	if input.CurrentPassword == input.NewPassword {
+		return errors.ErrPasswordUnchanged
 	}
 
-	newPasswordHash, err := auth.Hash(newPassword)
+	newHash, err := auth.Hash(input.NewPassword)
 	if err != nil {
 		return err
 	}
 
-	return s.repo.UpdatePartnerEmployeePassword(ctx, sqlc.UpdatePartnerEmployeePasswordParams{
-		ID:                 userID,
-		PasswordHash:       newPasswordHash,
-		MustChangePassword: pgtype.Bool{Valid: true, Bool: false},
-	})
+	return s.repo.UpdateEmployeePassword(ctx, input.UserID, newHash)
 }
 
-func (s *partService) Profile(ctx context.Context, userID uuid.UUID) (sqlc.GetPartnerProfileRow, error) {
-	return s.repo.GetPartnerProfile(ctx, userID)
+func (s *partService) Profile(ctx context.Context, userID string) (domain.PartnerProfile, error) {
+	return s.repo.GetProfile(ctx, userID)
 }

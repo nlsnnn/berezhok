@@ -6,8 +6,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
-	"github.com/nlsnnn/berezhok/internal/modules/partner"
+	partnerErrors "github.com/nlsnnn/berezhok/internal/modules/partner/errors"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/handlers/dto"
 	"github.com/nlsnnn/berezhok/internal/shared/logger/sl"
 	"github.com/nlsnnn/berezhok/internal/shared/response"
@@ -15,22 +14,16 @@ import (
 )
 
 type appHandler struct {
-	log         *slog.Logger
-	validator   *validator.Validator
-	appService  appSvc
-	partService partnerSvc
+	log        *slog.Logger
+	validator  *validator.Validator
+	appService appSvc
 }
 
-func NewApplicationHandler(
-	log *slog.Logger,
-	svc appSvc,
-	partSvc partnerSvc,
-) appHandler {
+func NewApplicationHandler(log *slog.Logger, svc appSvc) appHandler {
 	return appHandler{
-		log:        log,
+		log:       log,
 		appService: svc,
-		validator:  validator.New(),
-		partService: partSvc,
+		validator: validator.New(),
 	}
 }
 
@@ -43,7 +36,7 @@ func (a *appHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	app, err := a.appService.Create(r.Context(), req.ToModel())
+	app, err := a.appService.Create(r.Context(), req.ToInput())
 	if err != nil {
 		a.log.Error("failed to create application", sl.Err(err))
 		response.InternalError(w, err)
@@ -54,13 +47,7 @@ func (a *appHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *appHandler) GetByID(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		a.log.Error("failed to parse id", sl.Err(err))
-		response.BadRequest(w, "invalid id")
-		return
-	}
+	id := chi.URLParam(r, "id")
 
 	app, err := a.appService.GetByID(r.Context(), id)
 	if err != nil {
@@ -83,15 +70,9 @@ func (a *appHandler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *appHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		a.log.Error("failed to parse id", sl.Err(err))
-		response.BadRequest(w, "invalid id")
-		return
-	}
-	err = a.appService.Delete(r.Context(), id)
-	if err != nil {
+	id := chi.URLParam(r, "id")
+
+	if err := a.appService.Delete(r.Context(), id); err != nil {
 		a.log.Error("failed to delete application", sl.Err(err))
 		response.InternalError(w, err)
 		return
@@ -100,18 +81,10 @@ func (a *appHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *appHandler) Approve(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := uuid.Parse(idStr)
+	id := chi.URLParam(r, "id")
 
-	if err != nil {
-		a.log.Error("failed to parse id", sl.Err(err))
-		response.BadRequest(w, "invalid id")
-		return
-	}
-
-	err = a.appService.Approve(r.Context(), id)
-	if err != nil {
-		if errors.Is(err, partner.ErrInvalidStatusTransition) {
+	if err := a.appService.Approve(r.Context(), id); err != nil {
+		if errors.Is(err, partnerErrors.ErrInvalidStatusTransition) {
 			response.BadRequest(w, "only pending applications can be approved")
 			return
 		}
@@ -124,14 +97,7 @@ func (a *appHandler) Approve(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *appHandler) Reject(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := uuid.Parse(idStr)
-
-	if err != nil {
-		a.log.Error("failed to parse id", sl.Err(err))
-		response.BadRequest(w, "invalid id")
-		return
-	}
+	id := chi.URLParam(r, "id")
 
 	var req dto.RejectApplicationRequest
 	if errs := a.validator.DecodeAndValidate(r, &req); errs != nil {
@@ -140,9 +106,8 @@ func (a *appHandler) Reject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = a.appService.Reject(r.Context(), id, req.RejectionReason)
-	if err != nil {
-		if errors.Is(err, partner.ErrInvalidStatusTransition) {
+	if err := a.appService.Reject(r.Context(), id, req.RejectionReason); err != nil {
+		if errors.Is(err, partnerErrors.ErrInvalidStatusTransition) {
 			response.BadRequest(w, "only pending applications can be rejected")
 			return
 		}

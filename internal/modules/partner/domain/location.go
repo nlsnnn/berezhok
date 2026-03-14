@@ -1,6 +1,11 @@
 package domain
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+
+	sharedDomain "github.com/nlsnnn/berezhok/internal/shared/domain"
+)
 
 type LocationStatus string
 
@@ -22,12 +27,8 @@ type Location struct {
 	WorkingHours  string
 	Status        LocationStatus
 	Category      LocationCategory
-	Location      GeoPoint
-}
-
-type GeoPoint struct {
-	Latitude  float64
-	Longitude float64
+	Coords        sharedDomain.GeoPoint
+	CreatedAt     time.Time
 }
 
 type LocationCategory struct {
@@ -38,7 +39,7 @@ type LocationCategory struct {
 	Sort    int
 }
 
-func NewLocation(partnerID, name, address string, category LocationCategory, location GeoPoint) (Location, error) {
+func NewLocation(partnerID, name, address string, category LocationCategory, coords sharedDomain.GeoPoint) (Location, error) {
 	if partnerID == "" {
 		return Location{}, fmt.Errorf("partner ID is required")
 	}
@@ -55,6 +56,6 @@ func NewLocation(partnerID, name, address string, category LocationCategory, loc
 		Address:   address,
 		Status:    LocationStatusInactive,
 		Category:  category,
-		Location:  location,
+		Coords:    coords,
 	}, nil
 }

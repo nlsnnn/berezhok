@@ -3,64 +3,66 @@ package service
 import (
 	"context"
 
-	"github.com/google/uuid"
-	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
-	"github.com/nlsnnn/berezhok/internal/domain"
-	"github.com/nlsnnn/berezhok/internal/modules/partner"
+	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
+	"github.com/nlsnnn/berezhok/internal/modules/partner/errors"
+	sharedDomain "github.com/nlsnnn/berezhok/internal/shared/domain"
 )
 
+type CreateLocationInput struct {
+	PartnerID    string
+	CategoryCode string
+	Name         string
+	Address      string
+	Latitude     float64
+	Longitude    float64
+}
+
+type UpdateLocationInput struct {
+	ID            string
+	Name          string
+	Address       string
+	CategoryCode  string
+	LogoURL       string
+	CoverImageURL string
+}
+
 type locationService struct {
-	repo         *sqlc.Queries
-	locationRepo locationRepo
+	repo locationRepo
 }
 
 type locationRepo interface {
 	Create(ctx context.Context, location domain.Location) (domain.Location, error)
+	FindByPartnerID(ctx context.Context, partnerID string) ([]domain.Location, error)
 	FindCategoryByCode(ctx context.Context, code string) (domain.LocationCategory, error)
+	Delete(ctx context.Context, id string) error
 }
 
-func NewLocationService(repo *sqlc.Queries, locationRepo locationRepo) locationService {
-	return locationService{
-		repo:         repo,
-		locationRepo: locationRepo,
-	}
+func NewLocationService(repo locationRepo) locationService {
+	return locationService{repo: repo}
 }
 
-func (s *locationService) List(ctx context.Context) ([]sqlc.Location, error) {
-	return s.repo.ListLocations(ctx)
+func (s *locationService) ListByPartner(ctx context.Context, partnerID string) ([]domain.Location, error) {
+	return s.repo.FindByPartnerID(ctx, partnerID)
 }
 
-func (s *locationService) Create(ctx context.Context, partnerID uuid.UUID, code string, name string, address string, latitude float64, longitude float64) (domain.Location, error) {
-	// TODO: check if partner exists
-
-	category, err := s.locationRepo.FindCategoryByCode(ctx, code)
+func (s *locationService) Create(ctx context.Context, input CreateLocationInput) (domain.Location, error) {
+	category, err := s.repo.FindCategoryByCode(ctx, input.CategoryCode)
 	if err != nil {
-		return domain.Location{}, partner.ErrLocationCategoryNotFound
+		return domain.Location{}, errors.ErrLocationCategoryNotFound
 	}
 
-	location, err := domain.NewLocation(partnerID.String(), name, address, category,
-		domain.GeoPoint{
-			Latitude:  latitude,
-			Longitude: longitude,
+	location, err := domain.NewLocation(input.PartnerID, input.Name, input.Address, category,
+		sharedDomain.GeoPoint{
+			Latitude:  input.Latitude,
+			Longitude: input.Longitude,
 		})
 	if err != nil {
 		return domain.Location{}, err
 	}
 
-	return s.locationRepo.Create(ctx, location)
+	return s.repo.Create(ctx, location)
 }
 
-func (s *locationService) Update(ctx context.Context, arg sqlc.UpdateLocationParams) error {
-	location, err := s.repo.UpdateLocation(ctx, arg)
-	if err != nil {
-		return err
-	}
-
-	_ = location
-
-	return nil
-}
-
-func (s *locationService) Delete(ctx context.Context, id uuid.UUID) error {
-	return s.repo.DeleteLocation(ctx, id)
+func (s *locationService) Delete(ctx context.Context, id string) error {
+	return s.repo.Delete(ctx, id)
 }

@@ -1,4 +1,4 @@
-package partner
+package errors
 
 import "errors"
 
