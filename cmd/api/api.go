@@ -13,6 +13,7 @@ import (
 	authServices "github.com/nlsnnn/berezhok/internal/modules/auth/service"
 	partnerHandlers "github.com/nlsnnn/berezhok/internal/modules/partner/handlers"
 	partnerServices "github.com/nlsnnn/berezhok/internal/modules/partner/service"
+	partnerRepos "github.com/nlsnnn/berezhok/internal/repository/partner"
 	"github.com/nlsnnn/berezhok/internal/shared/config"
 	"github.com/nlsnnn/berezhok/internal/shared/jwt"
 	middlewares "github.com/nlsnnn/berezhok/internal/shared/middleware"
@@ -38,6 +39,7 @@ func (app *application) mount() http.Handler {
 	})
 
 	// General
+	queries := sqlc.New(app.db)
 	validator := validator.New()
 	jwtService := jwt.NewTokenService([]byte("supersecretkey"))
 
@@ -56,8 +58,9 @@ func (app *application) mount() http.Handler {
 	appHandler := partnerHandlers.NewApplicationHandler(app.log, appSvc, partService)
 
 	// Location
-	locationRepo := sqlc.New(app.db)
-	locationService := partnerServices.NewLocationService(locationRepo)
+	// locationRepo := sqlc.New(app.db)
+	locationRepo := partnerRepos.NewLocationRepo(queries)
+	locationService := partnerServices.NewLocationService(appRepo, locationRepo)
 	locationHandler := partnerHandlers.NewLocationHandler(app.log, validator, &locationService, partService)
 
 	// Auth Module

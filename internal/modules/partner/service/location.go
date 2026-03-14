@@ -5,16 +5,24 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
+	"github.com/nlsnnn/berezhok/internal/domain"
 	"github.com/nlsnnn/berezhok/internal/modules/partner"
 )
 
 type locationService struct {
-	repo *sqlc.Queries
+	repo         *sqlc.Queries
+	locationRepo locationRepo
 }
 
-func NewLocationService(repo *sqlc.Queries) locationService {
+type locationRepo interface {
+	Create(ctx context.Context, location domain.Location) (domain.Location, error)
+	FindCategoryByCode(ctx context.Context, code string) (domain.LocationCategory, error)
+}
+
+func NewLocationService(repo *sqlc.Queries, locationRepo locationRepo) locationService {
 	return locationService{
-		repo: repo,
+		repo:         repo,
+		locationRepo: locationRepo,
 	}
 }
 
@@ -22,16 +30,24 @@ func (s *locationService) List(ctx context.Context) ([]sqlc.Location, error) {
 	return s.repo.ListLocations(ctx)
 }
 
-func (s *locationService) Create(ctx context.Context, arg sqlc.CreateLocationParams) (sqlc.Location, error) {
-	// func (s *locationService) Create(ctx context.Context, partnerID uuid.UUID) (sqlc.Location, error) {
+func (s *locationService) Create(ctx context.Context, partnerID uuid.UUID, code string, name string, address string, latitude float64, longitude float64) (domain.Location, error) {
 	// TODO: check if partner exists
 
-	_, err := s.repo.FindCategoryByCode(ctx, arg.CategoryCode)
+	category, err := s.locationRepo.FindCategoryByCode(ctx, code)
 	if err != nil {
-		return sqlc.Location{}, partner.ErrLocationCategoryNotFound
+		return domain.Location{}, partner.ErrLocationCategoryNotFound
 	}
 
-	return s.repo.CreateLocation(ctx, arg)
+	location, err := domain.NewLocation(partnerID.String(), name, address, category,
+		domain.GeoPoint{
+			Latitude:  latitude,
+			Longitude: longitude,
+		})
+	if err != nil {
+		return domain.Location{}, err
+	}
+
+	return s.locationRepo.Create(ctx, location)
 }
 
 func (s *locationService) Update(ctx context.Context, arg sqlc.UpdateLocationParams) error {

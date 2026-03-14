@@ -47,9 +47,9 @@ type EmployeeResponse struct {
 }
 
 type LocationResponse struct {
-	ID      uuid.UUID `json:"id"`
-	Name    string    `json:"name"`
-	Address string    `json:"address"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Address string `json:"address"`
 }
 
 func FromApplication(m sqlc.PartnerApplication) ApplicationResponse {

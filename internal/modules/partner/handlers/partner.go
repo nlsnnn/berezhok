@@ -103,7 +103,7 @@ func (h *partnerHandler) Profile(w http.ResponseWriter, r *http.Request) {
 
 	if profile.LocationID.Valid {
 		res.Location = &dto.LocationResponse{
-			ID:      profile.LocationID.Bytes,
+			ID:      profile.LocationID.String(),
 			Name:    profile.LocationName.String,
 			Address: profile.LocationAddress.String,
 		}

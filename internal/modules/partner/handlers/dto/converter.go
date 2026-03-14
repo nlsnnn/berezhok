@@ -2,6 +2,7 @@ package dto
 
 import (
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
+	"github.com/nlsnnn/berezhok/internal/domain"
 )
 
 func (r CreateApplicationRequest) ToModel() sqlc.CreateApplicationParams {
@@ -17,10 +18,10 @@ func (r CreateApplicationRequest) ToModel() sqlc.CreateApplicationParams {
 	}
 }
 
-func FromLocation(m sqlc.Location) LocationResponse {
+func FromLocation(l domain.Location) LocationResponse {
 	return LocationResponse{
-		ID:      m.ID,
-		Name:    m.Name,
-		Address: m.Address,
+		ID:      l.ID,
+		Name:    l.Name,
+		Address: l.Address,
 	}
 }

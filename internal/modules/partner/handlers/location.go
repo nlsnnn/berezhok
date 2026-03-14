@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
 	"github.com/nlsnnn/berezhok/internal/modules/partner"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/handlers/dto"
 	"github.com/nlsnnn/berezhok/internal/shared/logger/sl"
@@ -64,15 +63,24 @@ func (h *locationHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	location, err := h.svc.Create(r.Context(), sqlc.CreateLocationParams{
-		Name:          req.Name,
-		Address:       req.Address,
-		PartnerID:     partnerUUID,
-		Status:        "inactive",
-		CategoryCode:  req.CategoryCode,
-		StMakepoint:   req.Latitude,
-		StMakepoint_2: req.Longitude,
-	})
+	// location, err := h.svc.Create(r.Context(), sqlc.CreateLocationParams{
+	// 	Name:          req.Name,
+	// 	Address:       req.Address,
+	// 	PartnerID:     partnerUUID,
+	// 	Status:        "inactive",
+	// 	CategoryCode:  req.CategoryCode,
+	// 	StMakepoint:   req.Latitude,
+	// 	StMakepoint_2: req.Longitude,
+	// })
+
+	location, err := h.svc.Create(r.Context(), partnerUUID,
+		req.CategoryCode,
+		req.Name,
+		req.Address,
+		req.Latitude,
+		req.Longitude,
+	)
+
 	if err != nil {
 		switch {
 		case errors.Is(err, partner.ErrPartnerNotFound):
@@ -88,7 +96,7 @@ func (h *locationHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Info("location created successfully", slog.String("location_id", location.ID.String()))
+	log.Info("location created successfully", slog.String("location_id", location.ID))
 
 	response.Success(w, dto.FromLocation(location))
 }

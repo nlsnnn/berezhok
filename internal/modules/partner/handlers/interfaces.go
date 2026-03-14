@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
+	"github.com/nlsnnn/berezhok/internal/domain"
 )
 
 type appSvc interface {
@@ -25,8 +26,5 @@ type partnerSvc interface {
 }
 
 type locationSvc interface {
-	List(ctx context.Context) ([]sqlc.Location, error)
-	Create(ctx context.Context, arg sqlc.CreateLocationParams) (sqlc.Location, error)
-	Update(ctx context.Context, arg sqlc.UpdateLocationParams) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Create(ctx context.Context, partnerID uuid.UUID, code string, name string, address string, latitude float64, longitude float64) (domain.Location, error)
 }
