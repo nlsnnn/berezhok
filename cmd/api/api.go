@@ -55,6 +55,11 @@ func (app *application) mount() http.Handler {
 	appSvc := partnerServices.NewApplicationService(appRepo, partService, employeeService)
 	appHandler := partnerHandlers.NewApplicationHandler(app.log, appSvc, partService)
 
+	// Location
+	locationRepo := sqlc.New(app.db)
+	locationService := partnerServices.NewLocationService(locationRepo)
+	locationHandler := partnerHandlers.NewLocationHandler(app.log, validator, &locationService, partService)
+
 	// Auth Module
 	partnerAuthService := authServices.NewPartnerAuthenticator(partRepo, jwtService)
 	authHandler := authHandlers.NewAuthHandler(validator, app.log, partnerAuthService)
@@ -89,6 +94,10 @@ func (app *application) mount() http.Handler {
 			// r.Get("/partner/employees", partHandler.ListEmployees)
 			// r.Post("/partner/employees", partHandler.CreateEmployee)
 			// r.Delete("/partner/employees/{id}", partHandler.DeleteEmployee)
+
+			// Location
+			r.Get("/partner/locations", locationHandler.List)
+			r.Post("/partner/locations", locationHandler.Create)
 		})
 
 		// == Admin Routes ==

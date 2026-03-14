@@ -23,3 +23,10 @@ type partnerSvc interface {
 	ChangePassword(ctx context.Context, userID uuid.UUID, currentPassword, newPassword string) error
 	Profile(ctx context.Context, userID uuid.UUID) (sqlc.GetPartnerProfileRow, error)
 }
+
+type locationSvc interface {
+	List(ctx context.Context) ([]sqlc.Location, error)
+	Create(ctx context.Context, arg sqlc.CreateLocationParams) (sqlc.Location, error)
+	Update(ctx context.Context, arg sqlc.UpdateLocationParams) error
+	Delete(ctx context.Context, id uuid.UUID) error
+}

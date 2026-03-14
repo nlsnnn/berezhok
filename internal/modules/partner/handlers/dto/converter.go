@@ -16,3 +16,11 @@ func (r CreateApplicationRequest) ToModel() sqlc.CreateApplicationParams {
 		Status:       "pending",
 	}
 }
+
+func FromLocation(m sqlc.Location) LocationResponse {
+	return LocationResponse{
+		ID:      m.ID,
+		Name:    m.Name,
+		Address: m.Address,
+	}
+}

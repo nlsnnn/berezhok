@@ -12,6 +12,24 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const activateLocation = `-- name: ActivateLocation :exec
+UPDATE locations SET status = 'active', updated_at = NOW() WHERE id = $1
+`
+
+func (q *Queries) ActivateLocation(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, activateLocation, id)
+	return err
+}
+
+const closeLocation = `-- name: CloseLocation :exec
+UPDATE locations SET status = 'closed', updated_at = NOW() WHERE id = $1
+`
+
+func (q *Queries) CloseLocation(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, closeLocation, id)
+	return err
+}
+
 const createApplication = `-- name: CreateApplication :one
 INSERT INTO partner_applications (
     contact_name, contact_email, contact_phone, business_name, category_code, 
@@ -56,6 +74,52 @@ func (q *Queries) CreateApplication(ctx context.Context, arg CreateApplicationPa
 		&i.ReviewedAt,
 		&i.RejectionReason,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const createLocation = `-- name: CreateLocation :one
+INSERT INTO locations (name, address, partner_id, category_code, status, location) 
+VALUES ($1, $2, $3, $4, $5, ST_SetSRID(ST_MakePoint($6, $7), 4326))
+RETURNING id, partner_id, category_code, name, address, location, phone, logo_url, cover_image_url, gallery_urls, working_hours, status, created_at, updated_at
+`
+
+type CreateLocationParams struct {
+	Name          string      `json:"name"`
+	Address       string      `json:"address"`
+	PartnerID     uuid.UUID   `json:"partner_id"`
+	CategoryCode  string      `json:"category_code"`
+	Status        string      `json:"status"`
+	StMakepoint   interface{} `json:"st_makepoint"`
+	StMakepoint_2 interface{} `json:"st_makepoint_2"`
+}
+
+func (q *Queries) CreateLocation(ctx context.Context, arg CreateLocationParams) (Location, error) {
+	row := q.db.QueryRow(ctx, createLocation,
+		arg.Name,
+		arg.Address,
+		arg.PartnerID,
+		arg.CategoryCode,
+		arg.Status,
+		arg.StMakepoint,
+		arg.StMakepoint_2,
+	)
+	var i Location
+	err := row.Scan(
+		&i.ID,
+		&i.PartnerID,
+		&i.CategoryCode,
+		&i.Name,
+		&i.Address,
+		&i.Location,
+		&i.Phone,
+		&i.LogoUrl,
+		&i.CoverImageUrl,
+		&i.GalleryUrls,
+		&i.WorkingHours,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -151,12 +215,30 @@ func (q *Queries) CreatePartnerEmployee(ctx context.Context, arg CreatePartnerEm
 	return i, err
 }
 
+const deactivateLocation = `-- name: DeactivateLocation :exec
+UPDATE locations SET status = 'inactive', updated_at = NOW() WHERE id = $1
+`
+
+func (q *Queries) DeactivateLocation(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deactivateLocation, id)
+	return err
+}
+
 const deleteApplication = `-- name: DeleteApplication :exec
 DELETE FROM partner_applications WHERE id = $1
 `
 
 func (q *Queries) DeleteApplication(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteApplication, id)
+	return err
+}
+
+const deleteLocation = `-- name: DeleteLocation :exec
+DELETE FROM locations WHERE id = $1
+`
+
+func (q *Queries) DeleteLocation(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteLocation, id)
 	return err
 }
 
@@ -191,6 +273,89 @@ func (q *Queries) FindApplicationByID(ctx context.Context, id uuid.UUID) (Partne
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const findCategoryByCode = `-- name: FindCategoryByCode :one
+SELECT code, name_ru, name_en, icon_url, color, sort_order FROM location_categories WHERE code = $1
+`
+
+func (q *Queries) FindCategoryByCode(ctx context.Context, code string) (LocationCategory, error) {
+	row := q.db.QueryRow(ctx, findCategoryByCode, code)
+	var i LocationCategory
+	err := row.Scan(
+		&i.Code,
+		&i.NameRu,
+		&i.NameEn,
+		&i.IconUrl,
+		&i.Color,
+		&i.SortOrder,
+	)
+	return i, err
+}
+
+const findLocationByID = `-- name: FindLocationByID :one
+SELECT id, partner_id, category_code, name, address, location, phone, logo_url, cover_image_url, gallery_urls, working_hours, status, created_at, updated_at FROM locations WHERE id = $1
+`
+
+func (q *Queries) FindLocationByID(ctx context.Context, id uuid.UUID) (Location, error) {
+	row := q.db.QueryRow(ctx, findLocationByID, id)
+	var i Location
+	err := row.Scan(
+		&i.ID,
+		&i.PartnerID,
+		&i.CategoryCode,
+		&i.Name,
+		&i.Address,
+		&i.Location,
+		&i.Phone,
+		&i.LogoUrl,
+		&i.CoverImageUrl,
+		&i.GalleryUrls,
+		&i.WorkingHours,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const findLocationsByPartnerID = `-- name: FindLocationsByPartnerID :many
+SELECT id, partner_id, category_code, name, address, location, phone, logo_url, cover_image_url, gallery_urls, working_hours, status, created_at, updated_at FROM locations WHERE partner_id = $1
+`
+
+func (q *Queries) FindLocationsByPartnerID(ctx context.Context, partnerID uuid.UUID) ([]Location, error) {
+	rows, err := q.db.Query(ctx, findLocationsByPartnerID, partnerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Location
+	for rows.Next() {
+		var i Location
+		if err := rows.Scan(
+			&i.ID,
+			&i.PartnerID,
+			&i.CategoryCode,
+			&i.Name,
+			&i.Address,
+			&i.Location,
+			&i.Phone,
+			&i.LogoUrl,
+			&i.CoverImageUrl,
+			&i.GalleryUrls,
+			&i.WorkingHours,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const findPartnerByID = `-- name: FindPartnerByID :one
@@ -386,6 +551,46 @@ func (q *Queries) ListEmployeesByPartnerID(ctx context.Context, partnerID uuid.U
 	return items, nil
 }
 
+const listLocations = `-- name: ListLocations :many
+SELECT id, partner_id, category_code, name, address, location, phone, logo_url, cover_image_url, gallery_urls, working_hours, status, created_at, updated_at FROM locations
+`
+
+// Локации партнёров
+func (q *Queries) ListLocations(ctx context.Context) ([]Location, error) {
+	rows, err := q.db.Query(ctx, listLocations)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Location
+	for rows.Next() {
+		var i Location
+		if err := rows.Scan(
+			&i.ID,
+			&i.PartnerID,
+			&i.CategoryCode,
+			&i.Name,
+			&i.Address,
+			&i.Location,
+			&i.Phone,
+			&i.LogoUrl,
+			&i.CoverImageUrl,
+			&i.GalleryUrls,
+			&i.WorkingHours,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPartnerEmployees = `-- name: ListPartnerEmployees :many
 SELECT id, partner_id, location_id, email, password_hash, role, name, must_change_password, last_login_at, created_at, updated_at FROM partner_employees
 `
@@ -481,6 +686,92 @@ func (q *Queries) UpdateApplication(ctx context.Context, arg UpdateApplicationPa
 		arg.RejectionReason,
 		arg.ID,
 	)
+	return err
+}
+
+const updateLocation = `-- name: UpdateLocation :one
+UPDATE locations
+SET 
+    name = COALESCE($2, name), 
+    address = COALESCE($3, address),
+    category_code = COALESCE($4, category_code),
+    logo_url = COALESCE($5, logo_url),
+    cover_image_url = COALESCE($6, cover_image_url),
+    working_hours = COALESCE($7, working_hours),
+    gallery_urls = COALESCE($8, gallery_urls),
+    updated_at = NOW()
+WHERE id = $1
+RETURNING id, partner_id, category_code, name, address, location, phone, logo_url, cover_image_url, gallery_urls, working_hours, status, created_at, updated_at
+`
+
+type UpdateLocationParams struct {
+	ID            uuid.UUID   `json:"id"`
+	Name          string      `json:"name"`
+	Address       string      `json:"address"`
+	CategoryCode  string      `json:"category_code"`
+	LogoUrl       pgtype.Text `json:"logo_url"`
+	CoverImageUrl pgtype.Text `json:"cover_image_url"`
+	WorkingHours  []byte      `json:"working_hours"`
+	GalleryUrls   []string    `json:"gallery_urls"`
+}
+
+func (q *Queries) UpdateLocation(ctx context.Context, arg UpdateLocationParams) (Location, error) {
+	row := q.db.QueryRow(ctx, updateLocation,
+		arg.ID,
+		arg.Name,
+		arg.Address,
+		arg.CategoryCode,
+		arg.LogoUrl,
+		arg.CoverImageUrl,
+		arg.WorkingHours,
+		arg.GalleryUrls,
+	)
+	var i Location
+	err := row.Scan(
+		&i.ID,
+		&i.PartnerID,
+		&i.CategoryCode,
+		&i.Name,
+		&i.Address,
+		&i.Location,
+		&i.Phone,
+		&i.LogoUrl,
+		&i.CoverImageUrl,
+		&i.GalleryUrls,
+		&i.WorkingHours,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateLocationStatus = `-- name: UpdateLocationStatus :exec
+UPDATE locations SET status = $2, updated_at = NOW() WHERE id = $1
+`
+
+type UpdateLocationStatusParams struct {
+	ID     uuid.UUID `json:"id"`
+	Status string    `json:"status"`
+}
+
+func (q *Queries) UpdateLocationStatus(ctx context.Context, arg UpdateLocationStatusParams) error {
+	_, err := q.db.Exec(ctx, updateLocationStatus, arg.ID, arg.Status)
+	return err
+}
+
+const updateLocationWorkingHours = `-- name: UpdateLocationWorkingHours :exec
+UPDATE locations SET working_hours = $2, updated_at = NOW() WHERE id = $1
+RETURNING id, partner_id, category_code, name, address, location, phone, logo_url, cover_image_url, gallery_urls, working_hours, status, created_at, updated_at
+`
+
+type UpdateLocationWorkingHoursParams struct {
+	ID           uuid.UUID `json:"id"`
+	WorkingHours []byte    `json:"working_hours"`
+}
+
+func (q *Queries) UpdateLocationWorkingHours(ctx context.Context, arg UpdateLocationWorkingHoursParams) error {
+	_, err := q.db.Exec(ctx, updateLocationWorkingHours, arg.ID, arg.WorkingHours)
 	return err
 }
 

@@ -11,12 +11,20 @@ import (
 )
 
 type Querier interface {
+	ActivateLocation(ctx context.Context, id uuid.UUID) error
+	CloseLocation(ctx context.Context, id uuid.UUID) error
 	CreateApplication(ctx context.Context, arg CreateApplicationParams) (PartnerApplication, error)
+	CreateLocation(ctx context.Context, arg CreateLocationParams) (Location, error)
 	CreatePartner(ctx context.Context, arg CreatePartnerParams) (Partner, error)
 	CreatePartnerEmployee(ctx context.Context, arg CreatePartnerEmployeeParams) (PartnerEmployee, error)
+	DeactivateLocation(ctx context.Context, id uuid.UUID) error
 	DeleteApplication(ctx context.Context, id uuid.UUID) error
+	DeleteLocation(ctx context.Context, id uuid.UUID) error
 	DeletePartnerEmployee(ctx context.Context, id uuid.UUID) error
 	FindApplicationByID(ctx context.Context, id uuid.UUID) (PartnerApplication, error)
+	FindCategoryByCode(ctx context.Context, code string) (LocationCategory, error)
+	FindLocationByID(ctx context.Context, id uuid.UUID) (Location, error)
+	FindLocationsByPartnerID(ctx context.Context, partnerID uuid.UUID) ([]Location, error)
 	FindPartnerByID(ctx context.Context, id uuid.UUID) (Partner, error)
 	FindPartnerEmployeeByEmail(ctx context.Context, email string) (PartnerEmployee, error)
 	FindPartnerEmployeeByID(ctx context.Context, id uuid.UUID) (PartnerEmployee, error)
@@ -24,11 +32,16 @@ type Querier interface {
 	// Заявки на партнёрство
 	ListApplications(ctx context.Context) ([]PartnerApplication, error)
 	ListEmployeesByPartnerID(ctx context.Context, partnerID uuid.UUID) ([]PartnerEmployee, error)
+	// Локации партнёров
+	ListLocations(ctx context.Context) ([]Location, error)
 	// Сотрудники партнёров
 	ListPartnerEmployees(ctx context.Context) ([]PartnerEmployee, error)
 	// Партнёры (юридические лица)
 	ListPartners(ctx context.Context) ([]Partner, error)
 	UpdateApplication(ctx context.Context, arg UpdateApplicationParams) error
+	UpdateLocation(ctx context.Context, arg UpdateLocationParams) (Location, error)
+	UpdateLocationStatus(ctx context.Context, arg UpdateLocationStatusParams) error
+	UpdateLocationWorkingHours(ctx context.Context, arg UpdateLocationWorkingHoursParams) error
 	UpdatePartner(ctx context.Context, arg UpdatePartnerParams) error
 	UpdatePartnerEmployee(ctx context.Context, arg UpdatePartnerEmployeeParams) error
 	UpdatePartnerEmployeePassword(ctx context.Context, arg UpdatePartnerEmployeePasswordParams) error
