@@ -23,6 +23,7 @@ func (s *jwtTokenService) Generate(claims auth.TokenClaims) (string, error) {
 	jwtClaims := jwt.MapClaims{
 		"user_id":   claims.UserID,
 		"user_type": claims.UserType,
+		"user_data": claims.UserData,
 		"exp":       time.Now().Add(24 * time.Hour).Unix(),
 	}
 
@@ -60,6 +61,9 @@ func (s *jwtTokenService) Validate(tokenString string) (*auth.TokenClaims, error
 
 	if role, ok := claims["role"].(string); ok {
 		result.Role = role
+	}
+	if userData, ok := claims["user_data"]; ok {
+		result.UserData = userData
 	}
 
 	return result, nil

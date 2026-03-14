@@ -61,6 +61,10 @@ func (a *authMiddleware) RequireAuth(allowedTypes ...string) func(http.Handler) 
 			ctx := context.WithValue(r.Context(), "user_id", claims.UserID)
 			ctx = context.WithValue(ctx, "user_type", claims.UserType)
 
+			if claims.UserType == "partner" {
+				ctx = context.WithValue(ctx, "partner_id", claims.UserData.(string))
+			}
+
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

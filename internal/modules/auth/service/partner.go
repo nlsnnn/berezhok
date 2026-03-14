@@ -39,6 +39,7 @@ func (a *partnerAuthenticator) Authenticate(ctx context.Context, email, password
 		UserID:   part.ID,
 		UserType: "partner",
 		Role:     part.Role,
+		UserData: part.PartnerID,
 	}
 	token, err := a.tokenService.Generate(claims)
 	if err != nil {
