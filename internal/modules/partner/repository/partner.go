@@ -44,9 +44,9 @@ func (r *PartnerRepo) List(ctx context.Context) ([]domain.Partner, error) {
 	return result, nil
 }
 
-func (r *PartnerRepo) Create(ctx context.Context, legalName string) (domain.Partner, error) {
+func (r *PartnerRepo) Create(ctx context.Context, name string) (domain.Partner, error) {
 	p, err := r.q.CreatePartner(ctx, sqlc.CreatePartnerParams{
-		LegalName:      legalName,
+		BrandName:      name,
 		Status:         string(domain.PartnerStatusPendingDocuments),
 		CommissionRate: pgtype.Numeric{Int: big.NewInt(20), Exp: -2, Valid: true},
 	})
@@ -71,8 +71,7 @@ func (r *PartnerRepo) GetProfile(ctx context.Context, employeeID string) (domain
 	profile := domain.PartnerProfile{
 		Partner: domain.Partner{
 			ID:         row.PartnerID.String(),
-			LegalName:  row.LegalName,
-			BrandName:  row.BrandName.String,
+			BrandName:  row.BrandName,
 			Status:     domain.PartnerStatus(row.PartnerStatus),
 			Commission: commission,
 			CreatedAt:  row.PartnerCreatedAt,
@@ -116,8 +115,7 @@ func partnerToDomain(p sqlc.Partner) domain.Partner {
 
 	return domain.Partner{
 		ID:         p.ID.String(),
-		LegalName:  p.LegalName,
-		BrandName:  p.BrandName.String,
+		BrandName:  p.BrandName,
 		LogoURL:    p.LogoUrl.String,
 		Status:     domain.PartnerStatus(p.Status),
 		Commission: commission,

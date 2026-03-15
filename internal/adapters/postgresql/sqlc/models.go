@@ -41,8 +41,7 @@ type LocationCategory struct {
 // Партнёры (юридические лица)
 type Partner struct {
 	ID                   uuid.UUID      `json:"id"`
-	LegalName            string         `json:"legal_name"`
-	BrandName            pgtype.Text    `json:"brand_name"`
+	BrandName            string         `json:"brand_name"`
 	LogoUrl              pgtype.Text    `json:"logo_url"`
 	ParentPartnerID      pgtype.UUID    `json:"parent_partner_id"`
 	AccountType          pgtype.Text    `json:"account_type"`
@@ -95,4 +94,5 @@ type PartnerLegalInfo struct {
 	LegalAddress string           `json:"legal_address"`
 	CreatedAt    pgtype.Timestamp `json:"created_at"`
 	UpdatedAt    pgtype.Timestamp `json:"updated_at"`
+	LegalName    string           `json:"legal_name"`
 }

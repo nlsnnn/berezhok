@@ -16,7 +16,6 @@ const (
 
 type Partner struct {
 	ID         string
-	LegalName  string
 	BrandName  string
 	LogoURL    string
 	Commission Commission

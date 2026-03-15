@@ -39,7 +39,7 @@ type appRepo interface {
 }
 
 type partnerProvider interface {
-	Create(ctx context.Context, legalName string) (domain.Partner, error)
+	Create(ctx context.Context, name string) (domain.Partner, error)
 	CheckEmailExists(ctx context.Context, email string) (bool, error)
 }
 
@@ -140,6 +140,7 @@ func (s *appService) Approve(ctx context.Context, id string) error {
 		Address:      app.Address,
 		Latitude:     app.Coords.Latitude,
 		Longitude:    app.Coords.Longitude,
+		Status:       domain.LocationStatusDraft,
 	}); err != nil {
 		return err
 	}

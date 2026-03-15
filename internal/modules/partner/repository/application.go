@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
+	sharedDomain "github.com/nlsnnn/berezhok/internal/shared/domain"
 )
 
 type ApplicationRepo struct {
@@ -92,5 +93,9 @@ func applicationToDomain(a sqlc.PartnerApplication) domain.Application {
 		ReviewedAt:      reviewedAt,
 		RejectionReason: a.RejectionReason.String,
 		CreatedAt:       a.CreatedAt,
+		Coords: sharedDomain.GeoPoint{
+			Latitude:  a.Latitude.Float64,
+			Longitude: a.Longitude.Float64,
+		},
 	}
 }

@@ -15,6 +15,7 @@ type CreateLocationInput struct {
 	Address      string
 	Latitude     float64
 	Longitude    float64
+	Status       domain.LocationStatus
 }
 
 type UpdateLocationInput struct {
@@ -56,6 +57,7 @@ func (s *locationService) Create(ctx context.Context, input CreateLocationInput)
 	}
 
 	location, err := domain.NewLocation(input.PartnerID, input.Name, input.Address, category,
+		input.Status,
 		sharedDomain.GeoPoint{
 			Latitude:  input.Latitude,
 			Longitude: input.Longitude,

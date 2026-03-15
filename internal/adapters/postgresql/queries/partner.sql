@@ -39,7 +39,7 @@ SELECT EXISTS (
 -- name: GetPartnerProfile :one
 SELECT 
     e.id as employee_id, e.name as employee_name, e.email, e.role, e.created_at as employee_created_at, e.must_change_password,
-    p.id as partner_id, p.legal_name, p.brand_name, p.status as partner_status,
+    p.id as partner_id, p.brand_name, p.status as partner_status,
     CASE 
         WHEN p.promo_commission_until >= NOW() THEN COALESCE(p.promo_commission_rate, p.commission_rate)
         ELSE p.commission_rate 
@@ -54,17 +54,17 @@ WHERE e.id = $1;
 
 -- name: CreatePartner :one
 INSERT INTO partners (
-    legal_name, brand_name, logo_url, parent_partner_id, account_type, 
+    brand_name, logo_url, parent_partner_id, account_type, 
     commission_rate, promo_commission_rate, promo_commission_until, status
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;
 
 -- name: UpdatePartner :exec
 UPDATE partners
-SET legal_name = $1, brand_name = $2, logo_url = $3, parent_partner_id = $4, 
-    account_type = $5, commission_rate = $6, promo_commission_rate = $7, 
-    promo_commission_until = $8, status = $9
-WHERE id = $10;
+SET brand_name = $1, logo_url = $2, parent_partner_id = $3, 
+    account_type = $4, commission_rate = $5, promo_commission_rate = $6, 
+    promo_commission_until = $7, status = $8
+WHERE id = $9;
 
 
 -- Сотрудники партнёров

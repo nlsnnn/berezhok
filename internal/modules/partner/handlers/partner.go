@@ -87,7 +87,6 @@ func (h *partnerHandler) Profile(w http.ResponseWriter, r *http.Request) {
 	res := dto.PartnerProfileResponse{
 		Partner: dto.PartnerResponse{
 			ID:             profile.Partner.ID,
-			LegalName:      profile.Partner.LegalName,
 			BrandName:      profile.Partner.BrandName,
 			Status:         string(profile.Partner.Status),
 			CommissionRate: profile.Partner.Commission.Rate,

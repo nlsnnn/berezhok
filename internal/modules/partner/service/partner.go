@@ -22,7 +22,7 @@ type partService struct {
 type partnerRepo interface {
 	FindByID(ctx context.Context, id string) (domain.Partner, error)
 	List(ctx context.Context) ([]domain.Partner, error)
-	Create(ctx context.Context, legalName string) (domain.Partner, error)
+	Create(ctx context.Context, name string) (domain.Partner, error)
 	CheckEmailExists(ctx context.Context, email string) (bool, error)
 	GetProfile(ctx context.Context, employeeID string) (domain.PartnerProfile, error)
 	UpdateEmployeePassword(ctx context.Context, employeeID, newHash string) error
@@ -53,8 +53,8 @@ func (s *partService) CheckEmailExists(ctx context.Context, email string) (bool,
 	return emailExists, nil
 }
 
-func (s *partService) Create(ctx context.Context, legalName string) (domain.Partner, error) {
-	return s.repo.Create(ctx, legalName)
+func (s *partService) Create(ctx context.Context, name string) (domain.Partner, error) {
+	return s.repo.Create(ctx, name)
 }
 
 func (s *partService) ChangePassword(ctx context.Context, input ChangePasswordInput) error {

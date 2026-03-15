@@ -25,8 +25,8 @@ func (r *LocationRepo) Create(ctx context.Context, location domain.Location) (do
 		Address:       location.Address,
 		CategoryCode:  location.Category.Code,
 		Status:        string(location.Status),
-		StMakepoint:   location.Coords.Latitude,
-		StMakepoint_2: location.Coords.Longitude,
+		StMakepoint:   location.Coords.Longitude,
+		StMakepoint_2: location.Coords.Latitude,
 	})
 	if err != nil {
 		return domain.Location{}, err

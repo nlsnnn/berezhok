@@ -13,6 +13,7 @@ const (
 	LocationStatusActive   LocationStatus = "active"
 	LocationStatusInactive LocationStatus = "inactive"
 	LocationStatusClosed   LocationStatus = "closed"
+	LocationStatusDraft    LocationStatus = "draft"
 )
 
 type Location struct {
@@ -39,7 +40,7 @@ type LocationCategory struct {
 	Sort    int
 }
 
-func NewLocation(partnerID, name, address string, category LocationCategory, coords sharedDomain.GeoPoint) (Location, error) {
+func NewLocation(partnerID, name, address string, category LocationCategory, status LocationStatus, coords sharedDomain.GeoPoint) (Location, error) {
 	if partnerID == "" {
 		return Location{}, fmt.Errorf("partner ID is required")
 	}
@@ -54,7 +55,7 @@ func NewLocation(partnerID, name, address string, category LocationCategory, coo
 		PartnerID: partnerID,
 		Name:      name,
 		Address:   address,
-		Status:    LocationStatusInactive,
+		Status:    status,
 		Category:  category,
 		Coords:    coords,
 	}, nil

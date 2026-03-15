@@ -148,15 +148,14 @@ func (q *Queries) CreateLocation(ctx context.Context, arg CreateLocationParams) 
 
 const createPartner = `-- name: CreatePartner :one
 INSERT INTO partners (
-    legal_name, brand_name, logo_url, parent_partner_id, account_type, 
+    brand_name, logo_url, parent_partner_id, account_type, 
     commission_rate, promo_commission_rate, promo_commission_until, status
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, legal_name, brand_name, logo_url, parent_partner_id, account_type, commission_rate, promo_commission_rate, promo_commission_until, status, created_at, updated_at
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, brand_name, logo_url, parent_partner_id, account_type, commission_rate, promo_commission_rate, promo_commission_until, status, created_at, updated_at
 `
 
 type CreatePartnerParams struct {
-	LegalName            string         `json:"legal_name"`
-	BrandName            pgtype.Text    `json:"brand_name"`
+	BrandName            string         `json:"brand_name"`
 	LogoUrl              pgtype.Text    `json:"logo_url"`
 	ParentPartnerID      pgtype.UUID    `json:"parent_partner_id"`
 	AccountType          pgtype.Text    `json:"account_type"`
@@ -168,7 +167,6 @@ type CreatePartnerParams struct {
 
 func (q *Queries) CreatePartner(ctx context.Context, arg CreatePartnerParams) (Partner, error) {
 	row := q.db.QueryRow(ctx, createPartner,
-		arg.LegalName,
 		arg.BrandName,
 		arg.LogoUrl,
 		arg.ParentPartnerID,
@@ -181,7 +179,6 @@ func (q *Queries) CreatePartner(ctx context.Context, arg CreatePartnerParams) (P
 	var i Partner
 	err := row.Scan(
 		&i.ID,
-		&i.LegalName,
 		&i.BrandName,
 		&i.LogoUrl,
 		&i.ParentPartnerID,
@@ -383,7 +380,7 @@ func (q *Queries) FindLocationsByPartnerID(ctx context.Context, partnerID uuid.U
 }
 
 const findPartnerByID = `-- name: FindPartnerByID :one
-SELECT id, legal_name, brand_name, logo_url, parent_partner_id, account_type, commission_rate, promo_commission_rate, promo_commission_until, status, created_at, updated_at FROM partners WHERE id = $1
+SELECT id, brand_name, logo_url, parent_partner_id, account_type, commission_rate, promo_commission_rate, promo_commission_until, status, created_at, updated_at FROM partners WHERE id = $1
 `
 
 func (q *Queries) FindPartnerByID(ctx context.Context, id uuid.UUID) (Partner, error) {
@@ -391,7 +388,6 @@ func (q *Queries) FindPartnerByID(ctx context.Context, id uuid.UUID) (Partner, e
 	var i Partner
 	err := row.Scan(
 		&i.ID,
-		&i.LegalName,
 		&i.BrandName,
 		&i.LogoUrl,
 		&i.ParentPartnerID,
@@ -455,7 +451,7 @@ func (q *Queries) FindPartnerEmployeeByID(ctx context.Context, id uuid.UUID) (Pa
 const getPartnerProfile = `-- name: GetPartnerProfile :one
 SELECT 
     e.id as employee_id, e.name as employee_name, e.email, e.role, e.created_at as employee_created_at, e.must_change_password,
-    p.id as partner_id, p.legal_name, p.brand_name, p.status as partner_status,
+    p.id as partner_id, p.brand_name, p.status as partner_status,
     CASE 
         WHEN p.promo_commission_until >= NOW() THEN COALESCE(p.promo_commission_rate, p.commission_rate)
         ELSE p.commission_rate 
@@ -477,8 +473,7 @@ type GetPartnerProfileRow struct {
 	EmployeeCreatedAt    time.Time        `json:"employee_created_at"`
 	MustChangePassword   pgtype.Bool      `json:"must_change_password"`
 	PartnerID            uuid.UUID        `json:"partner_id"`
-	LegalName            string           `json:"legal_name"`
-	BrandName            pgtype.Text      `json:"brand_name"`
+	BrandName            string           `json:"brand_name"`
 	PartnerStatus        string           `json:"partner_status"`
 	CommissionRate       interface{}      `json:"commission_rate"`
 	PromoCommissionUntil pgtype.Date      `json:"promo_commission_until"`
@@ -500,7 +495,6 @@ func (q *Queries) GetPartnerProfile(ctx context.Context, id uuid.UUID) (GetPartn
 		&i.EmployeeCreatedAt,
 		&i.MustChangePassword,
 		&i.PartnerID,
-		&i.LegalName,
 		&i.BrandName,
 		&i.PartnerStatus,
 		&i.CommissionRate,
@@ -668,7 +662,7 @@ func (q *Queries) ListPartnerEmployees(ctx context.Context) ([]PartnerEmployee, 
 }
 
 const listPartners = `-- name: ListPartners :many
-SELECT id, legal_name, brand_name, logo_url, parent_partner_id, account_type, commission_rate, promo_commission_rate, promo_commission_until, status, created_at, updated_at FROM partners
+SELECT id, brand_name, logo_url, parent_partner_id, account_type, commission_rate, promo_commission_rate, promo_commission_until, status, created_at, updated_at FROM partners
 `
 
 // Партнёры (юридические лица)
@@ -683,7 +677,6 @@ func (q *Queries) ListPartners(ctx context.Context) ([]Partner, error) {
 		var i Partner
 		if err := rows.Scan(
 			&i.ID,
-			&i.LegalName,
 			&i.BrandName,
 			&i.LogoUrl,
 			&i.ParentPartnerID,
@@ -816,15 +809,14 @@ func (q *Queries) UpdateLocationWorkingHours(ctx context.Context, arg UpdateLoca
 
 const updatePartner = `-- name: UpdatePartner :exec
 UPDATE partners
-SET legal_name = $1, brand_name = $2, logo_url = $3, parent_partner_id = $4, 
-    account_type = $5, commission_rate = $6, promo_commission_rate = $7, 
-    promo_commission_until = $8, status = $9
-WHERE id = $10
+SET brand_name = $1, logo_url = $2, parent_partner_id = $3, 
+    account_type = $4, commission_rate = $5, promo_commission_rate = $6, 
+    promo_commission_until = $7, status = $8
+WHERE id = $9
 `
 
 type UpdatePartnerParams struct {
-	LegalName            string         `json:"legal_name"`
-	BrandName            pgtype.Text    `json:"brand_name"`
+	BrandName            string         `json:"brand_name"`
 	LogoUrl              pgtype.Text    `json:"logo_url"`
 	ParentPartnerID      pgtype.UUID    `json:"parent_partner_id"`
 	AccountType          pgtype.Text    `json:"account_type"`
@@ -837,7 +829,6 @@ type UpdatePartnerParams struct {
 
 func (q *Queries) UpdatePartner(ctx context.Context, arg UpdatePartnerParams) error {
 	_, err := q.db.Exec(ctx, updatePartner,
-		arg.LegalName,
 		arg.BrandName,
 		arg.LogoUrl,
 		arg.ParentPartnerID,

@@ -25,7 +25,6 @@ type PartnerProfileResponse struct {
 
 type PartnerResponse struct {
 	ID             string     `json:"id"`
-	LegalName      string     `json:"legal_name"`
 	BrandName      string     `json:"brand_name"`
 	Status         string     `json:"status"`
 	CommissionRate float64    `json:"commission_rate"`
