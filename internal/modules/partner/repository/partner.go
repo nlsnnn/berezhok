@@ -28,6 +28,10 @@ func (r *PartnerRepo) FindByID(ctx context.Context, id string) (domain.Partner, 
 	return partnerToDomain(p), nil
 }
 
+func (r *PartnerRepo) CheckEmailExists(ctx context.Context, email string) (bool, error) {
+	return r.q.CheckEmailExists(ctx, email)
+}
+
 func (r *PartnerRepo) List(ctx context.Context) ([]domain.Partner, error) {
 	rows, err := r.q.ListPartners(ctx)
 	if err != nil {

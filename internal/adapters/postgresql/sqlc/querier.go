@@ -12,6 +12,7 @@ import (
 
 type Querier interface {
 	ActivateLocation(ctx context.Context, id uuid.UUID) error
+	CheckEmailExists(ctx context.Context, email string) (bool, error)
 	CloseLocation(ctx context.Context, id uuid.UUID) error
 	CreateApplication(ctx context.Context, arg CreateApplicationParams) (PartnerApplication, error)
 	CreateLocation(ctx context.Context, arg CreateLocationParams) (Location, error)

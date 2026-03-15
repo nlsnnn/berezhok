@@ -47,13 +47,13 @@ func (app *application) mount() http.Handler {
 	// Partner module — services
 	partnerSvc := partnerServices.NewPartnerService(partnerRepo, employeeRepo)
 	employeeSvc := partnerServices.NewEmployeeService(employeeRepo)
-	appSvc := partnerServices.NewApplicationService(appRepo, partnerSvc, employeeSvc)
 	locationSvc := partnerServices.NewLocationService(locationRepo)
+	appSvc := partnerServices.NewApplicationService(appRepo, partnerSvc, employeeSvc, locationSvc)
 
 	// Partner module — handlers
 	partHandler := partnerHandlers.NewPartnerHandler(partnerSvc, app.log)
 	appHandler := partnerHandlers.NewApplicationHandler(app.log, appSvc)
-	locationHandler := partnerHandlers.NewLocationHandler(app.log, v, &locationSvc, partnerSvc)
+	locationHandler := partnerHandlers.NewLocationHandler(app.log, v, locationSvc, partnerSvc)
 
 	// Auth module
 	partnerAuthSvc := authServices.NewPartnerAuthenticator(employeeRepo, jwtService)

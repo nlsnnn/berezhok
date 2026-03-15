@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
 	"github.com/nlsnnn/berezhok/internal/modules/auth"
+	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 	"github.com/nlsnnn/berezhok/internal/shared/logger/sl"
 	"github.com/nlsnnn/berezhok/internal/shared/response"
 	"github.com/nlsnnn/berezhok/internal/shared/validator"
@@ -64,6 +64,6 @@ func (h *authHandler) PartnerLogin(w http.ResponseWriter, r *http.Request) {
 	response.Success(w, LoginPartnerResponse{
 		UserID:     claims.UserID.String(),
 		Token:      claims.Access,
-		MustChange: claims.UserData.(sqlc.PartnerEmployee).MustChangePassword.Bool,
+		MustChange: claims.UserData.(domain.Employee).MustChangePassword,
 	})
 }

@@ -23,6 +23,7 @@ type partnerRepo interface {
 	FindByID(ctx context.Context, id string) (domain.Partner, error)
 	List(ctx context.Context) ([]domain.Partner, error)
 	Create(ctx context.Context, legalName string) (domain.Partner, error)
+	CheckEmailExists(ctx context.Context, email string) (bool, error)
 	GetProfile(ctx context.Context, employeeID string) (domain.PartnerProfile, error)
 	UpdateEmployeePassword(ctx context.Context, employeeID, newHash string) error
 }
@@ -41,6 +42,15 @@ func (s *partService) List(ctx context.Context) ([]domain.Partner, error) {
 
 func (s *partService) FindByID(ctx context.Context, id string) (domain.Partner, error) {
 	return s.repo.FindByID(ctx, id)
+}
+
+func (s *partService) CheckEmailExists(ctx context.Context, email string) (bool, error) {
+	emailExists, err := s.repo.CheckEmailExists(ctx, email)
+	if err != nil {
+		return false, err
+	}
+
+	return emailExists, nil
 }
 
 func (s *partService) Create(ctx context.Context, legalName string) (domain.Partner, error) {

@@ -8,9 +8,9 @@ SELECT * FROM partner_applications WHERE id = $1;
 -- name: CreateApplication :one
 INSERT INTO partner_applications (
     contact_name, contact_email, contact_phone, business_name, category_code, 
-    address, description, status
+    address, description, status, latitude, longitude
 ) 
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *;
 
 -- name: UpdateApplication :exec
 UPDATE partner_applications
@@ -27,6 +27,14 @@ SELECT * FROM partners;
 
 -- name: FindPartnerByID :one
 SELECT * FROM partners WHERE id = $1;
+
+-- name: CheckEmailExists :one
+SELECT EXISTS (
+    SELECT 1 FROM partner_employees WHERE email = $1
+    UNION
+    SELECT 1 FROM partner_applications WHERE contact_email = $1 AND status = 'pending'
+) AS email_exists;
+
 
 -- name: GetPartnerProfile :one
 SELECT 

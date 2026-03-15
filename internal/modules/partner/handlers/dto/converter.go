@@ -13,6 +13,8 @@ func (r CreateApplicationRequest) ToInput() service.CreateApplicationInput {
 		BusinessName: r.BusinessName,
 		CategoryCode: r.CategoryCode,
 		Address:      r.Address,
+		Longitude:    r.Longitude,
+		Latitude:     r.Latitude,
 		Description:  r.Description,
 	}
 }

@@ -67,6 +67,8 @@ type PartnerApplication struct {
 	ReviewedAt      pgtype.Timestamptz `json:"reviewed_at"`
 	RejectionReason pgtype.Text        `json:"rejection_reason"`
 	CreatedAt       time.Time          `json:"created_at"`
+	Latitude        pgtype.Float8      `json:"latitude"`
+	Longitude       pgtype.Float8      `json:"longitude"`
 }
 
 // Сотрудники партнёров

@@ -37,12 +37,16 @@ type locationRepo interface {
 	Delete(ctx context.Context, id string) error
 }
 
-func NewLocationService(repo locationRepo) locationService {
-	return locationService{repo: repo}
+func NewLocationService(repo locationRepo) *locationService {
+	return &locationService{repo: repo}
 }
 
 func (s *locationService) ListByPartner(ctx context.Context, partnerID string) ([]domain.Location, error) {
 	return s.repo.FindByPartnerID(ctx, partnerID)
+}
+
+func (s *locationService) FindCategoryByCode(ctx context.Context, code string) (domain.LocationCategory, error) {
+	return s.repo.FindCategoryByCode(ctx, code)
 }
 
 func (s *locationService) Create(ctx context.Context, input CreateLocationInput) (domain.Location, error) {

@@ -21,9 +21,9 @@ type appHandler struct {
 
 func NewApplicationHandler(log *slog.Logger, svc appSvc) appHandler {
 	return appHandler{
-		log:       log,
+		log:        log,
 		appService: svc,
-		validator: validator.New(),
+		validator:  validator.New(),
 	}
 }
 
@@ -38,8 +38,17 @@ func (a *appHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	app, err := a.appService.Create(r.Context(), req.ToInput())
 	if err != nil {
-		a.log.Error("failed to create application", sl.Err(err))
-		response.InternalError(w, err)
+		switch {
+		case errors.Is(err, partnerErrors.ErrLocationCategoryNotFound):
+			a.log.Warn("invalid location category code", sl.Err(err))
+			response.BadRequest(w, "invalid location category code")
+		case errors.Is(err, partnerErrors.ErrEmailAlreadyInUse):
+			a.log.Warn("email already in use", sl.Err(err))
+			response.BadRequest(w, "email already in use")
+		default:
+			a.log.Error("failed to create application", sl.Err(err))
+			response.InternalError(w, err)
+		}
 		return
 	}
 

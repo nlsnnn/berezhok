@@ -22,6 +22,21 @@ func (q *Queries) ActivateLocation(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const checkEmailExists = `-- name: CheckEmailExists :one
+SELECT EXISTS (
+    SELECT 1 FROM partner_employees WHERE email = $1
+    UNION
+    SELECT 1 FROM partner_applications WHERE contact_email = $1 AND status = 'pending'
+) AS email_exists
+`
+
+func (q *Queries) CheckEmailExists(ctx context.Context, email string) (bool, error) {
+	row := q.db.QueryRow(ctx, checkEmailExists, email)
+	var email_exists bool
+	err := row.Scan(&email_exists)
+	return email_exists, err
+}
+
 const closeLocation = `-- name: CloseLocation :exec
 UPDATE locations SET status = 'closed', updated_at = NOW() WHERE id = $1
 `
@@ -34,20 +49,22 @@ func (q *Queries) CloseLocation(ctx context.Context, id uuid.UUID) error {
 const createApplication = `-- name: CreateApplication :one
 INSERT INTO partner_applications (
     contact_name, contact_email, contact_phone, business_name, category_code, 
-    address, description, status
+    address, description, status, latitude, longitude
 ) 
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, contact_name, contact_email, contact_phone, business_name, category_code, address, description, status, reviewed_at, rejection_reason, created_at
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, contact_name, contact_email, contact_phone, business_name, category_code, address, description, status, reviewed_at, rejection_reason, created_at, latitude, longitude
 `
 
 type CreateApplicationParams struct {
-	ContactName  string      `json:"contact_name"`
-	ContactEmail string      `json:"contact_email"`
-	ContactPhone string      `json:"contact_phone"`
-	BusinessName string      `json:"business_name"`
-	CategoryCode pgtype.Text `json:"category_code"`
-	Address      pgtype.Text `json:"address"`
-	Description  pgtype.Text `json:"description"`
-	Status       string      `json:"status"`
+	ContactName  string        `json:"contact_name"`
+	ContactEmail string        `json:"contact_email"`
+	ContactPhone string        `json:"contact_phone"`
+	BusinessName string        `json:"business_name"`
+	CategoryCode pgtype.Text   `json:"category_code"`
+	Address      pgtype.Text   `json:"address"`
+	Description  pgtype.Text   `json:"description"`
+	Status       string        `json:"status"`
+	Latitude     pgtype.Float8 `json:"latitude"`
+	Longitude    pgtype.Float8 `json:"longitude"`
 }
 
 func (q *Queries) CreateApplication(ctx context.Context, arg CreateApplicationParams) (PartnerApplication, error) {
@@ -60,6 +77,8 @@ func (q *Queries) CreateApplication(ctx context.Context, arg CreateApplicationPa
 		arg.Address,
 		arg.Description,
 		arg.Status,
+		arg.Latitude,
+		arg.Longitude,
 	)
 	var i PartnerApplication
 	err := row.Scan(
@@ -75,6 +94,8 @@ func (q *Queries) CreateApplication(ctx context.Context, arg CreateApplicationPa
 		&i.ReviewedAt,
 		&i.RejectionReason,
 		&i.CreatedAt,
+		&i.Latitude,
+		&i.Longitude,
 	)
 	return i, err
 }
@@ -253,7 +274,7 @@ func (q *Queries) DeletePartnerEmployee(ctx context.Context, id uuid.UUID) error
 }
 
 const findApplicationByID = `-- name: FindApplicationByID :one
-SELECT id, contact_name, contact_email, contact_phone, business_name, category_code, address, description, status, reviewed_at, rejection_reason, created_at FROM partner_applications WHERE id = $1
+SELECT id, contact_name, contact_email, contact_phone, business_name, category_code, address, description, status, reviewed_at, rejection_reason, created_at, latitude, longitude FROM partner_applications WHERE id = $1
 `
 
 func (q *Queries) FindApplicationByID(ctx context.Context, id uuid.UUID) (PartnerApplication, error) {
@@ -272,6 +293,8 @@ func (q *Queries) FindApplicationByID(ctx context.Context, id uuid.UUID) (Partne
 		&i.ReviewedAt,
 		&i.RejectionReason,
 		&i.CreatedAt,
+		&i.Latitude,
+		&i.Longitude,
 	)
 	return i, err
 }
@@ -492,7 +515,7 @@ func (q *Queries) GetPartnerProfile(ctx context.Context, id uuid.UUID) (GetPartn
 }
 
 const listApplications = `-- name: ListApplications :many
-SELECT id, contact_name, contact_email, contact_phone, business_name, category_code, address, description, status, reviewed_at, rejection_reason, created_at FROM partner_applications
+SELECT id, contact_name, contact_email, contact_phone, business_name, category_code, address, description, status, reviewed_at, rejection_reason, created_at, latitude, longitude FROM partner_applications
 `
 
 // Заявки на партнёрство
@@ -518,6 +541,8 @@ func (q *Queries) ListApplications(ctx context.Context) ([]PartnerApplication, e
 			&i.ReviewedAt,
 			&i.RejectionReason,
 			&i.CreatedAt,
+			&i.Latitude,
+			&i.Longitude,
 		); err != nil {
 			return nil, err
 		}

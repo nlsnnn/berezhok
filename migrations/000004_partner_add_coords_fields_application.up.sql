@@ -1,0 +1,3 @@
+ALTER TABLE partner_applications
+ADD COLUMN latitude DOUBLE PRECISION,
+ADD COLUMN longitude DOUBLE PRECISION;

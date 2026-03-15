@@ -49,6 +49,8 @@ func (r *ApplicationRepo) Create(ctx context.Context, app domain.Application) (d
 		Address:      pgtype.Text{String: app.Address, Valid: app.Address != ""},
 		Description:  pgtype.Text{String: app.Description, Valid: app.Description != ""},
 		Status:       string(domain.ApplicationStatusPending),
+		Latitude:     pgtype.Float8{Float64: app.Coords.Latitude, Valid: app.Coords.Latitude != 0},
+		Longitude:    pgtype.Float8{Float64: app.Coords.Longitude, Valid: app.Coords.Longitude != 0},
 	})
 	if err != nil {
 		return domain.Application{}, err

@@ -7,6 +7,7 @@ import (
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/errors"
 	"github.com/nlsnnn/berezhok/internal/shared/auth"
+	types "github.com/nlsnnn/berezhok/internal/shared/domain"
 	"github.com/nlsnnn/berezhok/internal/shared/generator"
 )
 
@@ -17,13 +18,16 @@ type CreateApplicationInput struct {
 	BusinessName string
 	CategoryCode string
 	Address      string
+	Longitude    float64
+	Latitude     float64
 	Description  string
 }
 
 type appService struct {
-	repo        appRepo
-	partnerSvc  partnerCreator
-	employeeSvc employeeCreator
+	repo             appRepo
+	partnerSvc       partnerProvider
+	employeeSvc      employeeCreator
+	locationProvider locationProvider
 }
 
 type appRepo interface {
@@ -34,35 +38,62 @@ type appRepo interface {
 	Delete(ctx context.Context, id string) error
 }
 
-type partnerCreator interface {
+type partnerProvider interface {
 	Create(ctx context.Context, legalName string) (domain.Partner, error)
+	CheckEmailExists(ctx context.Context, email string) (bool, error)
 }
 
 type employeeCreator interface {
 	Create(ctx context.Context, partnerID, email, passwordHash, name string, role domain.EmployeeRole) (domain.Employee, error)
 }
 
-func NewApplicationService(repo appRepo, partnerSvc partnerCreator, employeeSvc employeeCreator) *appService {
+type locationProvider interface {
+	Create(ctx context.Context, input CreateLocationInput) (domain.Location, error)
+	FindCategoryByCode(ctx context.Context, code string) (domain.LocationCategory, error)
+}
+
+func NewApplicationService(repo appRepo, partnerSvc partnerProvider, employeeSvc employeeCreator, locationProvider locationProvider) *appService {
 	return &appService{
-		repo:        repo,
-		partnerSvc:  partnerSvc,
-		employeeSvc: employeeSvc,
+		repo:             repo,
+		partnerSvc:       partnerSvc,
+		employeeSvc:      employeeSvc,
+		locationProvider: locationProvider,
 	}
 }
 
 func (s *appService) Create(ctx context.Context, input CreateApplicationInput) (domain.Application, error) {
-	if input.ContactName == "" {
-		return domain.Application{}, errors.ErrInvalidInput
+	coords, err := types.NewGeoPoint(input.Latitude, input.Longitude)
+	if err != nil {
+		return domain.Application{}, err
 	}
-	return s.repo.Create(ctx, domain.Application{
-		ContactName:  input.ContactName,
-		ContactEmail: input.ContactEmail,
-		ContactPhone: input.ContactPhone,
-		BusinessName: input.BusinessName,
-		CategoryCode: input.CategoryCode,
-		Address:      input.Address,
-		Description:  input.Description,
-	})
+
+	if _, err := s.locationProvider.FindCategoryByCode(ctx, input.CategoryCode); err != nil {
+		return domain.Application{}, errors.ErrLocationCategoryNotFound
+	}
+
+	emailExists, err := s.partnerSvc.CheckEmailExists(ctx, input.ContactEmail)
+	if err == nil && emailExists {
+		return domain.Application{}, errors.ErrEmailAlreadyInUse
+	}
+	if err != nil {
+		return domain.Application{}, err
+	}
+
+	application, err := domain.NewApplication(
+		input.ContactName,
+		input.ContactEmail,
+		input.ContactPhone,
+		input.BusinessName,
+		input.CategoryCode,
+		input.Address,
+		input.Description,
+		coords,
+	)
+	if err != nil {
+		return domain.Application{}, err
+	}
+
+	return s.repo.Create(ctx, application)
 }
 
 func (s *appService) GetByID(ctx context.Context, id string) (domain.Application, error) {
@@ -83,13 +114,8 @@ func (s *appService) Approve(ctx context.Context, id string) error {
 		return err
 	}
 
-	if app.Status != domain.ApplicationStatusPending {
+	if !app.CanTransitionTo(domain.ApplicationStatusApproved) {
 		return errors.ErrInvalidStatusTransition
-	}
-
-	partner, err := s.partnerSvc.Create(ctx, app.BusinessName)
-	if err != nil {
-		return err
 	}
 
 	password := generator.GeneratePassword()
@@ -98,7 +124,23 @@ func (s *appService) Approve(ctx context.Context, id string) error {
 		return err
 	}
 
+	partner, err := s.partnerSvc.Create(ctx, app.BusinessName)
+	if err != nil {
+		return err
+	}
+
 	if _, err := s.employeeSvc.Create(ctx, partner.ID, app.ContactEmail, passwordHash, app.ContactName, domain.EmployeeRoleOwner); err != nil {
+		return err
+	}
+
+	if _, err := s.locationProvider.Create(ctx, CreateLocationInput{
+		PartnerID:    partner.ID,
+		CategoryCode: app.CategoryCode,
+		Name:         app.BusinessName,
+		Address:      app.Address,
+		Latitude:     app.Coords.Latitude,
+		Longitude:    app.Coords.Longitude,
+	}); err != nil {
 		return err
 	}
 
@@ -114,7 +156,7 @@ func (s *appService) Reject(ctx context.Context, id string, reason string) error
 		return err
 	}
 
-	if app.Status != domain.ApplicationStatusPending {
+	if !app.CanTransitionTo(domain.ApplicationStatusRejected) {
 		return errors.ErrInvalidStatusTransition
 	}
 
