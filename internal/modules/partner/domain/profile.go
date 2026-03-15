@@ -1,5 +1,7 @@
 package domain
 
+import "time"
+
 // PartnerProfile is a read model for the partner profile endpoint.
 // It aggregates partner, employee and optional location data.
 type PartnerProfile struct {
@@ -11,7 +13,8 @@ type PartnerProfile struct {
 // LocationSummary is a lightweight read-only view of a location
 // used when full location data is not needed.
 type LocationSummary struct {
-	ID      string
-	Name    string
-	Address string
+	ID        string
+	Name      string
+	Address   string
+	CreatedAt time.Time
 }

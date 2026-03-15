@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	errs "github.com/nlsnnn/berezhok/internal/modules/partner/errors"
+)
 
 type PartnerStatus string
 
@@ -11,13 +15,34 @@ const (
 )
 
 type Partner struct {
-	ID                   string
-	LegalName            string
-	BrandName            string
-	LogoURL              string
-	CommissionRate       float64
-	PromoCommissionRate  float64
-	PromoCommissionUntil *time.Time
-	Status               PartnerStatus
-	CreatedAt            time.Time
+	ID         string
+	LegalName  string
+	BrandName  string
+	LogoURL    string
+	Commission Commission
+	Status     PartnerStatus
+	CreatedAt  time.Time
+}
+
+type Commission struct {
+	Rate       float64
+	ValidUntil *time.Time
+}
+
+func NewCommission(rate float64, validUntil *time.Time) (Commission, error) {
+	if rate < 0 || rate > 1 {
+		return Commission{}, errs.ErrInvalidCommissionRate
+	}
+
+	return Commission{
+		Rate:       rate,
+		ValidUntil: validUntil,
+	}, nil
+}
+
+func (c Commission) IsPromoActive() bool {
+	if c.ValidUntil == nil {
+		return false
+	}
+	return time.Now().Before(*c.ValidUntil)
 }

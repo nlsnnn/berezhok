@@ -7,6 +7,7 @@ package sqlc
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -430,10 +431,15 @@ func (q *Queries) FindPartnerEmployeeByID(ctx context.Context, id uuid.UUID) (Pa
 
 const getPartnerProfile = `-- name: GetPartnerProfile :one
 SELECT 
-    e.id as employee_id, e.name as employee_name, e.email, e.role,
+    e.id as employee_id, e.name as employee_name, e.email, e.role, e.created_at as employee_created_at, e.must_change_password,
     p.id as partner_id, p.legal_name, p.brand_name, p.status as partner_status,
-    p.commission_rate, p.promo_commission_until,
-    l.id as location_id, l.name as location_name, l.address as location_address
+    CASE 
+        WHEN p.promo_commission_until >= NOW() THEN COALESCE(p.promo_commission_rate, p.commission_rate)
+        ELSE p.commission_rate 
+    END AS commission_rate,
+    p.promo_commission_until,
+    p.created_at as partner_created_at,
+    l.id as location_id, l.name as location_name, l.address as location_address, l.created_at as location_created_at
 FROM partner_employees e
 JOIN partners p ON e.partner_id = p.id
 LEFT JOIN locations l ON e.location_id = l.id
@@ -441,19 +447,23 @@ WHERE e.id = $1
 `
 
 type GetPartnerProfileRow struct {
-	EmployeeID           uuid.UUID      `json:"employee_id"`
-	EmployeeName         pgtype.Text    `json:"employee_name"`
-	Email                string         `json:"email"`
-	Role                 string         `json:"role"`
-	PartnerID            uuid.UUID      `json:"partner_id"`
-	LegalName            string         `json:"legal_name"`
-	BrandName            pgtype.Text    `json:"brand_name"`
-	PartnerStatus        string         `json:"partner_status"`
-	CommissionRate       pgtype.Numeric `json:"commission_rate"`
-	PromoCommissionUntil pgtype.Date    `json:"promo_commission_until"`
-	LocationID           pgtype.UUID    `json:"location_id"`
-	LocationName         pgtype.Text    `json:"location_name"`
-	LocationAddress      pgtype.Text    `json:"location_address"`
+	EmployeeID           uuid.UUID        `json:"employee_id"`
+	EmployeeName         pgtype.Text      `json:"employee_name"`
+	Email                string           `json:"email"`
+	Role                 string           `json:"role"`
+	EmployeeCreatedAt    time.Time        `json:"employee_created_at"`
+	MustChangePassword   pgtype.Bool      `json:"must_change_password"`
+	PartnerID            uuid.UUID        `json:"partner_id"`
+	LegalName            string           `json:"legal_name"`
+	BrandName            pgtype.Text      `json:"brand_name"`
+	PartnerStatus        string           `json:"partner_status"`
+	CommissionRate       interface{}      `json:"commission_rate"`
+	PromoCommissionUntil pgtype.Date      `json:"promo_commission_until"`
+	PartnerCreatedAt     time.Time        `json:"partner_created_at"`
+	LocationID           pgtype.UUID      `json:"location_id"`
+	LocationName         pgtype.Text      `json:"location_name"`
+	LocationAddress      pgtype.Text      `json:"location_address"`
+	LocationCreatedAt    pgtype.Timestamp `json:"location_created_at"`
 }
 
 func (q *Queries) GetPartnerProfile(ctx context.Context, id uuid.UUID) (GetPartnerProfileRow, error) {
@@ -464,15 +474,19 @@ func (q *Queries) GetPartnerProfile(ctx context.Context, id uuid.UUID) (GetPartn
 		&i.EmployeeName,
 		&i.Email,
 		&i.Role,
+		&i.EmployeeCreatedAt,
+		&i.MustChangePassword,
 		&i.PartnerID,
 		&i.LegalName,
 		&i.BrandName,
 		&i.PartnerStatus,
 		&i.CommissionRate,
 		&i.PromoCommissionUntil,
+		&i.PartnerCreatedAt,
 		&i.LocationID,
 		&i.LocationName,
 		&i.LocationAddress,
+		&i.LocationCreatedAt,
 	)
 	return i, err
 }

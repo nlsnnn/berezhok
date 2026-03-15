@@ -90,22 +90,26 @@ func (h *partnerHandler) Profile(w http.ResponseWriter, r *http.Request) {
 			LegalName:      profile.Partner.LegalName,
 			BrandName:      profile.Partner.BrandName,
 			Status:         string(profile.Partner.Status),
-			CommissionRate: profile.Partner.CommissionRate,
-			PromoUntil:     profile.Partner.PromoCommissionUntil,
+			CommissionRate: profile.Partner.Commission.Rate,
+			PromoUntil:     profile.Partner.Commission.ValidUntil,
+			CreatedAt:      profile.Partner.CreatedAt,
 		},
 		Employee: dto.EmployeeResponse{
-			ID:   profile.Employee.ID,
-			Email: profile.Employee.Email,
-			Name: profile.Employee.Name,
-			Role: string(profile.Employee.Role),
+			ID:                 profile.Employee.ID,
+			Email:              profile.Employee.Email,
+			Name:               profile.Employee.Name,
+			Role:               string(profile.Employee.Role),
+			MustChangePassword: profile.Employee.MustChangePassword,
+			CreatedAt:          profile.Employee.CreatedAt,
 		},
 	}
 
 	if profile.Location != nil {
 		res.Location = &dto.LocationResponse{
-			ID:      string(profile.Location.ID),
-			Name:    profile.Location.Name,
-			Address: profile.Location.Address,
+			ID:        string(profile.Location.ID),
+			Name:      profile.Location.Name,
+			Address:   profile.Location.Address,
+			CreatedAt: profile.Location.CreatedAt,
 		}
 	}
 

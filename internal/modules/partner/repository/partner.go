@@ -59,34 +59,36 @@ func (r *PartnerRepo) GetProfile(ctx context.Context, employeeID string) (domain
 		return domain.PartnerProfile{}, err
 	}
 
-	commissionRate, _ := row.CommissionRate.Float64Value()
+	commission, err := getCommissionFromRow(row)
+	if err != nil {
+		return domain.PartnerProfile{}, err
+	}
 
 	profile := domain.PartnerProfile{
 		Partner: domain.Partner{
-			ID:             row.PartnerID.String(),
-			LegalName:      row.LegalName,
-			BrandName:      row.BrandName.String,
-			Status:         domain.PartnerStatus(row.PartnerStatus),
-			CommissionRate: commissionRate.Float64,
+			ID:         row.PartnerID.String(),
+			LegalName:  row.LegalName,
+			BrandName:  row.BrandName.String,
+			Status:     domain.PartnerStatus(row.PartnerStatus),
+			Commission: commission,
+			CreatedAt:  row.PartnerCreatedAt,
 		},
 		Employee: domain.Employee{
-			ID:    row.EmployeeID.String(),
-			Email: row.Email,
-			Name:  row.EmployeeName.String,
-			Role:  domain.EmployeeRole(row.Role),
+			ID:                 row.EmployeeID.String(),
+			Email:              row.Email,
+			Name:               row.EmployeeName.String,
+			Role:               domain.EmployeeRole(row.Role),
+			MustChangePassword: row.MustChangePassword.Bool,
+			CreatedAt:          row.EmployeeCreatedAt,
 		},
-	}
-
-	if row.PromoCommissionUntil.Valid {
-		t := row.PromoCommissionUntil.Time
-		profile.Partner.PromoCommissionUntil = &t
 	}
 
 	if row.LocationID.Valid {
 		profile.Location = &domain.LocationSummary{
-			ID:      row.LocationID.String(),
-			Name:    row.LocationName.String,
-			Address: row.LocationAddress.String,
+			ID:        row.LocationID.String(),
+			Name:      row.LocationName.String,
+			Address:   row.LocationAddress.String,
+			CreatedAt: row.LocationCreatedAt.Time,
 		}
 	}
 
@@ -103,25 +105,68 @@ func (r *PartnerRepo) UpdateEmployeePassword(ctx context.Context, employeeID, ne
 }
 
 func partnerToDomain(p sqlc.Partner) domain.Partner {
-	var promoUntil *time.Time
-	if p.PromoCommissionUntil.Valid {
-		t := p.PromoCommissionUntil.Time
-		promoUntil = &t
-	}
-
-	commissionRate := 0.0
-	if f, err := p.CommissionRate.Float64Value(); err == nil {
-		commissionRate = f.Float64
+	commission, err := getCommission(p)
+	if err != nil {
+		commission = domain.Commission{}
 	}
 
 	return domain.Partner{
-		ID:                   p.ID.String(),
-		LegalName:            p.LegalName,
-		BrandName:            p.BrandName.String,
-		LogoURL:              p.LogoUrl.String,
-		Status:               domain.PartnerStatus(p.Status),
-		CommissionRate:       commissionRate,
-		PromoCommissionUntil: promoUntil,
-		CreatedAt:            p.CreatedAt,
+		ID:         p.ID.String(),
+		LegalName:  p.LegalName,
+		BrandName:  p.BrandName.String,
+		LogoURL:    p.LogoUrl.String,
+		Status:     domain.PartnerStatus(p.Status),
+		Commission: commission,
+		CreatedAt:  p.CreatedAt,
 	}
+}
+
+func getCommissionFromRow(row sqlc.GetPartnerProfileRow) (domain.Commission, error) {
+	commissionRate, _ := numericToFloat64(row.CommissionRate.(pgtype.Numeric))
+
+	var promoUntil *time.Time
+	if row.PromoCommissionUntil.Valid {
+		promoUntil = &row.PromoCommissionUntil.Time
+	}
+
+	commission, err := domain.NewCommission(commissionRate, promoUntil)
+	if err != nil {
+		return domain.Commission{}, err
+	}
+
+	return commission, nil
+}
+
+func getCommission(p sqlc.Partner) (domain.Commission, error) {
+	commissionRate, _ := p.CommissionRate.Int.Float64()
+
+	var promoUntil *time.Time
+	if p.PromoCommissionUntil.Valid {
+		promoUntil = &p.PromoCommissionUntil.Time
+	}
+
+	commission, err := domain.NewCommission(commissionRate, promoUntil)
+	if err != nil {
+		return domain.Commission{}, err
+	}
+
+	return commission, nil
+}
+
+func numericToFloat64(n pgtype.Numeric) (float64, error) {
+	if !n.Valid || n.Int == nil {
+		return 0, nil
+	}
+
+	f := new(big.Float).SetInt(n.Int)
+	if n.Exp > 0 {
+		mul := new(big.Float).SetInt(new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(n.Exp)), nil))
+		f.Mul(f, mul)
+	} else if n.Exp < 0 {
+		div := new(big.Float).SetInt(new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(-n.Exp)), nil))
+		f.Quo(f, div)
+	}
+
+	result, _ := f.Float64()
+	return result, nil
 }

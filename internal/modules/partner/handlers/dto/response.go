@@ -30,6 +30,7 @@ type PartnerResponse struct {
 	Status         string     `json:"status"`
 	CommissionRate float64    `json:"commission_rate"`
 	PromoUntil     *time.Time `json:"promo_until,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
 }
 
 type EmployeeResponse struct {
@@ -42,7 +43,8 @@ type EmployeeResponse struct {
 }
 
 type LocationResponse struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Address string `json:"address"`
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	Address   string    `json:"address"`
+	CreatedAt time.Time `json:"created_at"`
 }
