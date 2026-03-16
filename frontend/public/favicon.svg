@@ -1,0 +1,69 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4CAF50"/>
+      <stop offset="50%" stop-color="#8BC34A"/>
+      <stop offset="100%" stop-color="#FF9800"/>
+    </linearGradient>
+    <clipPath id="rounded">
+      <rect x="0" y="0" width="200" height="200" rx="44"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="200" height="200" rx="44" fill="url(#bg)"/>
+
+  <!-- Body (cream base) -->
+  <ellipse cx="100" cy="130" rx="52" ry="42" fill="#F5ECD0"/>
+
+  <!-- Spikes (dark, layered) -->
+  <g fill="#2d2d2d">
+    <ellipse cx="60" cy="95" rx="10" ry="22" transform="rotate(-30 60 95)"/>
+    <ellipse cx="75" cy="78" rx="10" ry="24" transform="rotate(-10 75 78)"/>
+    <ellipse cx="92" cy="72" rx="10" ry="25" transform="rotate(5 92 72)"/>
+    <ellipse cx="110" cy="74" rx="10" ry="24" transform="rotate(18 110 74)"/>
+    <ellipse cx="126" cy="83" rx="10" ry="22" transform="rotate(33 126 83)"/>
+    <ellipse cx="137" cy="97" rx="9" ry="20" transform="rotate(48 137 97)"/>
+    <ellipse cx="68" cy="90" rx="8" ry="18" transform="rotate(-20 68 90)"/>
+    <ellipse cx="84" cy="76" rx="8" ry="19" transform="rotate(0 84 76)"/>
+    <ellipse cx="102" cy="73" rx="8" ry="20" transform="rotate(12 102 73)"/>
+    <ellipse cx="119" cy="78" rx="8" ry="19" transform="rotate(26 119 78)"/>
+    <ellipse cx="132" cy="90" rx="7" ry="17" transform="rotate(40 132 90)"/>
+  </g>
+
+  <!-- Face area -->
+  <ellipse cx="100" cy="118" rx="42" ry="34" fill="#F5ECD0"/>
+
+  <!-- Nose/snout -->
+  <ellipse cx="100" cy="132" rx="18" ry="13" fill="#E8D9BC"/>
+  <!-- Nose dot -->
+  <ellipse cx="100" cy="130" rx="5" ry="4" fill="#2d2d2d"/>
+
+  <!-- Eyes (happy/closed) -->
+  <path d="M84 116 Q88 112 92 116" stroke="#2d2d2d" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M108 116 Q112 112 116 116" stroke="#2d2d2d" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+  <!-- Cheeks -->
+  <ellipse cx="82" cy="122" rx="7" ry="5" fill="#F09090" opacity="0.6"/>
+  <ellipse cx="118" cy="122" rx="7" ry="5" fill="#F09090" opacity="0.6"/>
+
+  <!-- Arms -->
+  <ellipse cx="64" cy="140" rx="14" ry="10" fill="#F5ECD0" transform="rotate(-20 64 140)"/>
+  <ellipse cx="136" cy="140" rx="14" ry="10" fill="#F5ECD0" transform="rotate(20 136 140)"/>
+
+  <!-- Grocery bag -->
+  <rect x="78" y="128" width="44" height="40" rx="4" fill="#C68A3A"/>
+  <rect x="78" y="128" width="44" height="10" rx="4" fill="#B07830"/>
+  <!-- Baguette -->
+  <rect x="104" y="118" width="12" height="28" rx="5" fill="#D4922A" transform="rotate(18 110 128)"/>
+  <!-- Tomato -->
+  <circle cx="90" cy="124" r="9" fill="#E84030"/>
+  <path d="M87 116 Q90 112 93 116" stroke="#4CAF50" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <!-- Lettuce -->
+  <ellipse cx="100" cy="120" rx="8" ry="5" fill="#5CB85C" transform="rotate(-10 100 120)"/>
+
+  <!-- Heart -->
+  <g transform="translate(128, 62) scale(0.9)">
+    <path d="M10 6 C10 3, 6 0, 3 2 C0 4, 0 8, 4 12 L10 18 L16 12 C20 8, 20 4, 17 2 C14 0, 10 3, 10 6 Z" fill="#E84030"/>
+  </g>
+</svg>

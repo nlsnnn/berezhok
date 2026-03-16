@@ -1,0 +1,60 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    @apply bg-cream-50 text-brand-900 font-sans antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  #root {
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-2xl shadow-sm border border-cream-200 p-6;
+  }
+
+  .input-base {
+    @apply w-full rounded-xl border border-cream-300 bg-white px-4 py-2.5 text-brand-900 placeholder:text-cream-400
+           focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent
+           transition-all duration-150 text-sm;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 px-6 py-2.5 text-white font-medium text-sm
+           hover:bg-brand-600 active:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2
+           transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-brand-300 bg-white px-6 py-2.5 text-brand-600 font-medium text-sm
+           hover:bg-brand-50 active:bg-brand-100 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2
+           transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-red-500 px-6 py-2.5 text-white font-medium text-sm
+           hover:bg-red-600 active:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2
+           transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-brand-600 font-medium text-sm
+           hover:bg-brand-50 active:bg-brand-100 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2
+           transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer;
+  }
+}
