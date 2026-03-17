@@ -96,3 +96,20 @@ type PartnerLegalInfo struct {
 	UpdatedAt    pgtype.Timestamp `json:"updated_at"`
 	LegalName    string           `json:"legal_name"`
 }
+
+// Сюрприз-боксы для продажи
+type SurpriseBox struct {
+	ID                int32          `json:"id"`
+	LocationID        uuid.UUID      `json:"location_id"`
+	Name              string         `json:"name"`
+	Description       pgtype.Text    `json:"description"`
+	OriginalPrice     pgtype.Numeric `json:"original_price"`
+	DiscountPrice     pgtype.Numeric `json:"discount_price"`
+	QuantityAvailable int32          `json:"quantity_available"`
+	PickupTimeStart   pgtype.Time    `json:"pickup_time_start"`
+	PickupTimeEnd     pgtype.Time    `json:"pickup_time_end"`
+	ImageUrl          pgtype.Text    `json:"image_url"`
+	Status            string         `json:"status"`
+	CreatedAt         time.Time      `json:"created_at"`
+	UpdatedAt         time.Time      `json:"updated_at"`
+}
