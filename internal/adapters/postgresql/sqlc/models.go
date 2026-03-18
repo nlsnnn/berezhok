@@ -99,7 +99,7 @@ type PartnerLegalInfo struct {
 
 // Сюрприз-боксы для продажи
 type SurpriseBox struct {
-	ID                int32          `json:"id"`
+	ID                uuid.UUID      `json:"id"`
 	LocationID        uuid.UUID      `json:"location_id"`
 	Name              string         `json:"name"`
 	Description       pgtype.Text    `json:"description"`

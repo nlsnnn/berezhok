@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/shopspring/decimal"
 )
 
 type Validator struct {
@@ -15,6 +17,15 @@ type Validator struct {
 
 func New() *Validator {
 	validate := validator.New()
+
+	validate.RegisterCustomTypeFunc(func(field reflect.Value) interface{} {
+		if val, ok := field.Interface().(decimal.Decimal); ok {
+			f, _ := val.Float64()
+			return f
+		}
+		return nil
+	}, decimal.Decimal{})
+
 	return &Validator{
 		validate: validate,
 	}

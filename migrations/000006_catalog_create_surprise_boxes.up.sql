@@ -1,7 +1,7 @@
 -- 17.03.2026 10:20:00
 
 CREATE TABLE IF NOT EXISTS surprise_boxes (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     location_id UUID NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
 
     name VARCHAR(255) NOT NULL,
