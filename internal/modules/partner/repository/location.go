@@ -68,6 +68,14 @@ func (r *LocationRepo) FindCategoryByCode(ctx context.Context, code string) (dom
 	}, nil
 }
 
+func (r *LocationRepo) FindByID(ctx context.Context, id uuid.UUID) (domain.Location, error) {
+	row, err := r.q.FindLocationByID(ctx, id)
+	if err != nil {
+		return domain.Location{}, err
+	}
+	return locationToDomain(row), nil
+}
+
 func locationToDomain(l sqlc.Location) domain.Location {
 	return domain.Location{
 		ID:            l.ID.String(),

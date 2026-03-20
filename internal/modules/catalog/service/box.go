@@ -38,7 +38,8 @@ type UpdateBoxInput struct {
 }
 
 type boxService struct {
-	boxRepo BoxRepository
+	boxRepo     BoxRepository
+	locationSvc locationFinder
 }
 
 type BoxRepository interface {
@@ -54,13 +55,39 @@ type BoxRepository interface {
 	// ListBoxes(ctx context.Context, locationID string, status domain.BoxStatus) ([]*domain.SurpriseBox, error)
 }
 
-func NewBoxService(boxRepo BoxRepository) *boxService {
+type locationFinder interface {
+	// LocationExists checks if a location with the given ID exists.
+	Exists(ctx context.Context, id uuid.UUID) (bool, error)
+	PartnerOwnsLocation(ctx context.Context, partnerID uuid.UUID, locationID uuid.UUID) (bool, error)
+}
+
+func NewBoxService(boxRepo BoxRepository, locationSvc locationFinder) *boxService {
 	return &boxService{
-		boxRepo: boxRepo,
+		boxRepo:     boxRepo,
+		locationSvc: locationSvc,
 	}
 }
 
-func (s *boxService) CreateBox(ctx context.Context, input CreateBoxInput) (domain.SurpriseBox, error) {
+func (s *boxService) CreateBox(ctx context.Context, partnerID uuid.UUID, input CreateBoxInput) (domain.SurpriseBox, error) {
+	// Validate location
+	exists, err := s.locationSvc.Exists(ctx, input.LocationID)
+	if err != nil {
+		return domain.SurpriseBox{}, fmt.Errorf("checking location existence: %w", err)
+	}
+	if !exists {
+		return domain.SurpriseBox{}, catalogErrors.ErrLocationNotFound
+	}
+
+	// Validate partner ownership of the location
+	owns, err := s.locationSvc.PartnerOwnsLocation(ctx, partnerID, input.LocationID)
+	if err != nil {
+		return domain.SurpriseBox{}, fmt.Errorf("checking location ownership: %w", err)
+	}
+	if !owns {
+		return domain.SurpriseBox{}, catalogErrors.ErrUnauthorizedLocation
+	}
+
+	// Validate pickup time
 	pickupTime, err := domain.NewPickupTimeFromStrings(input.PickupTimeStart, input.PickupTimeEnd)
 	if err != nil {
 		return domain.SurpriseBox{}, mapPickupTimeErr(err)

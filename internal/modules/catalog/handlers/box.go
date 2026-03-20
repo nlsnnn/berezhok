@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/nlsnnn/berezhok/internal/modules/catalog/domain"
 	catalogErrors "github.com/nlsnnn/berezhok/internal/modules/catalog/errors"
 	"github.com/nlsnnn/berezhok/internal/modules/catalog/handlers/dto"
@@ -23,7 +24,7 @@ type boxHandler struct {
 }
 
 type BoxService interface {
-	CreateBox(ctx context.Context, input service.CreateBoxInput) (domain.SurpriseBox, error)
+	CreateBox(ctx context.Context, partnerID uuid.UUID, input service.CreateBoxInput) (domain.SurpriseBox, error)
 	GetBoxByID(ctx context.Context, id string) (*domain.SurpriseBox, error)
 	UpdateBox(ctx context.Context, input service.UpdateBoxInput) (domain.SurpriseBox, error)
 	DeleteBox(ctx context.Context, id string) error
@@ -41,6 +42,13 @@ func (h *boxHandler) Create(w http.ResponseWriter, r *http.Request) {
 	const op = "catalog.handler.box.Create"
 	log := h.log.With(slog.String("op", op))
 
+	partnerID, ok := r.Context().Value("partner_id").(string)
+	if !ok {
+		log.Error("partner_id not found in context")
+		response.InternalError(w, nil)
+		return
+	}
+
 	var req dto.CreateBoxRequest
 
 	if errs := h.validator.DecodeAndValidate(r, &req); errs != nil {
@@ -49,7 +57,7 @@ func (h *boxHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	box, err := h.boxService.CreateBox(r.Context(), req.ToInput())
+	box, err := h.boxService.CreateBox(r.Context(), uuid.MustParse(partnerID), req.ToInput())
 	if err != nil {
 		switch {
 		case errors.Is(err, catalogErrors.ErrInvalidPickupTimeFormat):
@@ -58,6 +66,12 @@ func (h *boxHandler) Create(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, catalogErrors.ErrInvalidPickupTimeRange):
 			log.Warn("invalid pickup time range", sl.Err(err))
 			response.BadRequest(w, "pickup_time_end must be after pickup_time_start")
+		case errors.Is(err, catalogErrors.ErrLocationNotFound):
+			log.Warn("location not found", sl.Err(err))
+			response.NotFound(w, "location not found")
+		case errors.Is(err, catalogErrors.ErrUnauthorizedLocation):
+			log.Warn("unauthorized location", sl.Err(err))
+			response.Forbidden(w, "partner does not own the specified location")
 		default:
 			log.Error("failed to create box", sl.Err(err))
 			response.InternalError(w, nil)

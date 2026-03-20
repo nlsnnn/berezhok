@@ -70,7 +70,7 @@ func (app *application) mount() http.Handler {
 	boxRepo := catalogRepos.NewBoxRepo(queries)
 
 	// Catalog module — services
-	boxSvc := catalogServices.NewBoxService(boxRepo)
+	boxSvc := catalogServices.NewBoxService(boxRepo, locationSvc)
 
 	// Catalog module — handlers
 	boxHandler := catalogHandlers.NewBoxHandler(boxSvc, app.log, v)
