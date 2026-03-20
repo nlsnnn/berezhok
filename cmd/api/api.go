@@ -12,6 +12,9 @@ import (
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
 	authHandlers "github.com/nlsnnn/berezhok/internal/modules/auth/handlers"
 	authServices "github.com/nlsnnn/berezhok/internal/modules/auth/service"
+	catalogHandlers "github.com/nlsnnn/berezhok/internal/modules/catalog/handlers"
+	catalogRepos "github.com/nlsnnn/berezhok/internal/modules/catalog/repository"
+	catalogServices "github.com/nlsnnn/berezhok/internal/modules/catalog/service"
 	partnerHandlers "github.com/nlsnnn/berezhok/internal/modules/partner/handlers"
 	partnerRepos "github.com/nlsnnn/berezhok/internal/modules/partner/repository"
 	partnerServices "github.com/nlsnnn/berezhok/internal/modules/partner/service"
@@ -63,6 +66,15 @@ func (app *application) mount() http.Handler {
 	appHandler := partnerHandlers.NewApplicationHandler(app.log, appSvc)
 	locationHandler := partnerHandlers.NewLocationHandler(app.log, v, locationSvc, partnerSvc)
 
+	// Catalog module — repositories
+	boxRepo := catalogRepos.NewBoxRepo(queries)
+
+	// Catalog module — services
+	boxSvc := catalogServices.NewBoxService(boxRepo, locationSvc)
+
+	// Catalog module — handlers
+	boxHandler := catalogHandlers.NewBoxHandler(boxSvc, app.log, v)
+
 	// Auth module
 	partnerAuthSvc := authServices.NewPartnerAuthenticator(employeeRepo, jwtService)
 	authHandler := authHandlers.NewAuthHandler(v, app.log, partnerAuthSvc)
@@ -94,6 +106,12 @@ func (app *application) mount() http.Handler {
 			// Location
 			r.Get("/partner/locations", locationHandler.List)
 			r.Post("/partner/locations", locationHandler.Create)
+
+			// Surprise Box
+			r.Post("/partner/boxes", boxHandler.Create)
+			r.Get("/partner/boxes/{id}", boxHandler.GetByID)
+			r.Put("/partner/boxes/{id}", boxHandler.Update)
+			r.Delete("/partner/boxes/{id}", boxHandler.Delete)
 		})
 
 		// == Admin Routes ==
