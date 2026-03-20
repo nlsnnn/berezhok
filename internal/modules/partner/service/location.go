@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/errors"
 	sharedDomain "github.com/nlsnnn/berezhok/internal/shared/domain"
@@ -35,6 +36,7 @@ type locationRepo interface {
 	Create(ctx context.Context, location domain.Location) (domain.Location, error)
 	FindByPartnerID(ctx context.Context, partnerID string) ([]domain.Location, error)
 	FindCategoryByCode(ctx context.Context, code string) (domain.LocationCategory, error)
+	FindByID(ctx context.Context, id uuid.UUID) (domain.Location, error)
 	Delete(ctx context.Context, id string) error
 }
 
@@ -71,4 +73,25 @@ func (s *locationService) Create(ctx context.Context, input CreateLocationInput)
 
 func (s *locationService) Delete(ctx context.Context, id string) error {
 	return s.repo.Delete(ctx, id)
+}
+
+func (s *locationService) Exists(ctx context.Context, id uuid.UUID) (bool, error) {
+	_, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (s *locationService) PartnerOwnsLocation(ctx context.Context, partnerID, locationID uuid.UUID) (bool, error) {
+	location, err := s.repo.FindByID(ctx, locationID)
+	if err != nil {
+		return false, err
+	}
+
+	if location.PartnerID != partnerID.String() {
+		return false, nil
+	}
+
+	return true, nil
 }

@@ -15,14 +15,20 @@ type Querier interface {
 	CheckEmailExists(ctx context.Context, email string) (bool, error)
 	CloseLocation(ctx context.Context, id uuid.UUID) error
 	CreateApplication(ctx context.Context, arg CreateApplicationParams) (PartnerApplication, error)
+	// Create a new box
+	CreateBox(ctx context.Context, arg CreateBoxParams) (SurpriseBox, error)
 	CreateLocation(ctx context.Context, arg CreateLocationParams) (Location, error)
 	CreatePartner(ctx context.Context, arg CreatePartnerParams) (Partner, error)
 	CreatePartnerEmployee(ctx context.Context, arg CreatePartnerEmployeeParams) (PartnerEmployee, error)
 	DeactivateLocation(ctx context.Context, id uuid.UUID) error
 	DeleteApplication(ctx context.Context, id uuid.UUID) error
+	// Delete a box
+	DeleteBox(ctx context.Context, id uuid.UUID) error
 	DeleteLocation(ctx context.Context, id uuid.UUID) error
 	DeletePartnerEmployee(ctx context.Context, id uuid.UUID) error
 	FindApplicationByID(ctx context.Context, id uuid.UUID) (PartnerApplication, error)
+	// Get a box by ID
+	FindBoxByID(ctx context.Context, id uuid.UUID) (SurpriseBox, error)
 	FindCategoryByCode(ctx context.Context, code string) (LocationCategory, error)
 	FindLocationByID(ctx context.Context, id uuid.UUID) (Location, error)
 	FindLocationsByPartnerID(ctx context.Context, partnerID uuid.UUID) ([]Location, error)
@@ -30,8 +36,12 @@ type Querier interface {
 	FindPartnerEmployeeByEmail(ctx context.Context, email string) (PartnerEmployee, error)
 	FindPartnerEmployeeByID(ctx context.Context, id uuid.UUID) (PartnerEmployee, error)
 	GetPartnerProfile(ctx context.Context, id uuid.UUID) (GetPartnerProfileRow, error)
+	// List active boxes by location ID
+	ListActiveBoxesByLocationID(ctx context.Context, locationID uuid.UUID) ([]SurpriseBox, error)
 	// Заявки на партнёрство
 	ListApplications(ctx context.Context) ([]PartnerApplication, error)
+	// List boxes by location ID
+	ListBoxesByLocationID(ctx context.Context, locationID uuid.UUID) ([]SurpriseBox, error)
 	ListEmployeesByPartnerID(ctx context.Context, partnerID uuid.UUID) ([]PartnerEmployee, error)
 	// Локации партнёров
 	ListLocations(ctx context.Context) ([]Location, error)
@@ -40,6 +50,8 @@ type Querier interface {
 	// Партнёры (юридические лица)
 	ListPartners(ctx context.Context) ([]Partner, error)
 	UpdateApplication(ctx context.Context, arg UpdateApplicationParams) error
+	// Update an existing box
+	UpdateBox(ctx context.Context, arg UpdateBoxParams) (SurpriseBox, error)
 	UpdateLocation(ctx context.Context, arg UpdateLocationParams) (Location, error)
 	UpdateLocationStatus(ctx context.Context, arg UpdateLocationStatusParams) error
 	UpdateLocationWorkingHours(ctx context.Context, arg UpdateLocationWorkingHoursParams) error
