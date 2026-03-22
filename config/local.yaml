@@ -8,3 +8,8 @@ http_server:
   address: "localhost:8080"
   timeout: 4s
   idle_timeout: 60s
+s3:
+  endpoint: "https://storage.yandexcloud.net"
+  region: "ru-central1"
+  bucket: "tests14"
+  public_base_url: "https://storage.yandexcloud.net/tests14"

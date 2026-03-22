@@ -38,6 +38,17 @@ type LocationCategory struct {
 	SortOrder pgtype.Int4 `json:"sort_order"`
 }
 
+type MediaFile struct {
+	ID               uuid.UUID        `json:"id"`
+	Filename         string           `json:"filename"`
+	OriginalFilename string           `json:"original_filename"`
+	StorageKey       string           `json:"storage_key"`
+	Url              string           `json:"url"`
+	ContentType      string           `json:"content_type"`
+	SizeBytes        int64            `json:"size_bytes"`
+	UploadedAt       pgtype.Timestamp `json:"uploaded_at"`
+}
+
 // Партнёры (юридические лица)
 type Partner struct {
 	ID                   uuid.UUID      `json:"id"`

@@ -10,11 +10,15 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/jackc/pgx/v5"
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
+	"github.com/nlsnnn/berezhok/internal/adapters/s3/yandex"
 	authHandlers "github.com/nlsnnn/berezhok/internal/modules/auth/handlers"
 	authServices "github.com/nlsnnn/berezhok/internal/modules/auth/service"
 	catalogHandlers "github.com/nlsnnn/berezhok/internal/modules/catalog/handlers"
 	catalogRepos "github.com/nlsnnn/berezhok/internal/modules/catalog/repository"
 	catalogServices "github.com/nlsnnn/berezhok/internal/modules/catalog/service"
+	mediaHandlers "github.com/nlsnnn/berezhok/internal/modules/media/handlers"
+	mediaRepos "github.com/nlsnnn/berezhok/internal/modules/media/repository"
+	mediaServices "github.com/nlsnnn/berezhok/internal/modules/media/service"
 	partnerHandlers "github.com/nlsnnn/berezhok/internal/modules/partner/handlers"
 	partnerRepos "github.com/nlsnnn/berezhok/internal/modules/partner/repository"
 	partnerServices "github.com/nlsnnn/berezhok/internal/modules/partner/service"
@@ -75,6 +79,15 @@ func (app *application) mount() http.Handler {
 	// Catalog module — handlers
 	boxHandler := catalogHandlers.NewBoxHandler(boxSvc, app.log, v)
 
+	// Media module — repositories
+	mediaRepo := mediaRepos.NewMediaRepo(queries)
+
+	// Media module — services
+	mediaSvc := mediaServices.NewMediaService(app.s3, mediaRepo, app.log)
+
+	// Media module — handlers
+	mediaHandler := mediaHandlers.NewMediaHandler(mediaSvc, app.log)
+
 	// Auth module
 	partnerAuthSvc := authServices.NewPartnerAuthenticator(employeeRepo, jwtService)
 	authHandler := authHandlers.NewAuthHandler(v, app.log, partnerAuthSvc)
@@ -112,6 +125,9 @@ func (app *application) mount() http.Handler {
 			r.Get("/partner/boxes/{id}", boxHandler.GetByID)
 			r.Put("/partner/boxes/{id}", boxHandler.Update)
 			r.Delete("/partner/boxes/{id}", boxHandler.Delete)
+
+			// Media
+			r.Post("/media/upload", mediaHandler.Upload)
 		})
 
 		// == Admin Routes ==
@@ -143,4 +159,5 @@ type application struct {
 	cfg *config.Config
 	db  *pgx.Conn
 	log *slog.Logger
+	s3  *yandex.Storage
 }

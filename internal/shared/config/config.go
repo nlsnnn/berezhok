@@ -13,6 +13,7 @@ type Config struct {
 	Db         `yaml:"db"`
 	HTTPServer `yaml:"http_server"`
 	Redis      `yaml:"redis"`
+	S3         `yaml:"s3"`
 }
 
 type Db struct {
@@ -32,6 +33,15 @@ type HTTPServer struct {
 	Address     string        `yaml:"address" env-default:"localhost:8080"`
 	Timeout     time.Duration `yaml:"timeout" env-default:"4s"`
 	IdleTimeout time.Duration `yaml:"idle_timeout" env-default:"60s"`
+}
+
+type S3 struct {
+	Endpoint        string `yaml:"endpoint" env:"S3_ENDPOINT"`
+	Region          string `yaml:"region" env:"S3_REGION" env-default:"ru-central1"`
+	Bucket          string `yaml:"bucket" env:"S3_BUCKET"`
+	AccessKeyID     string `env:"S3_ACCESS_KEY_ID"`
+	SecretAccessKey string `env:"S3_SECRET_ACCESS_KEY"`
+	PublicBaseURL   string `yaml:"public_base_url" env:"S3_PUBLIC_BASE_URL"`
 }
 
 func MustLoad() *Config {

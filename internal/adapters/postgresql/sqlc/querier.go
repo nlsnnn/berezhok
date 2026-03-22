@@ -18,6 +18,8 @@ type Querier interface {
 	// Create a new box
 	CreateBox(ctx context.Context, arg CreateBoxParams) (SurpriseBox, error)
 	CreateLocation(ctx context.Context, arg CreateLocationParams) (Location, error)
+	// Create a new media file record
+	CreateMediaFile(ctx context.Context, arg CreateMediaFileParams) (MediaFile, error)
 	CreatePartner(ctx context.Context, arg CreatePartnerParams) (Partner, error)
 	CreatePartnerEmployee(ctx context.Context, arg CreatePartnerEmployeeParams) (PartnerEmployee, error)
 	DeactivateLocation(ctx context.Context, id uuid.UUID) error
@@ -25,6 +27,8 @@ type Querier interface {
 	// Delete a box
 	DeleteBox(ctx context.Context, id uuid.UUID) error
 	DeleteLocation(ctx context.Context, id uuid.UUID) error
+	// Delete media file record
+	DeleteMediaFile(ctx context.Context, id uuid.UUID) error
 	DeletePartnerEmployee(ctx context.Context, id uuid.UUID) error
 	FindApplicationByID(ctx context.Context, id uuid.UUID) (PartnerApplication, error)
 	// Get a box by ID
@@ -32,6 +36,8 @@ type Querier interface {
 	FindCategoryByCode(ctx context.Context, code string) (LocationCategory, error)
 	FindLocationByID(ctx context.Context, id uuid.UUID) (Location, error)
 	FindLocationsByPartnerID(ctx context.Context, partnerID uuid.UUID) ([]Location, error)
+	// Get media file by ID
+	FindMediaFileByID(ctx context.Context, id uuid.UUID) (MediaFile, error)
 	FindPartnerByID(ctx context.Context, id uuid.UUID) (Partner, error)
 	FindPartnerEmployeeByEmail(ctx context.Context, email string) (PartnerEmployee, error)
 	FindPartnerEmployeeByID(ctx context.Context, id uuid.UUID) (PartnerEmployee, error)
@@ -45,6 +51,8 @@ type Querier interface {
 	ListEmployeesByPartnerID(ctx context.Context, partnerID uuid.UUID) ([]PartnerEmployee, error)
 	// Локации партнёров
 	ListLocations(ctx context.Context) ([]Location, error)
+	// List all media files (paginated)
+	ListMediaFiles(ctx context.Context, arg ListMediaFilesParams) ([]MediaFile, error)
 	// Сотрудники партнёров
 	ListPartnerEmployees(ctx context.Context) ([]PartnerEmployee, error)
 	// Партнёры (юридические лица)

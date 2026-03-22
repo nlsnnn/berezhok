@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql"
+	"github.com/nlsnnn/berezhok/internal/adapters/s3/yandex"
 	"github.com/nlsnnn/berezhok/internal/shared/config"
 	"github.com/nlsnnn/berezhok/internal/shared/logger/sl"
 )
@@ -23,6 +24,7 @@ func main() {
 
 	log.Info("start app", slog.String("env", cfg.Env))
 
+	// PostgreSQL database
 	db, err := postgresql.New(ctx, cfg.Db)
 	if err != nil {
 		log.Error("failed to init storage", sl.Err(err))
@@ -30,10 +32,18 @@ func main() {
 	}
 	defer db.Close(ctx)
 
+	// S3 Storage
+	s3Storage, err := yandex.NewStorage(cfg.S3)
+	if err != nil {
+		log.Error("failed to initialize S3 storage", "error", err)
+		os.Exit(1)
+	}
+
 	api := application{
 		cfg: cfg,
 		db:  db,
 		log: log,
+		s3:  s3Storage,
 	}
 
 	if err := api.run(log, api.mount()); err != nil {
