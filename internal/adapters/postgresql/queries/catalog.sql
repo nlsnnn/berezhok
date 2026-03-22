@@ -34,6 +34,12 @@ SELECT * FROM surprise_boxes WHERE location_id = $1;
 SELECT * FROM surprise_boxes 
 WHERE location_id = $1 AND status = 'active' AND quantity_available > 0;
 
+-- List boxes by partner ID
+-- name: ListBoxesByPartnerID :many
+SELECT sb.* FROM surprise_boxes sb
+JOIN locations l ON sb.location_id = l.id
+WHERE l.partner_id = $1;
+
 -- Delete a box
 -- name: DeleteBox :exec
 DELETE FROM surprise_boxes WHERE id = $1;

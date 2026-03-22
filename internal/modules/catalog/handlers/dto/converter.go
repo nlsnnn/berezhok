@@ -53,3 +53,11 @@ func BoxToResponse(box domain.SurpriseBox) BoxResponse {
 		CreatedAt: box.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 }
+
+func BoxesToResponses(boxes []domain.SurpriseBox) []BoxResponse {
+	responses := make([]BoxResponse, len(boxes))
+	for i, box := range boxes {
+		responses[i] = BoxToResponse(box)
+	}
+	return responses
+}

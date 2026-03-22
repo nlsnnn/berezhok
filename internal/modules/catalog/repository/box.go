@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
 	"github.com/nlsnnn/berezhok/internal/modules/catalog/domain"
 	catalogErrors "github.com/nlsnnn/berezhok/internal/modules/catalog/errors"
@@ -45,6 +45,34 @@ func (r *BoxRepo) CreateBox(ctx context.Context, box *domain.SurpriseBox) error 
 	}
 	box.ID = b.ID
 	return nil
+}
+
+func (r *BoxRepo) GetBoxesByLocationID(ctx context.Context, locationID uuid.UUID) ([]domain.SurpriseBox, error) {
+	boxes, err := r.q.ListBoxesByLocationID(ctx, locationID)
+	if err != nil {
+		return nil, err
+	}
+
+	domainBoxes := make([]domain.SurpriseBox, len(boxes))
+	for i, b := range boxes {
+		domainBoxes[i] = boxToDomain(b)
+	}
+
+	return domainBoxes, nil
+}
+
+func (r *BoxRepo) GetBoxesByPartnerID(ctx context.Context, partnerID uuid.UUID) ([]domain.SurpriseBox, error) {
+	boxes, err := r.q.ListBoxesByPartnerID(ctx, partnerID)
+	if err != nil {
+		return nil, err
+	}
+
+	domainBoxes := make([]domain.SurpriseBox, len(boxes))
+	for i, b := range boxes {
+		domainBoxes[i] = boxToDomain(b)
+	}
+
+	return domainBoxes, nil
 }
 
 func (r *BoxRepo) GetBoxByID(ctx context.Context, id string) (*domain.SurpriseBox, error) {
@@ -114,9 +142,9 @@ func boxToDomain(b sqlc.SurpriseBox) domain.SurpriseBox {
 			Start: timeValue(b.PickupTimeStart),
 			End:   timeValue(b.PickupTimeEnd),
 		},
-		Quantity: int(b.QuantityAvailable),
-		Status:   domain.BoxStatus(b.Status),
-		Image:    textToString(b.ImageUrl),
+		Quantity:  int(b.QuantityAvailable),
+		Status:    domain.BoxStatus(b.Status),
+		Image:     textToString(b.ImageUrl),
 		CreatedAt: b.CreatedAt,
 	}
 }
