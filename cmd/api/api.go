@@ -125,6 +125,8 @@ func (app *application) mount() http.Handler {
 			r.Get("/partner/boxes/{id}", boxHandler.GetByID)
 			r.Put("/partner/boxes/{id}", boxHandler.Update)
 			r.Delete("/partner/boxes/{id}", boxHandler.Delete)
+			r.Get("/partner/boxes", boxHandler.GetAllByPartnerID)
+			r.Get("/locations/{location_id}/boxes", boxHandler.GetAllByLocationID)
 
 			// Media
 			r.Post("/media/upload", mediaHandler.Upload)

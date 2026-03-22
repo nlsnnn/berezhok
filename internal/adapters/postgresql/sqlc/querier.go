@@ -48,6 +48,8 @@ type Querier interface {
 	ListApplications(ctx context.Context) ([]PartnerApplication, error)
 	// List boxes by location ID
 	ListBoxesByLocationID(ctx context.Context, locationID uuid.UUID) ([]SurpriseBox, error)
+	// List boxes by partner ID
+	ListBoxesByPartnerID(ctx context.Context, partnerID uuid.UUID) ([]SurpriseBox, error)
 	ListEmployeesByPartnerID(ctx context.Context, partnerID uuid.UUID) ([]PartnerEmployee, error)
 	// Локации партнёров
 	ListLocations(ctx context.Context) ([]Location, error)

@@ -28,6 +28,8 @@ type BoxService interface {
 	GetBoxByID(ctx context.Context, id string) (*domain.SurpriseBox, error)
 	UpdateBox(ctx context.Context, input service.UpdateBoxInput) (domain.SurpriseBox, error)
 	DeleteBox(ctx context.Context, id string) error
+	GetBoxesByLocationID(ctx context.Context, locationID uuid.UUID) ([]domain.SurpriseBox, error)
+	GetBoxesByPartnerID(ctx context.Context, partnerID uuid.UUID) ([]domain.SurpriseBox, error)
 }
 
 func NewBoxHandler(boxService BoxService, log *slog.Logger, validator *validator.Validator) *boxHandler {
@@ -80,6 +82,37 @@ func (h *boxHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Created(w, dto.BoxToResponse(box))
+}
+
+func (h *boxHandler) GetAllByLocationID(w http.ResponseWriter, r *http.Request) {
+	locationID := chi.URLParam(r, "location_id")
+
+	boxes, err := h.boxService.GetBoxesByLocationID(r.Context(), uuid.MustParse(locationID))
+	if err != nil {
+		h.log.Error("failed to get boxes by location id", sl.Err(err))
+		response.InternalError(w, nil)
+		return
+	}
+
+	response.Success(w, dto.BoxesToResponses(boxes))
+}
+
+func (h *boxHandler) GetAllByPartnerID(w http.ResponseWriter, r *http.Request) {
+	partnerID, ok := r.Context().Value("partner_id").(string)
+	if !ok {
+		h.log.Error("partner_id not found in context")
+		response.InternalError(w, nil)
+		return
+	}
+
+	boxes, err := h.boxService.GetBoxesByPartnerID(r.Context(), uuid.MustParse(partnerID))
+	if err != nil {
+		h.log.Error("failed to get boxes by partner id", sl.Err(err))
+		response.InternalError(w, nil)
+		return
+	}
+
+	response.Success(w, dto.BoxesToResponses(boxes))
 }
 
 func (h *boxHandler) GetByID(w http.ResponseWriter, r *http.Request) {

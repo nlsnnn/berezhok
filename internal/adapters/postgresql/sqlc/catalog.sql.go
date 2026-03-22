@@ -182,6 +182,47 @@ func (q *Queries) ListBoxesByLocationID(ctx context.Context, locationID uuid.UUI
 	return items, nil
 }
 
+const listBoxesByPartnerID = `-- name: ListBoxesByPartnerID :many
+SELECT sb.id, sb.location_id, sb.name, sb.description, sb.original_price, sb.discount_price, sb.quantity_available, sb.pickup_time_start, sb.pickup_time_end, sb.image_url, sb.status, sb.created_at, sb.updated_at FROM surprise_boxes sb
+JOIN locations l ON sb.location_id = l.id
+WHERE l.partner_id = $1
+`
+
+// List boxes by partner ID
+func (q *Queries) ListBoxesByPartnerID(ctx context.Context, partnerID uuid.UUID) ([]SurpriseBox, error) {
+	rows, err := q.db.Query(ctx, listBoxesByPartnerID, partnerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SurpriseBox
+	for rows.Next() {
+		var i SurpriseBox
+		if err := rows.Scan(
+			&i.ID,
+			&i.LocationID,
+			&i.Name,
+			&i.Description,
+			&i.OriginalPrice,
+			&i.DiscountPrice,
+			&i.QuantityAvailable,
+			&i.PickupTimeStart,
+			&i.PickupTimeEnd,
+			&i.ImageUrl,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateBox = `-- name: UpdateBox :one
 UPDATE surprise_boxes SET 
     name = COALESCE($2, name),

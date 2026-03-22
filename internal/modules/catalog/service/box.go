@@ -51,8 +51,10 @@ type BoxRepository interface {
 	UpdateBox(ctx context.Context, box *domain.SurpriseBox) error
 	// DeleteBox removes a surprise box from the database.
 	DeleteBox(ctx context.Context, id string) error
-	// ListBoxes retrieves a list of surprise boxes, optionally filtered by location or status.
-	// ListBoxes(ctx context.Context, locationID string, status domain.BoxStatus) ([]*domain.SurpriseBox, error)
+	// GetBoxesByLocationID retrieves all surprise boxes for a given location ID.
+	GetBoxesByLocationID(ctx context.Context, locationID uuid.UUID) ([]domain.SurpriseBox, error)
+	// GetBoxesByPartnerID retrieves all surprise boxes for a given partner ID.
+	GetBoxesByPartnerID(ctx context.Context, partnerID uuid.UUID) ([]domain.SurpriseBox, error)
 }
 
 type locationFinder interface {
@@ -113,6 +115,14 @@ func (s *boxService) CreateBox(ctx context.Context, partnerID uuid.UUID, input C
 	}
 
 	return box, nil
+}
+
+func (s *boxService) GetBoxesByLocationID(ctx context.Context, locationID uuid.UUID) ([]domain.SurpriseBox, error) {
+	return s.boxRepo.GetBoxesByLocationID(ctx, locationID)
+}
+
+func (s *boxService) GetBoxesByPartnerID(ctx context.Context, partnerID uuid.UUID) ([]domain.SurpriseBox, error) {
+	return s.boxRepo.GetBoxesByPartnerID(ctx, partnerID)
 }
 
 func (s *boxService) GetBoxByID(ctx context.Context, id string) (*domain.SurpriseBox, error) {
