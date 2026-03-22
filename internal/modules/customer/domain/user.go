@@ -1,9 +1,12 @@
 package domain
 
-import sharedDomain "github.com/nlsnnn/berezhok/internal/shared/domain"
+import (
+	"github.com/google/uuid"
+	sharedDomain "github.com/nlsnnn/berezhok/internal/shared/domain"
+)
 
 type User struct {
-	ID    string
+	ID    uuid.UUID
 	Phone sharedDomain.Phone
 	Name  string
 }

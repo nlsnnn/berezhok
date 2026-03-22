@@ -10,12 +10,15 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/jackc/pgx/v5"
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
+	redisAdapter "github.com/nlsnnn/berezhok/internal/adapters/redis"
 	"github.com/nlsnnn/berezhok/internal/adapters/s3/yandex"
+	smsAdapter "github.com/nlsnnn/berezhok/internal/adapters/sms"
 	authHandlers "github.com/nlsnnn/berezhok/internal/modules/auth/handlers"
 	authServices "github.com/nlsnnn/berezhok/internal/modules/auth/service"
 	catalogHandlers "github.com/nlsnnn/berezhok/internal/modules/catalog/handlers"
 	catalogRepos "github.com/nlsnnn/berezhok/internal/modules/catalog/repository"
 	catalogServices "github.com/nlsnnn/berezhok/internal/modules/catalog/service"
+	customerRepos "github.com/nlsnnn/berezhok/internal/modules/customer/repository"
 	mediaHandlers "github.com/nlsnnn/berezhok/internal/modules/media/handlers"
 	mediaRepos "github.com/nlsnnn/berezhok/internal/modules/media/repository"
 	mediaServices "github.com/nlsnnn/berezhok/internal/modules/media/service"
@@ -26,6 +29,7 @@ import (
 	"github.com/nlsnnn/berezhok/internal/shared/jwt"
 	middlewares "github.com/nlsnnn/berezhok/internal/shared/middleware"
 	"github.com/nlsnnn/berezhok/internal/shared/validator"
+	"github.com/redis/go-redis/v9"
 )
 
 func (app *application) mount() http.Handler {
@@ -88,9 +92,18 @@ func (app *application) mount() http.Handler {
 	// Media module — handlers
 	mediaHandler := mediaHandlers.NewMediaHandler(mediaSvc, app.log)
 
+	// Customer module — repositories
+	customerRepo := customerRepos.NewUserRepo(queries)
+
+	// SMS module
+	smsStorage := redisAdapter.NewSMSStorage(app.redis)
+	smsSender := smsAdapter.NewConsoleSender()
+	smsSvc := authServices.NewSMSService(smsStorage, smsSender)
+
 	// Auth module
 	partnerAuthSvc := authServices.NewPartnerAuthenticator(employeeRepo, jwtService)
-	authHandler := authHandlers.NewAuthHandler(v, app.log, partnerAuthSvc)
+	customerAuthSvc := authServices.NewCustomerAuthenticator(customerRepo, jwtService, smsSvc)
+	authHandler := authHandlers.NewAuthHandler(v, app.log, partnerAuthSvc, customerAuthSvc)
 
 	// Middlewares
 	authMiddleware := middlewares.NewAuthMiddleware(jwtService)
@@ -100,6 +113,8 @@ func (app *application) mount() http.Handler {
 
 		// Auth
 		r.Post("/partner/auth/login", authHandler.PartnerLogin)
+		r.Post("/customer/auth/send-code", authHandler.CustomerSendCode)
+		r.Post("/customer/auth/login", authHandler.CustomerLogin)
 
 		// Application
 		r.Post("/applications", appHandler.Create)

@@ -9,11 +9,6 @@ import (
 	hasher "github.com/nlsnnn/berezhok/internal/shared/auth"
 )
 
-type TokenService interface {
-	Generate(claims auth.TokenClaims) (string, error)
-	Validate(tokenString string) (*auth.TokenClaims, error)
-}
-
 type employeeFinder interface {
 	FindByEmail(ctx context.Context, email string) (domain.Employee, error)
 }
