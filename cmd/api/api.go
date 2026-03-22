@@ -158,8 +158,9 @@ func (app *application) run(log *slog.Logger, h http.Handler) error {
 }
 
 type application struct {
-	cfg *config.Config
-	db  *pgx.Conn
-	log *slog.Logger
-	s3  *yandex.Storage
+	cfg   *config.Config
+	db    *pgx.Conn
+	log   *slog.Logger
+	s3    *yandex.Storage
+	redis *redis.Client
 }
