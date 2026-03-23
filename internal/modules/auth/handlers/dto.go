@@ -5,8 +5,13 @@ type LoginEmailPasswordRequest struct {
 	Password string `json:"password" validate:"required,min=3"`
 }
 
+type SendCodeRequest struct {
+	Phone string `json:"phone" validate:"required,e164"`
+}
+
 type LoginPhoneRequest struct {
 	Phone string `json:"phone" validate:"required,e164"`
+	Code  string `json:"code" validate:"required,len=6"`
 }
 
 type LoginResponse struct {

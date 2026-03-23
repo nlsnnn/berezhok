@@ -25,8 +25,9 @@ type Db struct {
 }
 
 type Redis struct {
-	Host string `yaml:"host" env:"REDIS_HOST" env-default:"localhost"`
-	Port int    `yaml:"port" env:"REDIS_PORT" env-default:"6379"`
+	Host     string `yaml:"host" env:"REDIS_HOST" env-default:"localhost"`
+	Port     int    `yaml:"port" env:"REDIS_PORT" env-default:"6379"`
+	Password string `yaml:"password" env:"REDIS_PASSWORD" env-default:""`
 }
 
 type HTTPServer struct {
