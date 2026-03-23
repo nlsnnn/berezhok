@@ -17,6 +17,8 @@ type Querier interface {
 	CreateApplication(ctx context.Context, arg CreateApplicationParams) (PartnerApplication, error)
 	// Create a new box
 	CreateBox(ctx context.Context, arg CreateBoxParams) (SurpriseBox, error)
+	// Create new customer
+	CreateCustomer(ctx context.Context, phone string) (uuid.UUID, error)
 	CreateLocation(ctx context.Context, arg CreateLocationParams) (Location, error)
 	// Create a new media file record
 	CreateMediaFile(ctx context.Context, arg CreateMediaFileParams) (MediaFile, error)
@@ -34,6 +36,10 @@ type Querier interface {
 	// Get a box by ID
 	FindBoxByID(ctx context.Context, id uuid.UUID) (SurpriseBox, error)
 	FindCategoryByCode(ctx context.Context, code string) (LocationCategory, error)
+	// Get customer by ID
+	FindCustomerByID(ctx context.Context, id uuid.UUID) (User, error)
+	// Get customer by phone
+	FindCustomerByPhone(ctx context.Context, phone string) (User, error)
 	FindLocationByID(ctx context.Context, id uuid.UUID) (Location, error)
 	FindLocationsByPartnerID(ctx context.Context, partnerID uuid.UUID) ([]Location, error)
 	// Get media file by ID

@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql"
+	"github.com/nlsnnn/berezhok/internal/adapters/redis"
 	"github.com/nlsnnn/berezhok/internal/adapters/s3/yandex"
 	"github.com/nlsnnn/berezhok/internal/shared/config"
 	"github.com/nlsnnn/berezhok/internal/shared/logger/sl"
@@ -39,11 +40,20 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Redis
+	redisClient, err := redis.New(ctx, cfg.Redis)
+	if err != nil {
+		log.Error("failed to initialize Redis", "error", err)
+		os.Exit(1)
+	}
+	defer redisClient.Close()
+
 	api := application{
-		cfg: cfg,
-		db:  db,
-		log: log,
-		s3:  s3Storage,
+		cfg:   cfg,
+		db:    db,
+		log:   log,
+		s3:    s3Storage,
+		redis: redisClient,
 	}
 
 	if err := api.run(log, api.mount()); err != nil {

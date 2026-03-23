@@ -124,3 +124,12 @@ type SurpriseBox struct {
 	CreatedAt         time.Time      `json:"created_at"`
 	UpdatedAt         time.Time      `json:"updated_at"`
 }
+
+// Пользователи приложения
+type User struct {
+	ID        uuid.UUID   `json:"id"`
+	Phone     string      `json:"phone"`
+	Name      pgtype.Text `json:"name"`
+	CreatedAt time.Time   `json:"created_at"`
+	UpdatedAt time.Time   `json:"updated_at"`
+}
