@@ -112,5 +112,16 @@ func (h *partnerHandler) Profile(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Map all partner locations
+	res.Locations = make([]dto.LocationResponse, len(profile.Locations))
+	for i, loc := range profile.Locations {
+		res.Locations[i] = dto.LocationResponse{
+			ID:        loc.ID,
+			Name:      loc.Name,
+			Address:   loc.Address,
+			CreatedAt: loc.CreatedAt,
+		}
+	}
+
 	response.Success(w, res)
 }

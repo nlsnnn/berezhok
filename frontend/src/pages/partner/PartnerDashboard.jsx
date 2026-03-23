@@ -7,7 +7,8 @@ import PartnerNav from '@/components/PartnerNav'
 import Spinner from '@/components/ui/Spinner'
 import Button from '@/components/ui/Button'
 import StatusBadge from '@/components/ui/StatusBadge'
-import { Building2, MapPin, Mail, User, KeyRound, Plus, AlertTriangle } from 'lucide-react'
+import LocationCard from '@/components/ui/LocationCard'
+import { Building2, MapPin, Mail, User, KeyRound, Plus, AlertTriangle, Package } from 'lucide-react'
 
 export default function PartnerDashboard() {
   const { data, isLoading, isError, refetch } = useQuery({
@@ -40,7 +41,7 @@ export default function PartnerDashboard() {
 }
 
 function DashboardContent({ data }) {
-  const { partner, employee, location } = data
+  const { partner, employee, locations = [] } = data
 
   const partnerStatus = PARTNER_STATUS[partner.status]
   const commissionPct = Math.round((partner.commission_rate ?? 0.2) * 100)
@@ -107,37 +108,53 @@ function DashboardContent({ data }) {
         </div>
       </div>
 
-      {/* Location card */}
-      {location ? (
-        <div className="card space-y-4">
+      {/* Locations section */}
+      <div className="card space-y-4">
+        <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold text-brand-900 flex items-center gap-2">
             <MapPin size={18} className="text-brand-400" />
-            Локация
+            Локации ({locations.length})
           </h2>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <InfoRow label="Название" value={location.name} />
-            <InfoRow label="Адрес" value={location.address} />
-          </div>
-        </div>
-      ) : (
-        <div className="card border-dashed border-cream-300 text-center py-10">
-          <MapPin size={32} className="text-cream-400 mx-auto mb-3" />
-          <h3 className="font-semibold text-brand-700 mb-2">Нет активной локации</h3>
-          <p className="text-sm text-brand-500 mb-5">Добавьте точку продаж для начала работы</p>
-          <Link to="/partner/locations/new" className="btn-primary">
-            <Plus size={16} />
-            Добавить локацию
+          <Link to="/partner/locations" className="text-sm text-brand-500 hover:text-brand-700 font-medium transition-colors">
+            Все локации →
           </Link>
         </div>
-      )}
+
+        {locations.length === 0 ? (
+          <div className="border-2 border-dashed border-cream-300 rounded-xl text-center py-10">
+            <MapPin size={32} className="text-cream-400 mx-auto mb-3" />
+            <h3 className="font-semibold text-brand-700 mb-2">Нет локаций</h3>
+            <p className="text-sm text-brand-500 mb-5">Добавьте точку продаж для начала работы</p>
+            <Link to="/partner/locations/new" className="btn-primary inline-flex items-center gap-2">
+              <Plus size={16} />
+              Добавить локацию
+            </Link>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-4">
+            {locations.slice(0, 4).map((loc) => (
+              <div key={loc.id} className="border border-cream-200 rounded-lg p-4 hover:border-brand-300 transition-colors">
+                <h3 className="font-semibold text-brand-900 mb-1 truncate">{loc.name}</h3>
+                <p className="text-sm text-brand-600 truncate">{loc.address}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Quick actions */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <QuickAction
-          icon={Plus}
+          icon={MapPin}
           title="Новая локация"
           desc="Добавить точку продаж"
           to="/partner/locations/new"
+        />
+        <QuickAction
+          icon={Package}
+          title="Новый бокс"
+          desc="Создать предложение"
+          to="/partner/boxes/new"
         />
         <QuickAction
           icon={KeyRound}
