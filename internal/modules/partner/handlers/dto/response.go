@@ -18,9 +18,10 @@ type ApplicationResponse struct {
 }
 
 type PartnerProfileResponse struct {
-	Partner  PartnerResponse   `json:"partner"`
-	Employee EmployeeResponse  `json:"employee"`
-	Location *LocationResponse `json:"location,omitempty"`
+	Partner   PartnerResponse    `json:"partner"`
+	Employee  EmployeeResponse   `json:"employee"`
+	Location  *LocationResponse  `json:"location,omitempty"`  // Employee's assigned location (backwards compatibility)
+	Locations []LocationResponse `json:"locations"`           // All partner locations
 }
 
 type PartnerResponse struct {

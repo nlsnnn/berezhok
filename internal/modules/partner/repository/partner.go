@@ -95,6 +95,23 @@ func (r *PartnerRepo) GetProfile(ctx context.Context, employeeID string) (domain
 		}
 	}
 
+	// Get all locations for the partner
+	locationRows, err := r.q.FindLocationsByPartnerID(ctx, row.PartnerID)
+	if err != nil {
+		return domain.PartnerProfile{}, err
+	}
+
+	locations := make([]domain.LocationSummary, len(locationRows))
+	for i, loc := range locationRows {
+		locations[i] = domain.LocationSummary{
+			ID:        loc.ID.String(),
+			Name:      loc.Name,
+			Address:   loc.Address,
+			CreatedAt: time.Now(), // TODO: Add CreatedAt to the SQL query and use it here
+		}
+	}
+	profile.Locations = locations
+
 	return profile, nil
 }
 

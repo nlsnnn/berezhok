@@ -10,6 +10,10 @@ import PartnerLoginPage from '@/pages/partner/PartnerLoginPage'
 import PartnerDashboard from '@/pages/partner/PartnerDashboard'
 import ChangePasswordPage from '@/pages/partner/ChangePasswordPage'
 import CreateLocationPage from '@/pages/partner/CreateLocationPage'
+import LocationsPage from '@/pages/partner/LocationsPage'
+import BoxesPage from '@/pages/partner/BoxesPage'
+import CreateBoxPage from '@/pages/partner/CreateBoxPage'
+import EditBoxPage from '@/pages/partner/EditBoxPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,7 +44,15 @@ export default function App() {
             <Route element={<RequireAuth />}>
               <Route path="/partner/dashboard" element={<PartnerDashboard />} />
               <Route path="/partner/change-password" element={<ChangePasswordPage />} />
+              
+              {/* Locations */}
+              <Route path="/partner/locations" element={<LocationsPage />} />
               <Route path="/partner/locations/new" element={<CreateLocationPage />} />
+              
+              {/* Boxes */}
+              <Route path="/partner/boxes" element={<BoxesPage />} />
+              <Route path="/partner/boxes/new" element={<CreateBoxPage />} />
+              <Route path="/partner/boxes/:id/edit" element={<EditBoxPage />} />
             </Route>
 
             {/* Fallback */}
