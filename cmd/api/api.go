@@ -18,7 +18,9 @@ import (
 	catalogHandlers "github.com/nlsnnn/berezhok/internal/modules/catalog/handlers"
 	catalogRepos "github.com/nlsnnn/berezhok/internal/modules/catalog/repository"
 	catalogServices "github.com/nlsnnn/berezhok/internal/modules/catalog/service"
+	customerHandlers "github.com/nlsnnn/berezhok/internal/modules/customer/handlers"
 	customerRepos "github.com/nlsnnn/berezhok/internal/modules/customer/repository"
+	customerServices "github.com/nlsnnn/berezhok/internal/modules/customer/service"
 	mediaHandlers "github.com/nlsnnn/berezhok/internal/modules/media/handlers"
 	mediaRepos "github.com/nlsnnn/berezhok/internal/modules/media/repository"
 	mediaServices "github.com/nlsnnn/berezhok/internal/modules/media/service"
@@ -41,8 +43,8 @@ func (app *application) mount() http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins: []string{"http://localhost", "http://localhost:5173"},
-		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedOrigins: []string{"http://localhost", "http://localhost:5173", "http://localhost:3000", "http://localhost:8000"},
+		AllowedMethods: []string{"GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders: []string{"Link"},
 		MaxAge:         300,
@@ -94,6 +96,17 @@ func (app *application) mount() http.Handler {
 
 	// Customer module — repositories
 	customerRepo := customerRepos.NewUserRepo(queries)
+	customerLocationRepo := customerRepos.NewLocationRepo(queries)
+
+	// Customer module — services
+	customerSvc := customerServices.NewCustomerService(customerRepo)
+	customerLocationSvc := customerServices.NewLocationService(customerLocationRepo)
+
+	// Customer module — handlers
+	customerHandler := customerHandlers.NewCustomerHandler(customerSvc, app.log, v)
+	customerLocationHandler := customerHandlers.NewLocationHandler(customerLocationSvc, app.log)
+	customerOrderHandler := customerHandlers.NewOrderHandler(app.log)
+	customerReviewHandler := customerHandlers.NewReviewHandler(app.log)
 
 	// SMS module
 	smsStorage := redisAdapter.NewSMSStorage(app.redis)
@@ -112,9 +125,9 @@ func (app *application) mount() http.Handler {
 		// == Public Routes ==
 
 		// Auth
-		r.Post("/partner/auth/login", authHandler.PartnerLogin)
-		r.Post("/customer/auth/send-code", authHandler.CustomerSendCode)
-		r.Post("/customer/auth/login", authHandler.CustomerLogin)
+		r.Post("/auth/partner/login", authHandler.PartnerLogin)
+		r.Post("/auth/customer/send-code", authHandler.CustomerSendCode)
+		r.Post("/auth/customer/login", authHandler.CustomerLogin)
 
 		// Application
 		r.Post("/applications", appHandler.Create)
@@ -123,6 +136,30 @@ func (app *application) mount() http.Handler {
 		r.Delete("/applications/{id}", appHandler.Delete)
 		r.Post("/applications/{id}/approve", appHandler.Approve)
 		r.Post("/applications/{id}/reject", appHandler.Reject)
+
+		// == Customer Routes ==
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequireAuth("customer"))
+
+			// Profile
+			r.Get("/customer/profile", customerHandler.GetProfile)
+			r.Patch("/customer/profile", customerHandler.UpdateProfile)
+
+			// Locations
+			r.Get("/customer/locations", customerLocationHandler.SearchLocations)
+			r.Get("/customer/locations/{location_id}", customerLocationHandler.GetLocationDetails)
+
+			// Orders (stubs)
+			r.Post("/customer/orders", customerOrderHandler.CreateOrder)
+			r.Get("/customer/orders", customerOrderHandler.ListOrders)
+			r.Get("/customer/orders/{order_id}", customerOrderHandler.GetOrder)
+			r.Post("/customer/orders/{order_id}/confirm-pickup", customerOrderHandler.ConfirmPickup)
+			r.Post("/customer/orders/{order_id}/dispute", customerOrderHandler.CreateDispute)
+
+			// Reviews (stubs)
+			r.Post("/customer/reviews", customerReviewHandler.CreateReview)
+			r.Get("/customer/locations/{location_id}/reviews", customerReviewHandler.ListLocationReviews)
+		})
 
 		// == Partner Routes ==
 		r.Group(func(r chi.Router) {

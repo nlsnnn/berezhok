@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
 	"github.com/nlsnnn/berezhok/internal/modules/customer/domain"
 	sharedDomain "github.com/nlsnnn/berezhok/internal/shared/domain"
@@ -45,10 +46,23 @@ func (r *UserRepo) FindByID(ctx context.Context, id string) (domain.User, error)
 	return userToDomain(user), nil
 }
 
+func (r *UserRepo) UpdateProfile(ctx context.Context, id uuid.UUID, name string) (domain.User, error) {
+	user, err := r.q.UpdateCustomerProfile(ctx, sqlc.UpdateCustomerProfileParams{
+		ID:   id,
+		Name: pgtype.Text{String: name, Valid: name != ""},
+	})
+	if err != nil {
+		return domain.User{}, err
+	}
+	return userToDomain(user), nil
+}
+
 func userToDomain(u sqlc.User) domain.User {
 	return domain.User{
-		ID:    u.ID,
-		Phone: sharedDomain.Phone{Number: u.Phone},
-		Name:  u.Name.String,
+		ID:        u.ID,
+		Phone:     sharedDomain.Phone{Number: u.Phone},
+		Name:      u.Name.String,
+		CreatedAt: u.CreatedAt,
+		UpdatedAt: u.UpdatedAt,
 	}
 }
