@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createCustomer = `-- name: CreateCustomer :one
@@ -50,6 +51,32 @@ SELECT id, phone, name, created_at, updated_at FROM users WHERE phone = $1
 // Get customer by phone
 func (q *Queries) FindCustomerByPhone(ctx context.Context, phone string) (User, error) {
 	row := q.db.QueryRow(ctx, findCustomerByPhone, phone)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Phone,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateCustomerProfile = `-- name: UpdateCustomerProfile :one
+UPDATE users 
+SET name = $2
+WHERE id = $1
+RETURNING id, phone, name, created_at, updated_at
+`
+
+type UpdateCustomerProfileParams struct {
+	ID   uuid.UUID   `json:"id"`
+	Name pgtype.Text `json:"name"`
+}
+
+// Update customer profile
+func (q *Queries) UpdateCustomerProfile(ctx context.Context, arg UpdateCustomerProfileParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateCustomerProfile, arg.ID, arg.Name)
 	var i User
 	err := row.Scan(
 		&i.ID,
