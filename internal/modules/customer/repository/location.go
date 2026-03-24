@@ -3,15 +3,14 @@ package repository
 import (
 	"context"
 	"encoding/json"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
+	"github.com/nlsnnn/berezhok/internal/lib/pgconverter"
 	catalogDomain "github.com/nlsnnn/berezhok/internal/modules/catalog/domain"
 	partnerDomain "github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 	sharedDomain "github.com/nlsnnn/berezhok/internal/shared/domain"
-	"github.com/shopspring/decimal"
 )
 
 type LocationRepo struct {
@@ -92,12 +91,12 @@ func (r *LocationRepo) GetActiveBoxesByLocationID(ctx context.Context, locationI
 			Name:        box.Name,
 			Description: box.Description.String,
 			Price: catalogDomain.Price{
-				Original: numericToDecimalOrZero(box.OriginalPrice),
-				Discount: numericToDecimalOrZero(box.DiscountPrice),
+				Original: pgconverter.NumericToDecimalOrZero(box.OriginalPrice),
+				Discount: pgconverter.NumericToDecimalOrZero(box.DiscountPrice),
 			},
 			PickupTime: catalogDomain.PickupTime{
-				Start: timeValue(box.PickupTimeStart),
-				End:   timeValue(box.PickupTimeEnd),
+				Start: pgconverter.TimeValue(box.PickupTimeStart),
+				End:   pgconverter.TimeValue(box.PickupTimeEnd),
 			},
 			Quantity:  int(box.QuantityAvailable),
 			Status:    catalogDomain.BoxStatus(box.Status),
@@ -123,6 +122,7 @@ type LocationWithDetails struct {
 	Status        string
 	Category      partnerDomain.LocationCategory
 	Coords        sharedDomain.GeoPoint
+	ActiveBoxes   int
 	CreatedAt     interface{}
 	UpdatedAt     interface{}
 }
@@ -159,8 +159,9 @@ func searchRowToLocationWithDetails(r sqlc.SearchLocationsRow) LocationWithDetai
 			Latitude:  lat,
 			Longitude: lng,
 		},
-		CreatedAt: r.CreatedAt,
-		UpdatedAt: r.UpdatedAt,
+		ActiveBoxes: int(r.ActiveBoxesCount),
+		CreatedAt:   r.CreatedAt,
+		UpdatedAt:   r.UpdatedAt,
 	}
 }
 
@@ -199,20 +200,4 @@ func detailsRowToLocationWithDetails(r sqlc.GetLocationDetailsByIDRow) LocationW
 		CreatedAt: r.CreatedAt,
 		UpdatedAt: r.UpdatedAt,
 	}
-}
-
-func numericToDecimalOrZero(v pgtype.Numeric) decimal.Decimal {
-	if !v.Valid || v.Int == nil {
-		return decimal.Zero
-	}
-
-	return decimal.NewFromBigInt(v.Int, v.Exp)
-}
-
-func timeValue(v pgtype.Time) (result time.Time) {
-	if !v.Valid {
-		return result
-	}
-
-	return time.Date(0, time.January, 1, 0, 0, 0, 0, time.UTC).Add(time.Duration(v.Microseconds) * time.Microsecond)
 }

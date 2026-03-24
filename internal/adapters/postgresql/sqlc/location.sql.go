@@ -135,6 +135,7 @@ SELECT
     lc.color as category_color,
     ST_X(l.location::geometry) as longitude,
     ST_Y(l.location::geometry) as latitude,
+    COALESCE((SELECT COUNT(*) FROM surprise_boxes sb WHERE sb.location_id = l.id AND sb.status = 'active' AND sb.quantity_available > 0), 0)::int as active_boxes_count,
     l.created_at,
     l.updated_at
 FROM locations l
@@ -152,24 +153,25 @@ type SearchLocationsParams struct {
 }
 
 type SearchLocationsRow struct {
-	ID              uuid.UUID        `json:"id"`
-	PartnerID       uuid.UUID        `json:"partner_id"`
-	Name            string           `json:"name"`
-	Address         string           `json:"address"`
-	Phone           pgtype.Text      `json:"phone"`
-	LogoUrl         pgtype.Text      `json:"logo_url"`
-	CoverImageUrl   pgtype.Text      `json:"cover_image_url"`
-	GalleryUrls     []string         `json:"gallery_urls"`
-	WorkingHours    []byte           `json:"working_hours"`
-	Status          string           `json:"status"`
-	CategoryCode    string           `json:"category_code"`
-	CategoryName    string           `json:"category_name"`
-	CategoryIconUrl pgtype.Text      `json:"category_icon_url"`
-	CategoryColor   pgtype.Text      `json:"category_color"`
-	Longitude       interface{}      `json:"longitude"`
-	Latitude        interface{}      `json:"latitude"`
-	CreatedAt       pgtype.Timestamp `json:"created_at"`
-	UpdatedAt       pgtype.Timestamp `json:"updated_at"`
+	ID               uuid.UUID        `json:"id"`
+	PartnerID        uuid.UUID        `json:"partner_id"`
+	Name             string           `json:"name"`
+	Address          string           `json:"address"`
+	Phone            pgtype.Text      `json:"phone"`
+	LogoUrl          pgtype.Text      `json:"logo_url"`
+	CoverImageUrl    pgtype.Text      `json:"cover_image_url"`
+	GalleryUrls      []string         `json:"gallery_urls"`
+	WorkingHours     []byte           `json:"working_hours"`
+	Status           string           `json:"status"`
+	CategoryCode     string           `json:"category_code"`
+	CategoryName     string           `json:"category_name"`
+	CategoryIconUrl  pgtype.Text      `json:"category_icon_url"`
+	CategoryColor    pgtype.Text      `json:"category_color"`
+	Longitude        interface{}      `json:"longitude"`
+	Latitude         interface{}      `json:"latitude"`
+	ActiveBoxesCount int32            `json:"active_boxes_count"`
+	CreatedAt        pgtype.Timestamp `json:"created_at"`
+	UpdatedAt        pgtype.Timestamp `json:"updated_at"`
 }
 
 // Location queries for customer app
@@ -200,6 +202,7 @@ func (q *Queries) SearchLocations(ctx context.Context, arg SearchLocationsParams
 			&i.CategoryColor,
 			&i.Longitude,
 			&i.Latitude,
+			&i.ActiveBoxesCount,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {

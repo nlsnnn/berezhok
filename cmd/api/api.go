@@ -8,7 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
 	redisAdapter "github.com/nlsnnn/berezhok/internal/adapters/redis"
 	"github.com/nlsnnn/berezhok/internal/adapters/s3/yandex"
@@ -55,7 +55,7 @@ func (app *application) mount() http.Handler {
 	})
 
 	// Shared infrastructure
-	queries := sqlc.New(app.db)
+	queries := sqlc.New(app.pool)
 	v := validator.New()
 	jwtService := jwt.NewTokenService([]byte("supersecretkey"))
 
@@ -211,7 +211,7 @@ func (app *application) run(log *slog.Logger, h http.Handler) error {
 
 type application struct {
 	cfg   *config.Config
-	db    *pgx.Conn
+	pool  *pgxpool.Pool
 	log   *slog.Logger
 	s3    *yandex.Storage
 	redis *redis.Client

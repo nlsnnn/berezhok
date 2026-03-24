@@ -19,6 +19,7 @@ SELECT
     lc.color as category_color,
     ST_X(l.location::geometry) as longitude,
     ST_Y(l.location::geometry) as latitude,
+    COALESCE((SELECT COUNT(*) FROM surprise_boxes sb WHERE sb.location_id = l.id AND sb.status = 'active' AND sb.quantity_available > 0), 0)::int as active_boxes_count,
     l.created_at,
     l.updated_at
 FROM locations l

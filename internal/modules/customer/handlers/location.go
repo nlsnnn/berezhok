@@ -81,9 +81,9 @@ func (h *locationHandler) SearchLocations(w http.ResponseWriter, r *http.Request
 				Lat: loc.Coords.Latitude,
 				Lng: loc.Coords.Longitude,
 			},
-			LogoURL: loc.LogoURL,
-			Rating:  nil,
-			ActiveBoxesCount: 0,
+			LogoURL:          loc.LogoURL,
+			Rating:           nil,
+			ActiveBoxesCount: loc.ActiveBoxes,
 		}
 	}
 
