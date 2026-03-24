@@ -6,11 +6,11 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/nlsnnn/berezhok/internal/lib/logger/sl"
 	"github.com/nlsnnn/berezhok/internal/modules/media/domain"
 	mediaErrors "github.com/nlsnnn/berezhok/internal/modules/media/errors"
 	"github.com/nlsnnn/berezhok/internal/modules/media/handlers/dto"
 	"github.com/nlsnnn/berezhok/internal/modules/media/service"
-	"github.com/nlsnnn/berezhok/internal/shared/logger/sl"
 	"github.com/nlsnnn/berezhok/internal/shared/response"
 )
 

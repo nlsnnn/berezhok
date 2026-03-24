@@ -6,11 +6,11 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/nlsnnn/berezhok/internal/lib/logger/sl"
+	"github.com/nlsnnn/berezhok/internal/lib/validator"
 	"github.com/nlsnnn/berezhok/internal/modules/customer/domain"
 	"github.com/nlsnnn/berezhok/internal/modules/customer/handlers/dto"
-	"github.com/nlsnnn/berezhok/internal/shared/logger/sl"
 	"github.com/nlsnnn/berezhok/internal/shared/response"
-	"github.com/nlsnnn/berezhok/internal/shared/validator"
 )
 
 type customerHandler struct {

@@ -8,8 +8,8 @@ import (
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql"
 	"github.com/nlsnnn/berezhok/internal/adapters/redis"
 	"github.com/nlsnnn/berezhok/internal/adapters/s3/yandex"
+	"github.com/nlsnnn/berezhok/internal/lib/logger/sl"
 	"github.com/nlsnnn/berezhok/internal/shared/config"
-	"github.com/nlsnnn/berezhok/internal/shared/logger/sl"
 )
 
 const (

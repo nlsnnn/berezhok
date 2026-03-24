@@ -13,6 +13,7 @@ import (
 	redisAdapter "github.com/nlsnnn/berezhok/internal/adapters/redis"
 	"github.com/nlsnnn/berezhok/internal/adapters/s3/yandex"
 	smsAdapter "github.com/nlsnnn/berezhok/internal/adapters/sms"
+	"github.com/nlsnnn/berezhok/internal/lib/validator"
 	authHandlers "github.com/nlsnnn/berezhok/internal/modules/auth/handlers"
 	authServices "github.com/nlsnnn/berezhok/internal/modules/auth/service"
 	catalogHandlers "github.com/nlsnnn/berezhok/internal/modules/catalog/handlers"
@@ -30,7 +31,6 @@ import (
 	"github.com/nlsnnn/berezhok/internal/shared/config"
 	"github.com/nlsnnn/berezhok/internal/shared/jwt"
 	middlewares "github.com/nlsnnn/berezhok/internal/shared/middleware"
-	"github.com/nlsnnn/berezhok/internal/shared/validator"
 	"github.com/redis/go-redis/v9"
 )
 
