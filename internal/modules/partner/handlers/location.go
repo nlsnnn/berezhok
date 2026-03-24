@@ -4,12 +4,13 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/nlsnnn/berezhok/internal/modules/partner/handlers/dto"
-	partnerErrors "github.com/nlsnnn/berezhok/internal/modules/partner/errors"
-	"github.com/nlsnnn/berezhok/internal/shared/logger/sl"
-	"github.com/nlsnnn/berezhok/internal/shared/response"
-	"github.com/nlsnnn/berezhok/internal/shared/validator"
 	"errors"
+
+	"github.com/nlsnnn/berezhok/internal/lib/logger/sl"
+	"github.com/nlsnnn/berezhok/internal/lib/validator"
+	partnerErrors "github.com/nlsnnn/berezhok/internal/modules/partner/errors"
+	"github.com/nlsnnn/berezhok/internal/modules/partner/handlers/dto"
+	"github.com/nlsnnn/berezhok/internal/shared/response"
 )
 
 type locationHandler struct {

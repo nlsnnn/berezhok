@@ -8,13 +8,13 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/nlsnnn/berezhok/internal/lib/logger/sl"
+	"github.com/nlsnnn/berezhok/internal/lib/validator"
 	"github.com/nlsnnn/berezhok/internal/modules/catalog/domain"
 	catalogErrors "github.com/nlsnnn/berezhok/internal/modules/catalog/errors"
 	"github.com/nlsnnn/berezhok/internal/modules/catalog/handlers/dto"
 	"github.com/nlsnnn/berezhok/internal/modules/catalog/service"
-	"github.com/nlsnnn/berezhok/internal/shared/logger/sl"
 	"github.com/nlsnnn/berezhok/internal/shared/response"
-	"github.com/nlsnnn/berezhok/internal/shared/validator"
 )
 
 type boxHandler struct {

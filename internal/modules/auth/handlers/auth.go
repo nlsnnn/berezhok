@@ -6,11 +6,11 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/nlsnnn/berezhok/internal/lib/logger/sl"
+	"github.com/nlsnnn/berezhok/internal/lib/validator"
 	"github.com/nlsnnn/berezhok/internal/modules/auth"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
-	"github.com/nlsnnn/berezhok/internal/shared/logger/sl"
 	"github.com/nlsnnn/berezhok/internal/shared/response"
-	"github.com/nlsnnn/berezhok/internal/shared/validator"
 )
 
 type partAuth interface {

@@ -8,12 +8,17 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
 	ActivateLocation(ctx context.Context, id uuid.UUID) error
 	CheckEmailExists(ctx context.Context, email string) (bool, error)
 	CloseLocation(ctx context.Context, id uuid.UUID) error
+	// Count active boxes by location ID
+	CountActiveBoxesByLocationID(ctx context.Context, locationID uuid.UUID) (int64, error)
+	// Count active locations for pagination
+	CountActiveLocations(ctx context.Context, categoryCode pgtype.Text) (int64, error)
 	CreateApplication(ctx context.Context, arg CreateApplicationParams) (PartnerApplication, error)
 	// Create a new box
 	CreateBox(ctx context.Context, arg CreateBoxParams) (SurpriseBox, error)
@@ -47,6 +52,8 @@ type Querier interface {
 	FindPartnerByID(ctx context.Context, id uuid.UUID) (Partner, error)
 	FindPartnerEmployeeByEmail(ctx context.Context, email string) (PartnerEmployee, error)
 	FindPartnerEmployeeByID(ctx context.Context, id uuid.UUID) (PartnerEmployee, error)
+	// Get location details by ID with category info
+	GetLocationDetailsByID(ctx context.Context, id uuid.UUID) (GetLocationDetailsByIDRow, error)
 	GetPartnerProfile(ctx context.Context, id uuid.UUID) (GetPartnerProfileRow, error)
 	// List active boxes by location ID
 	ListActiveBoxesByLocationID(ctx context.Context, locationID uuid.UUID) ([]SurpriseBox, error)
@@ -65,9 +72,14 @@ type Querier interface {
 	ListPartnerEmployees(ctx context.Context) ([]PartnerEmployee, error)
 	// Партнёры (юридические лица)
 	ListPartners(ctx context.Context) ([]Partner, error)
+	// Location queries for customer app
+	// Search locations
+	SearchLocations(ctx context.Context, arg SearchLocationsParams) ([]SearchLocationsRow, error)
 	UpdateApplication(ctx context.Context, arg UpdateApplicationParams) error
 	// Update an existing box
 	UpdateBox(ctx context.Context, arg UpdateBoxParams) (SurpriseBox, error)
+	// Update customer profile
+	UpdateCustomerProfile(ctx context.Context, arg UpdateCustomerProfileParams) (User, error)
 	UpdateLocation(ctx context.Context, arg UpdateLocationParams) (Location, error)
 	UpdateLocationStatus(ctx context.Context, arg UpdateLocationStatusParams) error
 	UpdateLocationWorkingHours(ctx context.Context, arg UpdateLocationWorkingHoursParams) error

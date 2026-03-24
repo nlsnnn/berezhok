@@ -1,14 +1,18 @@
 package domain
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	sharedDomain "github.com/nlsnnn/berezhok/internal/shared/domain"
 )
 
 type User struct {
-	ID    uuid.UUID
-	Phone sharedDomain.Phone
-	Name  string
+	ID        uuid.UUID
+	Phone     sharedDomain.Phone
+	Name      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 func NewUser(phone, name string) (User, error) {

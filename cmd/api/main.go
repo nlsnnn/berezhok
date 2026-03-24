@@ -8,8 +8,8 @@ import (
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql"
 	"github.com/nlsnnn/berezhok/internal/adapters/redis"
 	"github.com/nlsnnn/berezhok/internal/adapters/s3/yandex"
+	"github.com/nlsnnn/berezhok/internal/lib/logger/sl"
 	"github.com/nlsnnn/berezhok/internal/shared/config"
-	"github.com/nlsnnn/berezhok/internal/shared/logger/sl"
 )
 
 const (
@@ -31,7 +31,7 @@ func main() {
 		log.Error("failed to init storage", sl.Err(err))
 		os.Exit(1)
 	}
-	defer db.Close(ctx)
+	defer db.Close()
 
 	// S3 Storage
 	s3Storage, err := yandex.NewStorage(cfg.S3)
@@ -50,7 +50,7 @@ func main() {
 
 	api := application{
 		cfg:   cfg,
-		db:    db,
+		pool:  db,
 		log:   log,
 		s3:    s3Storage,
 		redis: redisClient,

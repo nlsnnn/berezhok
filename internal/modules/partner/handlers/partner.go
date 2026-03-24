@@ -6,12 +6,12 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/nlsnnn/berezhok/internal/lib/logger/sl"
+	"github.com/nlsnnn/berezhok/internal/lib/validator"
 	partnerErrors "github.com/nlsnnn/berezhok/internal/modules/partner/errors"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/handlers/dto"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/service"
-	"github.com/nlsnnn/berezhok/internal/shared/logger/sl"
 	"github.com/nlsnnn/berezhok/internal/shared/response"
-	"github.com/nlsnnn/berezhok/internal/shared/validator"
 )
 
 type partnerHandler struct {
