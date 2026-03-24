@@ -5,11 +5,61 @@
 package sqlc
 
 import (
+	"database/sql/driver"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+type OrderStatus string
+
+const (
+	OrderStatusPending   OrderStatus = "pending"
+	OrderStatusPaid      OrderStatus = "paid"
+	OrderStatusConfirmed OrderStatus = "confirmed"
+	OrderStatusCompleted OrderStatus = "completed"
+	OrderStatusPickedUp  OrderStatus = "picked_up"
+	OrderStatusCancelled OrderStatus = "cancelled"
+	OrderStatusRefunded  OrderStatus = "refunded"
+	OrderStatusDisputed  OrderStatus = "disputed"
+)
+
+func (e *OrderStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = OrderStatus(s)
+	case string:
+		*e = OrderStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for OrderStatus: %T", src)
+	}
+	return nil
+}
+
+type NullOrderStatus struct {
+	OrderStatus OrderStatus `json:"order_status"`
+	Valid       bool        `json:"valid"` // Valid is true if OrderStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullOrderStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.OrderStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.OrderStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullOrderStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.OrderStatus), nil
+}
 
 // Заведения (точки партнёров)
 type Location struct {
@@ -47,6 +97,31 @@ type MediaFile struct {
 	ContentType      string           `json:"content_type"`
 	SizeBytes        int64            `json:"size_bytes"`
 	UploadedAt       pgtype.Timestamp `json:"uploaded_at"`
+}
+
+// Заказы
+type Order struct {
+	ID                          uuid.UUID          `json:"id"`
+	UserID                      uuid.UUID          `json:"user_id"`
+	BoxID                       uuid.UUID          `json:"box_id"`
+	LocationID                  uuid.UUID          `json:"location_id"`
+	PickupCode                  string             `json:"pickup_code"`
+	QrCodeUrl                   pgtype.Text        `json:"qr_code_url"`
+	Amount                      pgtype.Numeric     `json:"amount"`
+	PickupTimeStart             time.Time          `json:"pickup_time_start"`
+	PickupTimeEnd               time.Time          `json:"pickup_time_end"`
+	Status                      OrderStatus        `json:"status"`
+	PartnerConfirmationDeadline time.Time          `json:"partner_confirmation_deadline"`
+	PartnerConfirmedAt          pgtype.Timestamptz `json:"partner_confirmed_at"`
+	PartnerConfirmedBy          pgtype.UUID        `json:"partner_confirmed_by"`
+	CancellationReason          pgtype.Text        `json:"cancellation_reason"`
+	CancelledAt                 pgtype.Timestamptz `json:"cancelled_at"`
+	PickedUpAt                  pgtype.Timestamptz `json:"picked_up_at"`
+	PickedUpConfirmedBy         pgtype.UUID        `json:"picked_up_confirmed_by"`
+	UserConfirmedAt             pgtype.Timestamptz `json:"user_confirmed_at"`
+	AutoCompletedAt             pgtype.Timestamptz `json:"auto_completed_at"`
+	CreatedAt                   time.Time          `json:"created_at"`
+	UpdatedAt                   time.Time          `json:"updated_at"`
 }
 
 // Партнёры (юридические лица)
