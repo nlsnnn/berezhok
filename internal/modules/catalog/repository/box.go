@@ -10,6 +10,7 @@ import (
 	"github.com/nlsnnn/berezhok/internal/lib/pgconverter"
 	"github.com/nlsnnn/berezhok/internal/modules/catalog/domain"
 	catalogErrors "github.com/nlsnnn/berezhok/internal/modules/catalog/errors"
+	sharedDomain "github.com/nlsnnn/berezhok/internal/shared/domain"
 )
 
 type BoxRepo struct {
@@ -136,7 +137,7 @@ func boxToDomain(b sqlc.SurpriseBox) domain.SurpriseBox {
 			Original: originalPrice,
 			Discount: discountPrice,
 		},
-		PickupTime: domain.PickupTime{
+		PickupTime: sharedDomain.PickupTime{
 			Start: pgconverter.TimeValue(b.PickupTimeStart),
 			End:   pgconverter.TimeValue(b.PickupTimeEnd),
 		},

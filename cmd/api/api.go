@@ -25,6 +25,9 @@ import (
 	mediaHandlers "github.com/nlsnnn/berezhok/internal/modules/media/handlers"
 	mediaRepos "github.com/nlsnnn/berezhok/internal/modules/media/repository"
 	mediaServices "github.com/nlsnnn/berezhok/internal/modules/media/service"
+	orderHandlers "github.com/nlsnnn/berezhok/internal/modules/order/handlers"
+	orderRepos "github.com/nlsnnn/berezhok/internal/modules/order/repository"
+	orderServices "github.com/nlsnnn/berezhok/internal/modules/order/service"
 	partnerHandlers "github.com/nlsnnn/berezhok/internal/modules/partner/handlers"
 	partnerRepos "github.com/nlsnnn/berezhok/internal/modules/partner/repository"
 	partnerServices "github.com/nlsnnn/berezhok/internal/modules/partner/service"
@@ -102,10 +105,19 @@ func (app *application) mount() http.Handler {
 	customerSvc := customerServices.NewCustomerService(customerRepo)
 	customerLocationSvc := customerServices.NewLocationService(customerLocationRepo)
 
+	// Order module — repositories
+	orderRepo := orderRepos.NewOrderRepo(queries)
+
+	// Order module — services
+	mockPaymentProvider := orderServices.NewMockPaymentProvider()
+	orderSvc := orderServices.NewOrderService(orderRepo, boxSvc, mockPaymentProvider, app.log)
+
+	// Order module — handlers
+	orderHandler := orderHandlers.NewOrderHandler(orderSvc, app.log, v)
+
 	// Customer module — handlers
 	customerHandler := customerHandlers.NewCustomerHandler(customerSvc, app.log, v)
 	customerLocationHandler := customerHandlers.NewLocationHandler(customerLocationSvc, app.log)
-	customerOrderHandler := customerHandlers.NewOrderHandler(app.log)
 	customerReviewHandler := customerHandlers.NewReviewHandler(app.log)
 
 	// SMS module
@@ -149,12 +161,12 @@ func (app *application) mount() http.Handler {
 			r.Get("/customer/locations", customerLocationHandler.SearchLocations)
 			r.Get("/customer/locations/{location_id}", customerLocationHandler.GetLocationDetails)
 
-			// Orders (stubs)
-			r.Post("/customer/orders", customerOrderHandler.CreateOrder)
-			r.Get("/customer/orders", customerOrderHandler.ListOrders)
-			r.Get("/customer/orders/{order_id}", customerOrderHandler.GetOrder)
-			r.Post("/customer/orders/{order_id}/confirm-pickup", customerOrderHandler.ConfirmPickup)
-			r.Post("/customer/orders/{order_id}/dispute", customerOrderHandler.CreateDispute)
+			// Orders
+			r.Post("/customer/orders", orderHandler.CreateOrder)
+			r.Get("/customer/orders", orderHandler.ListOrders)
+			r.Get("/customer/orders/{order_id}", orderHandler.GetOrder)
+			r.Post("/customer/orders/{order_id}/confirm-pickup", orderHandler.ConfirmPickup)
+			r.Post("/customer/orders/{order_id}/dispute", orderHandler.CreateDispute)
 
 			// Reviews (stubs)
 			r.Post("/customer/reviews", customerReviewHandler.CreateReview)
