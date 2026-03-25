@@ -27,6 +27,7 @@ type Querier interface {
 	CreateLocation(ctx context.Context, arg CreateLocationParams) (Location, error)
 	// Create a new media file record
 	CreateMediaFile(ctx context.Context, arg CreateMediaFileParams) (MediaFile, error)
+	CreateOrder(ctx context.Context, arg CreateOrderParams) (Order, error)
 	CreatePartner(ctx context.Context, arg CreatePartnerParams) (Partner, error)
 	CreatePartnerEmployee(ctx context.Context, arg CreatePartnerEmployeeParams) (PartnerEmployee, error)
 	DeactivateLocation(ctx context.Context, id uuid.UUID) error
@@ -37,6 +38,7 @@ type Querier interface {
 	// Delete media file record
 	DeleteMediaFile(ctx context.Context, id uuid.UUID) error
 	DeletePartnerEmployee(ctx context.Context, id uuid.UUID) error
+	FindActiveOrdersByLocationId(ctx context.Context, locationID uuid.UUID) ([]Order, error)
 	FindApplicationByID(ctx context.Context, id uuid.UUID) (PartnerApplication, error)
 	// Get a box by ID
 	FindBoxByID(ctx context.Context, id uuid.UUID) (SurpriseBox, error)
@@ -54,6 +56,7 @@ type Querier interface {
 	FindPartnerEmployeeByID(ctx context.Context, id uuid.UUID) (PartnerEmployee, error)
 	// Get location details by ID with category info
 	GetLocationDetailsByID(ctx context.Context, id uuid.UUID) (GetLocationDetailsByIDRow, error)
+	GetOrderByID(ctx context.Context, id uuid.UUID) (Order, error)
 	GetPartnerProfile(ctx context.Context, id uuid.UUID) (GetPartnerProfileRow, error)
 	// List active boxes by location ID
 	ListActiveBoxesByLocationID(ctx context.Context, locationID uuid.UUID) ([]SurpriseBox, error)
@@ -68,10 +71,12 @@ type Querier interface {
 	ListLocations(ctx context.Context) ([]Location, error)
 	// List all media files (paginated)
 	ListMediaFiles(ctx context.Context, arg ListMediaFilesParams) ([]MediaFile, error)
+	ListOrdersByCustomerID(ctx context.Context, userID uuid.UUID) ([]Order, error)
 	// Сотрудники партнёров
 	ListPartnerEmployees(ctx context.Context) ([]PartnerEmployee, error)
 	// Партнёры (юридические лица)
 	ListPartners(ctx context.Context) ([]Partner, error)
+	ReserveBox(ctx context.Context, id uuid.UUID) (int64, error)
 	// Location queries for customer app
 	// Search locations
 	SearchLocations(ctx context.Context, arg SearchLocationsParams) ([]SearchLocationsRow, error)
@@ -83,6 +88,7 @@ type Querier interface {
 	UpdateLocation(ctx context.Context, arg UpdateLocationParams) (Location, error)
 	UpdateLocationStatus(ctx context.Context, arg UpdateLocationStatusParams) error
 	UpdateLocationWorkingHours(ctx context.Context, arg UpdateLocationWorkingHoursParams) error
+	UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) (Order, error)
 	UpdatePartner(ctx context.Context, arg UpdatePartnerParams) error
 	UpdatePartnerEmployee(ctx context.Context, arg UpdatePartnerEmployeeParams) error
 	UpdatePartnerEmployeePassword(ctx context.Context, arg UpdatePartnerEmployeePasswordParams) error

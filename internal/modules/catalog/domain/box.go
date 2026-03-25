@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/nlsnnn/berezhok/internal/shared/domain"
 	"github.com/shopspring/decimal"
 )
 
@@ -24,7 +25,7 @@ type SurpriseBox struct {
 	Name        string
 	Description string
 	Price       Price
-	PickupTime  PickupTime
+	PickupTime  domain.PickupTime
 	Quantity    int
 	Status      BoxStatus
 	Image       string
@@ -50,7 +51,7 @@ func NewSurpriseBox(locationID uuid.UUID, name, description string, originalPric
 			Original: originalPrice,
 			Discount: discountPrice,
 		},
-		PickupTime: PickupTime{
+		PickupTime: domain.PickupTime{
 			Start: pickupTimeStart,
 			End:   pickupTimeEnd,
 		},
@@ -58,4 +59,8 @@ func NewSurpriseBox(locationID uuid.UUID, name, description string, originalPric
 		Status:   status,
 		Image:    image,
 	}, nil
+}
+
+func (b *SurpriseBox) IsAvailable() bool {
+	return b.Status == BoxStatusActive && b.Quantity > 0
 }

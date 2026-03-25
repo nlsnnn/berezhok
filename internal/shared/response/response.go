@@ -101,3 +101,8 @@ func InternalError(w http.ResponseWriter, err error) {
 	}
 	Error(w, message, http.StatusInternalServerError)
 }
+
+// InternalErrorWithMessage sends a 500 Internal Server Error response with a custom message
+func InternalErrorWithMessage(w http.ResponseWriter, message string) {
+	Error(w, message, http.StatusInternalServerError)
+}
