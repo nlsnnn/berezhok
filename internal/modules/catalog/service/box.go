@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nlsnnn/berezhok/internal/modules/catalog/domain"
 	catalogErrors "github.com/nlsnnn/berezhok/internal/modules/catalog/errors"
+	sharedDomain "github.com/nlsnnn/berezhok/internal/shared/domain"
 	"github.com/shopspring/decimal"
 )
 
@@ -90,7 +91,7 @@ func (s *boxService) CreateBox(ctx context.Context, partnerID uuid.UUID, input C
 	}
 
 	// Validate pickup time
-	pickupTime, err := domain.NewPickupTimeFromStrings(input.PickupTimeStart, input.PickupTimeEnd)
+	pickupTime, err := sharedDomain.NewPickupTimeFromStrings(input.PickupTimeStart, input.PickupTimeEnd)
 	if err != nil {
 		return domain.SurpriseBox{}, mapPickupTimeErr(err)
 	}
@@ -130,7 +131,7 @@ func (s *boxService) GetBoxByID(ctx context.Context, id string) (*domain.Surpris
 }
 
 func (s *boxService) UpdateBox(ctx context.Context, input UpdateBoxInput) (domain.SurpriseBox, error) {
-	pickupTime, err := domain.NewPickupTimeFromStrings(input.PickupTimeStart, input.PickupTimeEnd)
+	pickupTime, err := sharedDomain.NewPickupTimeFromStrings(input.PickupTimeStart, input.PickupTimeEnd)
 	if err != nil {
 		return domain.SurpriseBox{}, mapPickupTimeErr(err)
 	}

@@ -94,7 +94,7 @@ func (r *LocationRepo) GetActiveBoxesByLocationID(ctx context.Context, locationI
 				Original: pgconverter.NumericToDecimalOrZero(box.OriginalPrice),
 				Discount: pgconverter.NumericToDecimalOrZero(box.DiscountPrice),
 			},
-			PickupTime: catalogDomain.PickupTime{
+			PickupTime: sharedDomain.PickupTime{
 				Start: pgconverter.TimeValue(box.PickupTimeStart),
 				End:   pgconverter.TimeValue(box.PickupTimeEnd),
 			},

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nlsnnn/berezhok/internal/modules/catalog/errors"
+	"github.com/nlsnnn/berezhok/internal/shared/errors"
 )
 
 const pickupTimeLayout = "15:04"
