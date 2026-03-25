@@ -61,6 +61,139 @@ func (ns NullOrderStatus) Value() (driver.Value, error) {
 	return string(ns.OrderStatus), nil
 }
 
+type PaymentMethod string
+
+const (
+	PaymentMethodBankCard PaymentMethod = "bank_card"
+	PaymentMethodSbp      PaymentMethod = "sbp"
+	PaymentMethodCash     PaymentMethod = "cash"
+	PaymentMethodWallet   PaymentMethod = "wallet"
+	PaymentMethodOther    PaymentMethod = "other"
+)
+
+func (e *PaymentMethod) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = PaymentMethod(s)
+	case string:
+		*e = PaymentMethod(s)
+	default:
+		return fmt.Errorf("unsupported scan type for PaymentMethod: %T", src)
+	}
+	return nil
+}
+
+type NullPaymentMethod struct {
+	PaymentMethod PaymentMethod `json:"payment_method"`
+	Valid         bool          `json:"valid"` // Valid is true if PaymentMethod is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullPaymentMethod) Scan(value interface{}) error {
+	if value == nil {
+		ns.PaymentMethod, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.PaymentMethod.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullPaymentMethod) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.PaymentMethod), nil
+}
+
+type PaymentProvider string
+
+const (
+	PaymentProviderYookassa PaymentProvider = "yookassa"
+	PaymentProviderTinkoff  PaymentProvider = "tinkoff"
+	PaymentProviderStripe   PaymentProvider = "stripe"
+)
+
+func (e *PaymentProvider) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = PaymentProvider(s)
+	case string:
+		*e = PaymentProvider(s)
+	default:
+		return fmt.Errorf("unsupported scan type for PaymentProvider: %T", src)
+	}
+	return nil
+}
+
+type NullPaymentProvider struct {
+	PaymentProvider PaymentProvider `json:"payment_provider"`
+	Valid           bool            `json:"valid"` // Valid is true if PaymentProvider is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullPaymentProvider) Scan(value interface{}) error {
+	if value == nil {
+		ns.PaymentProvider, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.PaymentProvider.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullPaymentProvider) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.PaymentProvider), nil
+}
+
+type PaymentStatus string
+
+const (
+	PaymentStatusPending   PaymentStatus = "pending"
+	PaymentStatusSucceeded PaymentStatus = "succeeded"
+	PaymentStatusCancelled PaymentStatus = "cancelled"
+	PaymentStatusFailed    PaymentStatus = "failed"
+	PaymentStatusRefunded  PaymentStatus = "refunded"
+)
+
+func (e *PaymentStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = PaymentStatus(s)
+	case string:
+		*e = PaymentStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for PaymentStatus: %T", src)
+	}
+	return nil
+}
+
+type NullPaymentStatus struct {
+	PaymentStatus PaymentStatus `json:"payment_status"`
+	Valid         bool          `json:"valid"` // Valid is true if PaymentStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullPaymentStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.PaymentStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.PaymentStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullPaymentStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.PaymentStatus), nil
+}
+
 // Заведения (точки партнёров)
 type Location struct {
 	ID            uuid.UUID        `json:"id"`
@@ -181,6 +314,30 @@ type PartnerLegalInfo struct {
 	CreatedAt    pgtype.Timestamp `json:"created_at"`
 	UpdatedAt    pgtype.Timestamp `json:"updated_at"`
 	LegalName    string           `json:"legal_name"`
+}
+
+// Платежи за заказы
+type Payment struct {
+	ID                uuid.UUID           `json:"id"`
+	OrderID           uuid.UUID           `json:"order_id"`
+	ProviderPaymentID pgtype.Text         `json:"provider_payment_id"`
+	PaymentUrl        pgtype.Text         `json:"payment_url"`
+	Method            NullPaymentMethod   `json:"method"`
+	Provider          NullPaymentProvider `json:"provider"`
+	Amount            pgtype.Numeric      `json:"amount"`
+	Status            PaymentStatus       `json:"status"`
+	PaidAt            pgtype.Timestamptz  `json:"paid_at"`
+	CreatedAt         time.Time           `json:"created_at"`
+	UpdatedAt         time.Time           `json:"updated_at"`
+}
+
+// События, связанные с платежами (для аудита и отладки)
+type PaymentEvent struct {
+	ID        uuid.UUID `json:"id"`
+	PaymentID uuid.UUID `json:"payment_id"`
+	EventType string    `json:"event_type"`
+	Payload   []byte    `json:"payload"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // Сюрприз-боксы для продажи
