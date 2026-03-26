@@ -7,6 +7,14 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+type PaymentStatus string
+
+const (
+	PaymentStatusPending   PaymentStatus = "pending"
+	PaymentStatusSucceeded PaymentStatus = "succeeded"
+	PaymentStatusFailed    PaymentStatus = "failed"
+)
+
 type Payment struct {
 	ID      uuid.UUID
 	OrderID uuid.UUID

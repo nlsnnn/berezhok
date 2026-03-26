@@ -32,6 +32,7 @@ import (
 	partnerHandlers "github.com/nlsnnn/berezhok/internal/modules/partner/handlers"
 	partnerRepos "github.com/nlsnnn/berezhok/internal/modules/partner/repository"
 	partnerServices "github.com/nlsnnn/berezhok/internal/modules/partner/service"
+	paymentHandlers "github.com/nlsnnn/berezhok/internal/modules/payment/handlers"
 	paymentRepos "github.com/nlsnnn/berezhok/internal/modules/payment/repository"
 	paymentServices "github.com/nlsnnn/berezhok/internal/modules/payment/service"
 	"github.com/nlsnnn/berezhok/internal/shared/config"
@@ -112,6 +113,7 @@ func (app *application) mount() http.Handler {
 	yookassaAdapter := yookassa.NewAdapter(yookassa.New(app.cfg.Yookassa))
 	paymentRepo := paymentRepos.NewPaymentRepo(queries)
 	paymentSvc := paymentServices.NewPaymentService(paymentRepo, yookassaAdapter)
+	webhookHandler := paymentHandlers.NewWebhookHandler(paymentSvc, app.log, v)
 
 	// Order module — repositories
 	orderRepo := orderRepos.NewOrderRepo(queries)
@@ -139,6 +141,17 @@ func (app *application) mount() http.Handler {
 
 	// Middlewares
 	authMiddleware := middlewares.NewAuthMiddleware(jwtService)
+	webhookMiddleware := middlewares.NewWebhookMiddleware([]string{
+		"127.0.0.1/32", // IPv4 localhost
+		"::1/128",      // IPv6 localhost
+		"185.71.76.0/27",
+		"185.71.77.0/27",
+		"77.75.153.0/25",
+		"77.75.156.11",
+		"77.75.156.35",
+		"77.75.154.128/25",
+		"2a02:5180::/32",
+	}, app.log) // IP-адреса Yookassa
 
 	r.Route("/api/v1/", func(r chi.Router) {
 		// == Public Routes ==
@@ -206,6 +219,12 @@ func (app *application) mount() http.Handler {
 		// == Admin Routes ==
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequireAuth("admin"))
+		})
+
+		// == Webhook Routes ==
+		r.Group(func(r chi.Router) {
+			r.Use(webhookMiddleware.IPFilterMiddleware)
+			r.Post("/webhooks/yookassa", webhookHandler.Yookassa)
 		})
 	})
 
