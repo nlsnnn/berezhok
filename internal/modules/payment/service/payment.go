@@ -17,7 +17,7 @@ type paymentRepo interface {
 }
 
 type paymentProvider interface {
-	Create(ctx context.Context, amount string, description string, method string, returnURL string) (domain.ProviderPaymentResult, error)
+	Create(ctx context.Context, amount string, description string, returnURL string) (domain.ProviderPaymentResult, error)
 }
 
 type paymentService struct {
@@ -36,10 +36,9 @@ func NewPaymentService(repo paymentRepo, provider paymentProvider) *paymentServi
 
 func (s *paymentService) Create(ctx context.Context, amount decimal.Decimal, orderID uuid.UUID) (string, error) {
 	// 1. Create payment in provider
-	description := fmt.Sprintf("Payment for order %s", orderID.String())
-	returnURL := "https://example.com/payment/return"
-	method := "bank_card"
-	providerResult, err := s.provider.Create(ctx, amount.String(), description, method, returnURL)
+	description := fmt.Sprintf("Оплата заказа #%s", orderID.String())
+	returnURL := "berezhok://orders/" + orderID.String() // Deep link для мобильного приложения
+	providerResult, err := s.provider.Create(ctx, amount.StringFixed(2), description, returnURL)
 	if err != nil {
 		return "", err
 	}
@@ -53,7 +52,6 @@ func (s *paymentService) Create(ctx context.Context, amount decimal.Decimal, ord
 			ProviderName: "yookassa",
 		},
 		Amount: amount,
-		Method: method,
 	}
 
 	err = s.repo.CreatePayment(ctx, payment)
