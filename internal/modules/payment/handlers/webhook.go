@@ -89,7 +89,7 @@ func (h *webhookHandler) Yookassa(w http.ResponseWriter, r *http.Request) {
 	err = h.service.ProccessEvent(r.Context(), orderUID, eventType, webhookEvent.Object)
 	if err != nil {
 		log.Error("failed to process webhook event", slog.String("error", err.Error()), slog.String("order_id", orderID), slog.String("payment_id", webhookEvent.Object.ID), slog.String("event_type", string(webhookEvent.Event)))
-		response.InternalError(w, err)
+		response.InternalError(w, nil)
 		return
 	}
 

@@ -11,6 +11,7 @@ func (r *PaymentRepo) toDomain(sqlPayment sqlc.Payment) *domain.Payment {
 		ID:        sqlPayment.ID,
 		OrderID:   sqlPayment.OrderID,
 		Amount:    pgconverter.NumericToDecimalOrZero(sqlPayment.Amount),
+		Status:    domain.PaymentStatus(sqlPayment.Status),
 		CreatedAt: sqlPayment.CreatedAt,
 		UpdatedAt: sqlPayment.UpdatedAt,
 	}

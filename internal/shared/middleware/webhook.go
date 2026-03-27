@@ -25,14 +25,13 @@ func NewWebhookMiddleware(allowedCIDRs []string, log *slog.Logger) *webhookMiddl
 func (wm *webhookMiddleware) IPFilterMiddleware(next http.Handler) http.Handler {
 	log := wm.log.With(slog.String("op", "webhookMiddleware.IPFilterMiddleware"))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// if r.Header.Get("X-Forwarded-For") != "" || r.Header.Get("X-Real-IP") != "" {
+		// 	response.Forbidden(w, "Access denied: forwarded IP headers are not allowed")
+		// 	return
+		// }
+
 		remoteIP := r.RemoteAddr
 		log.Info("Initial remote IP", slog.String("ip", remoteIP))
-
-		// Проверяем X-Real-IP, если доступен.
-		if realIP := r.Header.Get("X-Real-IP"); realIP != "" {
-			log.Info("Using X-Real-IP header", slog.String("ip", realIP))
-			remoteIP = realIP
-		}
 
 		// Разделяем адрес на хост и порт.
 		var host string
@@ -66,6 +65,14 @@ func IsIPAllowed(ip string, allowedCIDRs []string) bool {
 	}
 
 	for _, cidr := range allowedCIDRs {
+		if !strings.Contains(cidr, "/") {
+			allowedIP := net.ParseIP(cidr)
+			if allowedIP != nil && allowedIP.Equal(parsedIP) {
+				return true
+			}
+			continue
+		}
+
 		_, allowedNet, err := net.ParseCIDR(cidr)
 		if err != nil {
 			continue

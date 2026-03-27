@@ -89,14 +89,10 @@ func (s *paymentService) ProccessEvent(ctx context.Context, orderID uuid.UUID, e
 		return err
 	}
 
-	fmt.Println("eventType", eventType)
-
 	switch eventType {
 	case "succeeded":
-		fmt.Println("start handle success")
 		return s.handleSuccess(ctx, payment)
-	case "canceled":
-		fmt.Println("start handle canceled")
+	case "failed", "canceled", "cancelled":
 		return s.handleCancel(ctx, payment)
 	}
 
@@ -111,7 +107,6 @@ func (s *paymentService) handleSuccess(ctx context.Context, payment *domain.Paym
 		}
 		return err
 	}
-	fmt.Println("payment status", payment.Status, payment)
 
 	err = s.repo.UpdatePaymentStatus(ctx, payment.ID, payment.Status)
 	if err != nil {
