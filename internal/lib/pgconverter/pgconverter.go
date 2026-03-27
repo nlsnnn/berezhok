@@ -1,6 +1,7 @@
 package pgconverter
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -58,4 +59,17 @@ func TimeToPGTime(value time.Time) pgtype.Time {
 		int64(value.Nanosecond())/int64(time.Microsecond)
 
 	return pgtype.Time{Microseconds: microseconds, Valid: true}
+}
+
+func InterfaceToJSONB(value interface{}) (result []byte, err error) {
+	if value == nil {
+		return []byte("null"), nil
+	}
+
+	result, err = json.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }

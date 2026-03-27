@@ -24,12 +24,14 @@ type Querier interface {
 	CreateBox(ctx context.Context, arg CreateBoxParams) (SurpriseBox, error)
 	// Create new customer
 	CreateCustomer(ctx context.Context, phone string) (uuid.UUID, error)
+	CreateEvent(ctx context.Context, arg CreateEventParams) (PaymentEvent, error)
 	CreateLocation(ctx context.Context, arg CreateLocationParams) (Location, error)
 	// Create a new media file record
 	CreateMediaFile(ctx context.Context, arg CreateMediaFileParams) (MediaFile, error)
 	CreateOrder(ctx context.Context, arg CreateOrderParams) (Order, error)
 	CreatePartner(ctx context.Context, arg CreatePartnerParams) (Partner, error)
 	CreatePartnerEmployee(ctx context.Context, arg CreatePartnerEmployeeParams) (PartnerEmployee, error)
+	CreatePayment(ctx context.Context, arg CreatePaymentParams) (Payment, error)
 	DeactivateLocation(ctx context.Context, id uuid.UUID) error
 	DeleteApplication(ctx context.Context, id uuid.UUID) error
 	// Delete a box
@@ -58,6 +60,8 @@ type Querier interface {
 	GetLocationDetailsByID(ctx context.Context, id uuid.UUID) (GetLocationDetailsByIDRow, error)
 	GetOrderByID(ctx context.Context, id uuid.UUID) (Order, error)
 	GetPartnerProfile(ctx context.Context, id uuid.UUID) (GetPartnerProfileRow, error)
+	GetPaymentByID(ctx context.Context, id uuid.UUID) (Payment, error)
+	GetPaymentByOrderID(ctx context.Context, orderID uuid.UUID) (Payment, error)
 	// List active boxes by location ID
 	ListActiveBoxesByLocationID(ctx context.Context, locationID uuid.UUID) ([]SurpriseBox, error)
 	// Заявки на партнёрство
@@ -92,6 +96,7 @@ type Querier interface {
 	UpdatePartner(ctx context.Context, arg UpdatePartnerParams) error
 	UpdatePartnerEmployee(ctx context.Context, arg UpdatePartnerEmployeeParams) error
 	UpdatePartnerEmployeePassword(ctx context.Context, arg UpdatePartnerEmployeePasswordParams) error
+	UpdatePaymentStatus(ctx context.Context, arg UpdatePaymentStatusParams) (Payment, error)
 }
 
 var _ Querier = (*Queries)(nil)

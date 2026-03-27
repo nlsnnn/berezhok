@@ -13,6 +13,7 @@ import (
 	redisAdapter "github.com/nlsnnn/berezhok/internal/adapters/redis"
 	"github.com/nlsnnn/berezhok/internal/adapters/s3/yandex"
 	smsAdapter "github.com/nlsnnn/berezhok/internal/adapters/sms"
+	"github.com/nlsnnn/berezhok/internal/adapters/yookassa"
 	"github.com/nlsnnn/berezhok/internal/lib/validator"
 	authHandlers "github.com/nlsnnn/berezhok/internal/modules/auth/handlers"
 	authServices "github.com/nlsnnn/berezhok/internal/modules/auth/service"
@@ -31,6 +32,9 @@ import (
 	partnerHandlers "github.com/nlsnnn/berezhok/internal/modules/partner/handlers"
 	partnerRepos "github.com/nlsnnn/berezhok/internal/modules/partner/repository"
 	partnerServices "github.com/nlsnnn/berezhok/internal/modules/partner/service"
+	paymentHandlers "github.com/nlsnnn/berezhok/internal/modules/payment/handlers"
+	paymentRepos "github.com/nlsnnn/berezhok/internal/modules/payment/repository"
+	paymentServices "github.com/nlsnnn/berezhok/internal/modules/payment/service"
 	"github.com/nlsnnn/berezhok/internal/shared/config"
 	"github.com/nlsnnn/berezhok/internal/shared/jwt"
 	middlewares "github.com/nlsnnn/berezhok/internal/shared/middleware"
@@ -46,7 +50,7 @@ func (app *application) mount() http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins: []string{"http://localhost", "http://localhost:5173", "http://localhost:3000", "http://localhost:8000"},
+		AllowedOrigins: []string{"http://localhost", "http://localhost:5173", "http://localhost:3000", "http://localhost:8000", "http://localhost:63333"},
 		AllowedMethods: []string{"GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders: []string{"Link"},
@@ -108,9 +112,15 @@ func (app *application) mount() http.Handler {
 	// Order module — repositories
 	orderRepo := orderRepos.NewOrderRepo(queries)
 
+	// Payment module
+	orderStatusUpdater := orderServices.NewOrderStatusUpdater(orderRepo, app.log)
+	yookassaAdapter := yookassa.NewAdapter(yookassa.New(app.cfg.Yookassa))
+	paymentRepo := paymentRepos.NewPaymentRepo(queries)
+	paymentSvc := paymentServices.NewPaymentService(paymentRepo, yookassaAdapter, orderStatusUpdater)
+	webhookHandler := paymentHandlers.NewWebhookHandler(paymentSvc, app.log, v)
+
 	// Order module — services
-	mockPaymentProvider := orderServices.NewMockPaymentProvider()
-	orderSvc := orderServices.NewOrderService(orderRepo, boxSvc, mockPaymentProvider, app.log)
+	orderSvc := orderServices.NewOrderService(orderRepo, boxSvc, paymentSvc, app.log)
 
 	// Order module — handlers
 	orderHandler := orderHandlers.NewOrderHandler(orderSvc, app.log, v)
@@ -132,12 +142,23 @@ func (app *application) mount() http.Handler {
 
 	// Middlewares
 	authMiddleware := middlewares.NewAuthMiddleware(jwtService)
+	webhookMiddleware := middlewares.NewWebhookMiddleware([]string{
+		"127.0.0.1/32", // IPv4 localhost
+		"::1/128",      // IPv6 localhost
+		"185.71.76.0/27",
+		"185.71.77.0/27",
+		"77.75.153.0/25",
+		"77.75.156.11",
+		"77.75.156.35",
+		"77.75.154.128/25",
+		"2a02:5180::/32",
+	}, app.log) // IP-адреса Yookassa
 
 	r.Route("/api/v1/", func(r chi.Router) {
 		// == Public Routes ==
 
 		// Auth
-		r.Post("/auth/partner/login", authHandler.PartnerLogin)
+		r.Post("/partner/auth/login", authHandler.PartnerLogin)
 		r.Post("/auth/customer/send-code", authHandler.CustomerSendCode)
 		r.Post("/auth/customer/login", authHandler.CustomerLogin)
 
@@ -199,6 +220,12 @@ func (app *application) mount() http.Handler {
 		// == Admin Routes ==
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequireAuth("admin"))
+		})
+
+		// == Webhook Routes ==
+		r.Group(func(r chi.Router) {
+			r.Use(webhookMiddleware.IPFilterMiddleware)
+			r.Post("/webhooks/yookassa", webhookHandler.Yookassa)
 		})
 	})
 
