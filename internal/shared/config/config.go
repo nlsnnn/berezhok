@@ -14,6 +14,7 @@ type Config struct {
 	HTTPServer `yaml:"http_server"`
 	Redis      `yaml:"redis"`
 	S3         `yaml:"s3"`
+	Yookassa   `yaml:"yookassa"`
 }
 
 type Db struct {
@@ -43,6 +44,11 @@ type S3 struct {
 	AccessKeyID     string `env:"S3_ACCESS_KEY_ID"`
 	SecretAccessKey string `env:"S3_SECRET_ACCESS_KEY"`
 	PublicBaseURL   string `yaml:"public_base_url" env:"S3_PUBLIC_BASE_URL"`
+}
+
+type Yookassa struct {
+	AccountID string `env:"YOOKASSA_ACCOUNT_ID"`
+	SecretKey string `env:"YOOKASSA_SECRET_KEY"`
 }
 
 func MustLoad() *Config {
