@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/nlsnnn/berezhok/internal/lib/validator"
 	"github.com/nlsnnn/berezhok/internal/shared/response"
 
@@ -14,7 +15,7 @@ import (
 )
 
 type paymentService interface {
-	ProccessEvent(ctx context.Context, orderID string, providerPaymentID string, eventType string) error
+	ProccessEvent(ctx context.Context, orderID uuid.UUID, eventType string, payload interface{}) error
 }
 
 type webhookHandler struct {
@@ -66,6 +67,13 @@ func (h *webhookHandler) Yookassa(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	orderUID, err := uuid.Parse(orderID)
+	if err != nil {
+		log.Warn("invalid order_id format")
+		response.BadRequest(w, "Invalid order_id format")
+		return
+	}
+
 	var eventType string
 	switch webhookEvent.Event {
 	case "payment.succeeded":
@@ -78,7 +86,7 @@ func (h *webhookHandler) Yookassa(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.service.ProccessEvent(r.Context(), orderID, webhookEvent.Object.ID, eventType)
+	err = h.service.ProccessEvent(r.Context(), orderUID, eventType, webhookEvent.Object)
 	if err != nil {
 		log.Error("failed to process webhook event", slog.String("error", err.Error()), slog.String("order_id", orderID), slog.String("payment_id", webhookEvent.Object.ID), slog.String("event_type", string(webhookEvent.Event)))
 		response.InternalError(w, err)

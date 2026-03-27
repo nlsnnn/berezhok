@@ -73,37 +73,9 @@ func (r *PaymentRepo) GetPaymentByOrderID(ctx context.Context, orderID uuid.UUID
 	return r.toDomain(sqlPayment), nil
 }
 
-func (r *PaymentRepo) toDomain(sqlPayment sqlc.Payment) *domain.Payment {
-	payment := &domain.Payment{
-		ID:        sqlPayment.ID,
-		OrderID:   sqlPayment.OrderID,
-		Amount:    pgconverter.NumericToDecimalOrZero(sqlPayment.Amount),
-		CreatedAt: sqlPayment.CreatedAt,
-		UpdatedAt: sqlPayment.UpdatedAt,
-	}
-
-	if sqlPayment.Method.Valid {
-		payment.Method = string(sqlPayment.Method.PaymentMethod)
-	}
-
-	if sqlPayment.Provider.Valid {
-		payment.Provider.ProviderName = string(sqlPayment.Provider.PaymentProvider)
-	}
-
-	payment.Provider.PaymentID = pgconverter.TextToString(sqlPayment.ProviderPaymentID)
-	payment.Provider.PaymentLink = pgconverter.TextToString(sqlPayment.PaymentUrl)
-
-	if sqlPayment.PaidAt.Valid {
-		paidAt := sqlPayment.PaidAt.Time
-		payment.PaidAt = &paidAt
-	}
-
-	return payment
-}
-
-func (r *PaymentRepo) UpdatePaymentStatus(ctx context.Context, paymentID uuid.UUID, status string) error {
+func (r *PaymentRepo) UpdatePaymentStatus(ctx context.Context, paymentID uuid.UUID, status domain.PaymentStatus) error {
 	var paidAt pgtype.Timestamptz
-	if status == "succeeded" {
+	if status == domain.PaymentStatusSucceeded {
 		now := time.Now()
 		paidAt = pgtype.Timestamptz{Time: now, Valid: true}
 	}
@@ -112,6 +84,27 @@ func (r *PaymentRepo) UpdatePaymentStatus(ctx context.Context, paymentID uuid.UU
 		ID:     paymentID,
 		Status: sqlc.PaymentStatus(status),
 		PaidAt: paidAt,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return paymentErrors.ErrPaymentNotFound
+		}
+		return err
+	}
+
+	return nil
+}
+
+func (r *PaymentRepo) CreateEvent(ctx context.Context, paymentID uuid.UUID, eventType string, payload interface{}) error {
+	payloadJSONB, err := pgconverter.InterfaceToJSONB(payload)
+	if err != nil {
+		return err
+	}
+
+	_, err = r.q.CreateEvent(ctx, sqlc.CreateEventParams{
+		PaymentID: paymentID,
+		EventType: eventType,
+		Payload:   payloadJSONB,
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

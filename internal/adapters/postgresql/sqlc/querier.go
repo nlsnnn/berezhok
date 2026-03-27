@@ -24,6 +24,7 @@ type Querier interface {
 	CreateBox(ctx context.Context, arg CreateBoxParams) (SurpriseBox, error)
 	// Create new customer
 	CreateCustomer(ctx context.Context, phone string) (uuid.UUID, error)
+	CreateEvent(ctx context.Context, arg CreateEventParams) (PaymentEvent, error)
 	CreateLocation(ctx context.Context, arg CreateLocationParams) (Location, error)
 	// Create a new media file record
 	CreateMediaFile(ctx context.Context, arg CreateMediaFileParams) (MediaFile, error)

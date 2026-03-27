@@ -16,3 +16,10 @@ UPDATE payments SET
     status = $2,
     paid_at = COALESCE($3, paid_at)
 WHERE id = $1 RETURNING *;
+
+-- name: CreateEvent :one
+INSERT INTO payment_events (
+    payment_id, event_type, payload
+) VALUES (
+    $1, $2, $3
+) RETURNING *;

@@ -12,6 +12,33 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createEvent = `-- name: CreateEvent :one
+INSERT INTO payment_events (
+    payment_id, event_type, payload
+) VALUES (
+    $1, $2, $3
+) RETURNING id, payment_id, event_type, payload, created_at
+`
+
+type CreateEventParams struct {
+	PaymentID uuid.UUID `json:"payment_id"`
+	EventType string    `json:"event_type"`
+	Payload   []byte    `json:"payload"`
+}
+
+func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (PaymentEvent, error) {
+	row := q.db.QueryRow(ctx, createEvent, arg.PaymentID, arg.EventType, arg.Payload)
+	var i PaymentEvent
+	err := row.Scan(
+		&i.ID,
+		&i.PaymentID,
+		&i.EventType,
+		&i.Payload,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const createPayment = `-- name: CreatePayment :one
 INSERT INTO payments (
     order_id, provider_payment_id, payment_url, method, provider, amount, status

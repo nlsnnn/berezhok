@@ -109,14 +109,15 @@ func (app *application) mount() http.Handler {
 	customerSvc := customerServices.NewCustomerService(customerRepo)
 	customerLocationSvc := customerServices.NewLocationService(customerLocationRepo)
 
-	// Payment module
-	yookassaAdapter := yookassa.NewAdapter(yookassa.New(app.cfg.Yookassa))
-	paymentRepo := paymentRepos.NewPaymentRepo(queries)
-	paymentSvc := paymentServices.NewPaymentService(paymentRepo, yookassaAdapter)
-	webhookHandler := paymentHandlers.NewWebhookHandler(paymentSvc, app.log, v)
-
 	// Order module — repositories
 	orderRepo := orderRepos.NewOrderRepo(queries)
+
+	// Payment module
+	orderStatusUpdater := orderServices.NewOrderStatusUpdater(orderRepo, app.log)
+	yookassaAdapter := yookassa.NewAdapter(yookassa.New(app.cfg.Yookassa))
+	paymentRepo := paymentRepos.NewPaymentRepo(queries)
+	paymentSvc := paymentServices.NewPaymentService(paymentRepo, yookassaAdapter, orderStatusUpdater)
+	webhookHandler := paymentHandlers.NewWebhookHandler(paymentSvc, app.log, v)
 
 	// Order module — services
 	orderSvc := orderServices.NewOrderService(orderRepo, boxSvc, paymentSvc, app.log)
