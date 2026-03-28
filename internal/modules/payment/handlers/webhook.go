@@ -7,11 +7,11 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/nlsnnn/berezhok/internal/lib/validator"
-	"github.com/nlsnnn/berezhok/internal/shared/response"
-
 	yoopayment "github.com/rvinnie/yookassa-sdk-go/yookassa/payment"
 	yoowebhook "github.com/rvinnie/yookassa-sdk-go/yookassa/webhook"
+
+	"github.com/nlsnnn/berezhok/internal/lib/validator"
+	"github.com/nlsnnn/berezhok/internal/shared/response"
 )
 
 type paymentService interface {

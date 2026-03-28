@@ -7,12 +7,13 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
+
 	catalogDomain "github.com/nlsnnn/berezhok/internal/modules/catalog/domain"
 	catalogErrors "github.com/nlsnnn/berezhok/internal/modules/catalog/errors"
 	"github.com/nlsnnn/berezhok/internal/modules/order/domain"
 	orderErrors "github.com/nlsnnn/berezhok/internal/modules/order/errors"
 	orderRepos "github.com/nlsnnn/berezhok/internal/modules/order/repository"
-	"github.com/shopspring/decimal"
 )
 
 type orderRepository interface {
@@ -61,7 +62,7 @@ func NewOrderService(repo orderRepository, boxProvider boxProvider, paymentProvi
 }
 
 // CreateOrder creates a new order with box reservation
-func (s *orderService) CreateOrder(ctx context.Context, boxID uuid.UUID, customerID uuid.UUID) (*CreateOrderResult, error) {
+func (s *orderService) CreateOrder(ctx context.Context, boxID, customerID uuid.UUID) (*CreateOrderResult, error) {
 	const op = "order.service.CreateOrder"
 	log := s.log.With(slog.String("op", op))
 

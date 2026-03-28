@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+
 	"github.com/nlsnnn/berezhok/internal/lib/logger/sl"
 	"github.com/nlsnnn/berezhok/internal/lib/validator"
 	catalogErrors "github.com/nlsnnn/berezhok/internal/modules/catalog/errors"
@@ -22,7 +23,7 @@ import (
 )
 
 type orderServiceInterface interface {
-	CreateOrder(ctx context.Context, boxID uuid.UUID, customerID uuid.UUID) (*orderService.CreateOrderResult, error)
+	CreateOrder(ctx context.Context, boxID, customerID uuid.UUID) (*orderService.CreateOrderResult, error)
 	GetOrderByID(ctx context.Context, orderID uuid.UUID) (*domain.Order, error)
 	ListOrdersByCustomerID(ctx context.Context, customerID uuid.UUID, status string, limit, offset int) (*orderService.ListOrdersResult, error)
 }

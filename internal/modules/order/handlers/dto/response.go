@@ -96,7 +96,7 @@ func ToOrderListResponse(items []OrderListItem, total, limit, offset int) OrderL
 }
 
 // ToCreateOrderResponse creates response for order creation
-func ToCreateOrderResponse(orderID string, paymentURL string, amount float64, expiresAt time.Time) CreateOrderResponse {
+func ToCreateOrderResponse(orderID, paymentURL string, amount float64, expiresAt time.Time) CreateOrderResponse {
 	return CreateOrderResponse{
 		OrderID:    orderID,
 		PaymentURL: paymentURL,

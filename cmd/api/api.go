@@ -9,6 +9,8 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
+
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
 	redisAdapter "github.com/nlsnnn/berezhok/internal/adapters/redis"
 	"github.com/nlsnnn/berezhok/internal/adapters/s3/yandex"
@@ -38,7 +40,6 @@ import (
 	"github.com/nlsnnn/berezhok/internal/shared/config"
 	"github.com/nlsnnn/berezhok/internal/shared/jwt"
 	middlewares "github.com/nlsnnn/berezhok/internal/shared/middleware"
-	"github.com/redis/go-redis/v9"
 )
 
 func (app *application) mount() http.Handler {

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+
 	"github.com/nlsnnn/berezhok/internal/modules/auth"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 	hasher "github.com/nlsnnn/berezhok/internal/shared/auth"

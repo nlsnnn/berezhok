@@ -6,10 +6,11 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
+
 	"github.com/nlsnnn/berezhok/internal/modules/catalog/domain"
 	catalogErrors "github.com/nlsnnn/berezhok/internal/modules/catalog/errors"
 	sharedDomain "github.com/nlsnnn/berezhok/internal/shared/domain"
-	"github.com/shopspring/decimal"
 )
 
 type CreateBoxInput struct {
@@ -61,7 +62,7 @@ type BoxRepository interface {
 type locationFinder interface {
 	// LocationExists checks if a location with the given ID exists.
 	Exists(ctx context.Context, id uuid.UUID) (bool, error)
-	PartnerOwnsLocation(ctx context.Context, partnerID uuid.UUID, locationID uuid.UUID) (bool, error)
+	PartnerOwnsLocation(ctx context.Context, partnerID, locationID uuid.UUID) (bool, error)
 }
 
 func NewBoxService(boxRepo BoxRepository, locationSvc locationFinder) *boxService {

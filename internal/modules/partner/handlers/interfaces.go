@@ -12,7 +12,7 @@ type appSvc interface {
 	GetByID(ctx context.Context, id string) (domain.Application, error)
 	List(ctx context.Context) ([]domain.Application, error)
 	Approve(ctx context.Context, id string) error
-	Reject(ctx context.Context, id string, reason string) error
+	Reject(ctx context.Context, id, reason string) error
 	Delete(ctx context.Context, id string) error
 }
 

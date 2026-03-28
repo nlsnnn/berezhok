@@ -151,7 +151,7 @@ func (s *appService) Approve(ctx context.Context, id string) error {
 	return s.repo.UpdateStatus(ctx, id, domain.ApplicationStatusApproved, "")
 }
 
-func (s *appService) Reject(ctx context.Context, id string, reason string) error {
+func (s *appService) Reject(ctx context.Context, id, reason string) error {
 	app, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return err
