@@ -13,6 +13,25 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countOrdersByCustomerID = `-- name: CountOrdersByCustomerID :one
+SELECT COUNT(*)
+FROM orders o
+WHERE o.user_id = $1
+  AND ($2 = '' OR o.status::text = $2)
+`
+
+type CountOrdersByCustomerIDParams struct {
+	UserID  uuid.UUID   `json:"user_id"`
+	Column2 interface{} `json:"column_2"`
+}
+
+func (q *Queries) CountOrdersByCustomerID(ctx context.Context, arg CountOrdersByCustomerIDParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countOrdersByCustomerID, arg.UserID, arg.Column2)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createOrder = `-- name: CreateOrder :one
 INSERT INTO orders (
     user_id, box_id, location_id, pickup_code, qr_code_url, amount,
@@ -191,6 +210,76 @@ func (q *Queries) ListOrdersByCustomerID(ctx context.Context, userID uuid.UUID) 
 			&i.AutoCompletedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOrdersByCustomerIDFiltered = `-- name: ListOrdersByCustomerIDFiltered :many
+SELECT
+    o.id, o.status, o.pickup_code, o.amount,
+    o.pickup_time_start, o.created_at,
+    sb.name AS box_name,
+    l.name AS location_name,
+    false AS has_review
+FROM orders o
+JOIN surprise_boxes sb ON o.box_id = sb.id
+JOIN locations l ON o.location_id = l.id
+WHERE o.user_id = $1
+  AND ($2 = '' OR o.status::text = $2)
+ORDER BY o.created_at DESC
+LIMIT $3 OFFSET $4
+`
+
+type ListOrdersByCustomerIDFilteredParams struct {
+	UserID  uuid.UUID   `json:"user_id"`
+	Column2 interface{} `json:"column_2"`
+	Limit   int32       `json:"limit"`
+	Offset  int32       `json:"offset"`
+}
+
+type ListOrdersByCustomerIDFilteredRow struct {
+	ID              uuid.UUID      `json:"id"`
+	Status          OrderStatus    `json:"status"`
+	PickupCode      string         `json:"pickup_code"`
+	Amount          pgtype.Numeric `json:"amount"`
+	PickupTimeStart time.Time      `json:"pickup_time_start"`
+	CreatedAt       time.Time      `json:"created_at"`
+	BoxName         string         `json:"box_name"`
+	LocationName    string         `json:"location_name"`
+	HasReview       bool           `json:"has_review"`
+}
+
+func (q *Queries) ListOrdersByCustomerIDFiltered(ctx context.Context, arg ListOrdersByCustomerIDFilteredParams) ([]ListOrdersByCustomerIDFilteredRow, error) {
+	rows, err := q.db.Query(ctx, listOrdersByCustomerIDFiltered,
+		arg.UserID,
+		arg.Column2,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOrdersByCustomerIDFilteredRow
+	for rows.Next() {
+		var i ListOrdersByCustomerIDFilteredRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Status,
+			&i.PickupCode,
+			&i.Amount,
+			&i.PickupTimeStart,
+			&i.CreatedAt,
+			&i.BoxName,
+			&i.LocationName,
+			&i.HasReview,
 		); err != nil {
 			return nil, err
 		}

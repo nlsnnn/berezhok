@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -23,7 +24,7 @@ import (
 type orderServiceInterface interface {
 	CreateOrder(ctx context.Context, boxID uuid.UUID, customerID uuid.UUID) (*orderService.CreateOrderResult, error)
 	GetOrderByID(ctx context.Context, orderID uuid.UUID) (*domain.Order, error)
-	ListOrdersByCustomerID(ctx context.Context, customerID uuid.UUID) ([]domain.Order, error)
+	ListOrdersByCustomerID(ctx context.Context, customerID uuid.UUID, status string, limit, offset int) (*orderService.ListOrdersResult, error)
 }
 
 type orderHandler struct {
@@ -165,15 +166,48 @@ func (h *orderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Parse query params
+	status := r.URL.Query().Get("status")
+
+	limit := 20
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+	}
+
+	offset := 0
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
+			offset = o
+		}
+	}
+
 	// List orders
-	orders, err := h.service.ListOrdersByCustomerID(r.Context(), customerID)
+	result, err := h.service.ListOrdersByCustomerID(r.Context(), customerID, status, limit, offset)
 	if err != nil {
 		log.Error("failed to list orders", sl.Err(err))
 		response.InternalError(w, nil)
 		return
 	}
 
-	resp := dto.ToOrderListResponse(orders)
+	// Build response items
+	items := make([]dto.OrderListItem, len(result.Items))
+	for i, item := range result.Items {
+		items[i] = dto.ToOrderListItem(
+			item.ID.String(),
+			string(item.Status),
+			item.PickupCode,
+			item.Amount,
+			item.BoxName,
+			item.LocationName,
+			item.PickupTimeStart,
+			item.CreatedAt,
+			item.HasReview,
+		)
+	}
+
+	resp := dto.ToOrderListResponse(items, result.Total, result.Limit, result.Offset)
 	response.Success(w, resp)
 }
 

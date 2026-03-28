@@ -16,18 +16,30 @@ type CreateOrderResponse struct {
 
 // OrderResponse represents order details
 type OrderResponse struct {
-	ID         string    `json:"id"`
-	Status     string    `json:"status"`
-	PickupCode string    `json:"pickup_code,omitempty"`
-	QRCodeURL  string    `json:"qr_code_url,omitempty"`
-	Amount     float64   `json:"amount"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID              string    `json:"id"`
+	Status          string    `json:"status"`
+	PickupCode      string    `json:"pickup_code,omitempty"`
+	QRCodeURL       string    `json:"qr_code_url,omitempty"`
+	Amount          float64   `json:"amount"`
+	BoxName         string    `json:"box_name,omitempty"`
+	LocationName    string    `json:"location_name,omitempty"`
+	PickupTimeStart time.Time `json:"pickup_time_start,omitempty"`
+	HasReview       bool      `json:"has_review"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
-// OrderListResponse wraps order list
+// PaginationResponse represents pagination metadata
+type PaginationResponse struct {
+	Total   int  `json:"total"`
+	Limit   int  `json:"limit"`
+	Offset  int  `json:"offset"`
+	HasMore bool `json:"has_more"`
+}
+
+// OrderListResponse wraps order list with pagination
 type OrderListResponse struct {
-	Items []OrderResponse `json:"items"`
-	Total int             `json:"total"`
+	Items      []OrderListItem    `json:"items"`
+	Pagination PaginationResponse `json:"pagination"`
 }
 
 // ToOrderResponse converts domain.Order to OrderResponse
@@ -42,16 +54,44 @@ func ToOrderResponse(order *domain.Order) OrderResponse {
 	}
 }
 
-// ToOrderListResponse converts a slice of domain.Order to OrderListResponse
-func ToOrderListResponse(orders []domain.Order) OrderListResponse {
-	items := make([]OrderResponse, len(orders))
-	for i, order := range orders {
-		items[i] = ToOrderResponse(&order)
-	}
+// OrderListItem represents enriched order data for list view
+type OrderListItem struct {
+	ID              string    `json:"id"`
+	Status          string    `json:"status"`
+	PickupCode      string    `json:"pickup_code"`
+	Amount          float64   `json:"amount"`
+	BoxName         string    `json:"box_name"`
+	LocationName    string    `json:"location_name"`
+	PickupTimeStart time.Time `json:"pickup_time_start"`
+	CreatedAt       time.Time `json:"created_at"`
+	HasReview       bool      `json:"has_review"`
+}
 
+// ToOrderListItem converts enriched order data to OrderListItem
+func ToOrderListItem(id, status, pickupCode string, amount float64, boxName, locationName string, pickupTimeStart, createdAt time.Time, hasReview bool) OrderListItem {
+	return OrderListItem{
+		ID:              id,
+		Status:          status,
+		PickupCode:      pickupCode,
+		Amount:          amount,
+		BoxName:         boxName,
+		LocationName:    locationName,
+		PickupTimeStart: pickupTimeStart,
+		CreatedAt:       createdAt,
+		HasReview:       hasReview,
+	}
+}
+
+// ToOrderListResponse converts items to paginated OrderListResponse
+func ToOrderListResponse(items []OrderListItem, total, limit, offset int) OrderListResponse {
 	return OrderListResponse{
 		Items: items,
-		Total: len(orders),
+		Pagination: PaginationResponse{
+			Total:   total,
+			Limit:   limit,
+			Offset:  offset,
+			HasMore: offset+limit < total,
+		},
 	}
 }
 

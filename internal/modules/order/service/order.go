@@ -11,13 +11,14 @@ import (
 	catalogErrors "github.com/nlsnnn/berezhok/internal/modules/catalog/errors"
 	"github.com/nlsnnn/berezhok/internal/modules/order/domain"
 	orderErrors "github.com/nlsnnn/berezhok/internal/modules/order/errors"
+	orderRepos "github.com/nlsnnn/berezhok/internal/modules/order/repository"
 	"github.com/shopspring/decimal"
 )
 
 type orderRepository interface {
 	CreateOrder(ctx context.Context, order *domain.Order) error
 	GetOrderByID(ctx context.Context, orderID uuid.UUID) (*domain.Order, error)
-	ListOrdersByCustomerID(ctx context.Context, customerID uuid.UUID) ([]domain.Order, error)
+	ListOrdersFiltered(ctx context.Context, customerID uuid.UUID, status string, limit, offset int) ([]orderRepos.OrderListItem, int, error)
 	UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, status domain.OrderStatus) error
 	ReserveBox(ctx context.Context, boxID uuid.UUID) (bool, error)
 }
@@ -40,6 +41,14 @@ type orderService struct {
 type CreateOrderResult struct {
 	PaymentLink string
 	OrderID     uuid.UUID
+}
+
+// ListOrdersResult contains paginated order list data
+type ListOrdersResult struct {
+	Items  []orderRepos.OrderListItem
+	Total  int
+	Limit  int
+	Offset int
 }
 
 func NewOrderService(repo orderRepository, boxProvider boxProvider, paymentProvider paymentProvider, log *slog.Logger) *orderService {
@@ -72,6 +81,7 @@ func (s *orderService) CreateOrder(ctx context.Context, boxID uuid.UUID, custome
 	}
 
 	// 3. Atomically reserve the box
+	// TODO: Move reservation logic to a catalog service
 	reserved, err := s.repo.ReserveBox(ctx, boxID)
 	if err != nil {
 		return nil, fmt.Errorf("%s: failed to reserve box: %w", op, err)
@@ -122,16 +132,21 @@ func (s *orderService) GetOrderByID(ctx context.Context, orderID uuid.UUID) (*do
 	return order, nil
 }
 
-// ListOrdersByCustomerID retrieves all orders for a customer
-func (s *orderService) ListOrdersByCustomerID(ctx context.Context, customerID uuid.UUID) ([]domain.Order, error) {
+// ListOrdersByCustomerID retrieves filtered, paginated orders for a customer
+func (s *orderService) ListOrdersByCustomerID(ctx context.Context, customerID uuid.UUID, status string, limit, offset int) (*ListOrdersResult, error) {
 	const op = "order.service.ListOrdersByCustomerID"
 
-	orders, err := s.repo.ListOrdersByCustomerID(ctx, customerID)
+	items, total, err := s.repo.ListOrdersFiltered(ctx, customerID, status, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	return orders, nil
+	return &ListOrdersResult{
+		Items:  items,
+		Total:  total,
+		Limit:  limit,
+		Offset: offset,
+	}, nil
 }
 
 // UpdateOrderStatus updates the status of an order (called by payment webhook handler)

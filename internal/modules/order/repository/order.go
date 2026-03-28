@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -169,4 +170,55 @@ func (r *OrderRepo) toDomain(sqlOrder sqlc.Order) *domain.Order {
 	}
 
 	return order
+}
+
+// OrderListItem represents enriched order data for list view
+type OrderListItem struct {
+	ID              uuid.UUID
+	Status          domain.OrderStatus
+	PickupCode      string
+	Amount          float64
+	BoxName         string
+	LocationName    string
+	PickupTimeStart time.Time
+	CreatedAt       time.Time
+	HasReview       bool
+}
+
+// ListOrdersFiltered returns paginated, optionally filtered orders with box/location names
+func (r *OrderRepo) ListOrdersFiltered(ctx context.Context, customerID uuid.UUID, status string, limit, offset int) ([]OrderListItem, int, error) {
+	sqlItems, err := r.q.ListOrdersByCustomerIDFiltered(ctx, sqlc.ListOrdersByCustomerIDFilteredParams{
+		UserID:  customerID,
+		Column2: status,
+		Limit:   int32(limit),
+		Offset:  int32(offset),
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+
+	items := make([]OrderListItem, len(sqlItems))
+	for i, row := range sqlItems {
+		items[i] = OrderListItem{
+			ID:              row.ID,
+			Status:          domain.OrderStatus(row.Status),
+			PickupCode:      row.PickupCode,
+			Amount:          pgconverter.NumericToDecimalOrZero(row.Amount).InexactFloat64(),
+			BoxName:         row.BoxName,
+			LocationName:    row.LocationName,
+			PickupTimeStart: row.PickupTimeStart,
+			CreatedAt:       row.CreatedAt,
+			HasReview:       row.HasReview,
+		}
+	}
+
+	total, err := r.q.CountOrdersByCustomerID(ctx, sqlc.CountOrdersByCustomerIDParams{
+		UserID:  customerID,
+		Column2: status,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return items, int(total), nil
 }

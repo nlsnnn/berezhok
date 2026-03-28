@@ -27,3 +27,24 @@ WHERE id = $1 RETURNING *;
 UPDATE surprise_boxes 
 SET quantity_available = quantity_available - 1
 WHERE id = $1 AND quantity_available > 0 AND status = 'active';
+
+-- name: ListOrdersByCustomerIDFiltered :many
+SELECT
+    o.id, o.status, o.pickup_code, o.amount,
+    o.pickup_time_start, o.created_at,
+    sb.name AS box_name,
+    l.name AS location_name,
+    false AS has_review
+FROM orders o
+JOIN surprise_boxes sb ON o.box_id = sb.id
+JOIN locations l ON o.location_id = l.id
+WHERE o.user_id = $1
+  AND ($2 = '' OR o.status::text = $2)
+ORDER BY o.created_at DESC
+LIMIT $3 OFFSET $4;
+
+-- name: CountOrdersByCustomerID :one
+SELECT COUNT(*)
+FROM orders o
+WHERE o.user_id = $1
+  AND ($2 = '' OR o.status::text = $2);
