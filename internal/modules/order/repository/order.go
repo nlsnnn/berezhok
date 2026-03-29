@@ -19,6 +19,27 @@ type OrderRepo struct {
 	q *sqlc.Queries
 }
 
+// OrderDetails represents enriched order data for detailed customer view
+type OrderDetails struct {
+	ID              uuid.UUID
+	CustomerID      uuid.UUID
+	Status          domain.OrderStatus
+	PickupCode      string
+	QRCodeURL       string
+	Amount          float64
+	BoxName         string
+	BoxImageURL     string
+	LocationName    string
+	LocationAddress string
+	LocationPhone   string
+	LocationLat     float64
+	LocationLng     float64
+	PickupTimeStart time.Time
+	PickupTimeEnd   time.Time
+	CreatedAt       time.Time
+	ConfirmedAt     *time.Time
+}
+
 func NewOrderRepo(q *sqlc.Queries) *OrderRepo {
 	return &OrderRepo{q: q}
 }
@@ -60,6 +81,46 @@ func (r *OrderRepo) GetOrderByID(ctx context.Context, orderID uuid.UUID) (*domai
 	}
 
 	return r.toDomain(sqlOrder), nil
+}
+
+// GetOrderDetailsByID retrieves enriched order details by order ID
+func (r *OrderRepo) GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) (*OrderDetails, error) {
+	row, err := r.q.GetOrderDetailsByID(ctx, orderID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, orderErrors.ErrOrderNotFound
+		}
+		return nil, err
+	}
+
+	lat, _ := row.LocationLat.(float64)
+	lng, _ := row.LocationLng.(float64)
+
+	var confirmedAt *time.Time
+	if row.PartnerConfirmedAt.Valid {
+		value := row.PartnerConfirmedAt.Time
+		confirmedAt = &value
+	}
+
+	return &OrderDetails{
+		ID:              row.ID,
+		CustomerID:      row.UserID,
+		Status:          domain.OrderStatus(row.Status),
+		PickupCode:      row.PickupCode,
+		QRCodeURL:       row.QrCodeUrl,
+		Amount:          pgconverter.NumericToDecimalOrZero(row.Amount).InexactFloat64(),
+		BoxName:         row.BoxName,
+		BoxImageURL:     row.BoxImageUrl,
+		LocationName:    row.LocationName,
+		LocationAddress: row.LocationAddress,
+		LocationPhone:   row.LocationPhone,
+		LocationLat:     lat,
+		LocationLng:     lng,
+		PickupTimeStart: row.PickupTimeStart,
+		PickupTimeEnd:   row.PickupTimeEnd,
+		CreatedAt:       row.CreatedAt,
+		ConfirmedAt:     confirmedAt,
+	}, nil
 }
 
 // ListOrdersByCustomerID retrieves all orders for a customer

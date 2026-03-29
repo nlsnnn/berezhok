@@ -175,6 +175,76 @@ func (q *Queries) GetOrderByID(ctx context.Context, id uuid.UUID) (Order, error)
 	return i, err
 }
 
+const getOrderDetailsByID = `-- name: GetOrderDetailsByID :one
+SELECT
+    o.id,
+    o.user_id,
+    o.status,
+    o.pickup_code,
+    COALESCE(o.qr_code_url, '') AS qr_code_url,
+    o.amount,
+    o.pickup_time_start,
+    o.pickup_time_end,
+    o.created_at,
+    o.partner_confirmed_at,
+    sb.name AS box_name,
+    COALESCE(sb.image_url, '') AS box_image_url,
+    l.name AS location_name,
+    l.address AS location_address,
+    COALESCE(l.phone, '') AS location_phone,
+    ST_Y(l.location::geometry) AS location_lat,
+    ST_X(l.location::geometry) AS location_lng
+FROM orders o
+JOIN surprise_boxes sb ON sb.id = o.box_id
+JOIN locations l ON l.id = o.location_id
+WHERE o.id = $1
+`
+
+type GetOrderDetailsByIDRow struct {
+	ID                 uuid.UUID          `json:"id"`
+	UserID             uuid.UUID          `json:"user_id"`
+	Status             OrderStatus        `json:"status"`
+	PickupCode         string             `json:"pickup_code"`
+	QrCodeUrl          string             `json:"qr_code_url"`
+	Amount             pgtype.Numeric     `json:"amount"`
+	PickupTimeStart    time.Time          `json:"pickup_time_start"`
+	PickupTimeEnd      time.Time          `json:"pickup_time_end"`
+	CreatedAt          time.Time          `json:"created_at"`
+	PartnerConfirmedAt pgtype.Timestamptz `json:"partner_confirmed_at"`
+	BoxName            string             `json:"box_name"`
+	BoxImageUrl        string             `json:"box_image_url"`
+	LocationName       string             `json:"location_name"`
+	LocationAddress    string             `json:"location_address"`
+	LocationPhone      string             `json:"location_phone"`
+	LocationLat        interface{}        `json:"location_lat"`
+	LocationLng        interface{}        `json:"location_lng"`
+}
+
+func (q *Queries) GetOrderDetailsByID(ctx context.Context, id uuid.UUID) (GetOrderDetailsByIDRow, error) {
+	row := q.db.QueryRow(ctx, getOrderDetailsByID, id)
+	var i GetOrderDetailsByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Status,
+		&i.PickupCode,
+		&i.QrCodeUrl,
+		&i.Amount,
+		&i.PickupTimeStart,
+		&i.PickupTimeEnd,
+		&i.CreatedAt,
+		&i.PartnerConfirmedAt,
+		&i.BoxName,
+		&i.BoxImageUrl,
+		&i.LocationName,
+		&i.LocationAddress,
+		&i.LocationPhone,
+		&i.LocationLat,
+		&i.LocationLng,
+	)
+	return i, err
+}
+
 const listOrdersByCustomerID = `-- name: ListOrdersByCustomerID :many
 SELECT id, user_id, box_id, location_id, pickup_code, qr_code_url, amount, pickup_time_start, pickup_time_end, status, partner_confirmation_deadline, partner_confirmed_at, partner_confirmed_by, cancellation_reason, cancelled_at, picked_up_at, picked_up_confirmed_by, user_confirmed_at, auto_completed_at, created_at, updated_at FROM orders WHERE user_id = $1 ORDER BY created_at DESC
 `

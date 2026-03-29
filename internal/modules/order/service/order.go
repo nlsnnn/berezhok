@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -19,6 +20,7 @@ import (
 type orderRepository interface {
 	CreateOrder(ctx context.Context, order *domain.Order) error
 	GetOrderByID(ctx context.Context, orderID uuid.UUID) (*domain.Order, error)
+	GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) (*orderRepos.OrderDetails, error)
 	ListOrdersFiltered(ctx context.Context, customerID uuid.UUID, status string, limit, offset int) ([]orderRepos.OrderListItem, int, error)
 	UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, status domain.OrderStatus) error
 	ReserveBox(ctx context.Context, boxID uuid.UUID) (bool, error)
@@ -50,6 +52,27 @@ type ListOrdersResult struct {
 	Total  int
 	Limit  int
 	Offset int
+}
+
+// OrderDetailsResult contains detailed order data for GET /customer/orders/{order_id}
+type OrderDetailsResult struct {
+	ID              string
+	CustomerID      uuid.UUID
+	Status          string
+	PickupCode      string
+	QRCodeURL       string
+	Amount          float64
+	BoxName         string
+	BoxImageURL     string
+	LocationName    string
+	LocationAddress string
+	LocationPhone   string
+	LocationLat     float64
+	LocationLng     float64
+	PickupTimeStart time.Time
+	PickupTimeEnd   time.Time
+	CreatedAt       time.Time
+	ConfirmedAt     *time.Time
 }
 
 func NewOrderService(repo orderRepository, boxProvider boxProvider, paymentProvider paymentProvider, log *slog.Logger) *orderService {
@@ -131,6 +154,36 @@ func (s *orderService) GetOrderByID(ctx context.Context, orderID uuid.UUID) (*do
 	}
 
 	return order, nil
+}
+
+// GetOrderDetailsByID retrieves enriched order details for customer endpoint
+func (s *orderService) GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) (*OrderDetailsResult, error) {
+	const op = "order.service.GetOrderDetailsByID"
+
+	order, err := s.repo.GetOrderDetailsByID(ctx, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return &OrderDetailsResult{
+		ID:              order.ID.String(),
+		CustomerID:      order.CustomerID,
+		Status:          string(order.Status),
+		PickupCode:      order.PickupCode,
+		QRCodeURL:       order.QRCodeURL,
+		Amount:          order.Amount,
+		BoxName:         order.BoxName,
+		BoxImageURL:     order.BoxImageURL,
+		LocationName:    order.LocationName,
+		LocationAddress: order.LocationAddress,
+		LocationPhone:   order.LocationPhone,
+		LocationLat:     order.LocationLat,
+		LocationLng:     order.LocationLng,
+		PickupTimeStart: order.PickupTimeStart,
+		PickupTimeEnd:   order.PickupTimeEnd,
+		CreatedAt:       order.CreatedAt,
+		ConfirmedAt:     order.ConfirmedAt,
+	}, nil
 }
 
 // ListOrdersByCustomerID retrieves filtered, paginated orders for a customer

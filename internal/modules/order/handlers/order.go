@@ -25,6 +25,7 @@ import (
 type orderServiceInterface interface {
 	CreateOrder(ctx context.Context, boxID, customerID uuid.UUID) (*orderService.CreateOrderResult, error)
 	GetOrderByID(ctx context.Context, orderID uuid.UUID) (*domain.Order, error)
+	GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) (*orderService.OrderDetailsResult, error)
 	ListOrdersByCustomerID(ctx context.Context, customerID uuid.UUID, status string, limit, offset int) (*orderService.ListOrdersResult, error)
 }
 
@@ -128,8 +129,8 @@ func (h *orderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get order
-	order, err := h.service.GetOrderByID(r.Context(), orderID)
+	// Get order details
+	order, err := h.service.GetOrderDetailsByID(r.Context(), orderID)
 	if err != nil {
 		if errors.Is(err, orderErrors.ErrOrderNotFound) {
 			response.NotFound(w, "order not found")
@@ -150,7 +151,7 @@ func (h *orderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := dto.ToOrderResponse(order)
+	resp := dto.ToOrderDetailResponse(order)
 	response.Success(w, resp)
 }
 

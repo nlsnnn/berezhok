@@ -14,6 +14,30 @@ INSERT INTO orders (
 -- name: GetOrderByID :one
 SELECT * FROM orders WHERE id = $1;
 
+-- name: GetOrderDetailsByID :one
+SELECT
+    o.id,
+    o.user_id,
+    o.status,
+    o.pickup_code,
+    COALESCE(o.qr_code_url, '') AS qr_code_url,
+    o.amount,
+    o.pickup_time_start,
+    o.pickup_time_end,
+    o.created_at,
+    o.partner_confirmed_at,
+    sb.name AS box_name,
+    COALESCE(sb.image_url, '') AS box_image_url,
+    l.name AS location_name,
+    l.address AS location_address,
+    COALESCE(l.phone, '') AS location_phone,
+    ST_Y(l.location::geometry) AS location_lat,
+    ST_X(l.location::geometry) AS location_lng
+FROM orders o
+JOIN surprise_boxes sb ON sb.id = o.box_id
+JOIN locations l ON l.id = o.location_id
+WHERE o.id = $1;
+
 -- name: ListOrdersByCustomerID :many
 SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC;
 
