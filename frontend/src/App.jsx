@@ -1,5 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { AuthProvider } from '@/context/AuthContext'
 import RequireAuth from '@/components/RequireAuth'
@@ -14,53 +13,33 @@ import LocationsPage from '@/pages/partner/LocationsPage'
 import BoxesPage from '@/pages/partner/BoxesPage'
 import CreateBoxPage from '@/pages/partner/CreateBoxPage'
 import EditBoxPage from '@/pages/partner/EditBoxPage'
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      staleTime: 30_000,
-    },
-  },
-})
+import OrderPickupPage from '@/pages/partner/OrderPickupPage'
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <Toaster position="top-right" richColors closeButton />
-          <Routes>
-            {/* Landing */}
-            <Route path="/" element={<LandingPage />} />
+    <BrowserRouter>
+      <AuthProvider>
+        <Toaster position="top-right" richColors closeButton />
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/partner/login" element={<PartnerLoginPage />} />
 
-            {/* Admin (no auth) */}
-            <Route path="/admin" element={<AdminPage />} />
+          <Route element={<RequireAuth />}>
+            <Route path="/partner/dashboard" element={<PartnerDashboard />} />
+            <Route path="/partner/change-password" element={<ChangePasswordPage />} />
+            <Route path="/partner/locations" element={<LocationsPage />} />
+            <Route path="/partner/locations/new" element={<CreateLocationPage />} />
+            <Route path="/partner/boxes" element={<BoxesPage />} />
+            <Route path="/partner/boxes/new" element={<CreateBoxPage />} />
+            <Route path="/partner/boxes/:id/edit" element={<EditBoxPage />} />
+            <Route path="/partner/orders/pickup" element={<OrderPickupPage />} />
+          </Route>
 
-            {/* Partner — public */}
-            <Route path="/partner/login" element={<PartnerLoginPage />} />
-
-            {/* Partner — protected */}
-            <Route element={<RequireAuth />}>
-              <Route path="/partner/dashboard" element={<PartnerDashboard />} />
-              <Route path="/partner/change-password" element={<ChangePasswordPage />} />
-              
-              {/* Locations */}
-              <Route path="/partner/locations" element={<LocationsPage />} />
-              <Route path="/partner/locations/new" element={<CreateLocationPage />} />
-              
-              {/* Boxes */}
-              <Route path="/partner/boxes" element={<BoxesPage />} />
-              <Route path="/partner/boxes/new" element={<CreateBoxPage />} />
-              <Route path="/partner/boxes/:id/edit" element={<EditBoxPage />} />
-            </Route>
-
-            {/* Fallback */}
-            <Route path="/partner" element={<Navigate to="/partner/dashboard" replace />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </QueryClientProvider>
+          <Route path="/partner" element={<Navigate to="/partner/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
   )
 }

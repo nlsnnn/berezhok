@@ -25,7 +25,7 @@ export function useAddressSearch(delay = 400) {
       try {
         const results = await searchAddress(query)
         setSuggestions(results)
-      } catch (err) {
+      } catch {
         setError('Не удалось загрузить подсказки адресов')
         setSuggestions([])
       } finally {

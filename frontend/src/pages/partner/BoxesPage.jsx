@@ -1,116 +1,75 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { observer } from 'mobx-react-lite'
 import { useNavigate } from 'react-router-dom'
-import { listBoxes, deleteBox } from '@/api/partner'
-import { Plus, Package } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
-import PartnerNav from '@/components/PartnerNav'
-import Spinner from '@/components/ui/Spinner'
-import Button from '@/components/ui/Button'
-import BoxCard from '@/components/ui/BoxCard'
+import PartnerLayout from '@/components/partner/layout/PartnerLayout'
+import BoxCard from '@/components/partner/boxes/BoxCard'
+import Spinner from '@/components/ui/feedback/Spinner'
+import Button from '@/components/ui/actions/Button'
+import { useStores } from '@/context/StoresContext'
 
-export default function BoxesPage() {
+function BoxesPageBase() {
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
+  const { boxesStore } = useStores()
 
-  const { data: boxes, isLoading, isError } = useQuery({
-    queryKey: ['partner', 'boxes'],
-    queryFn: listBoxes,
-  })
+  useEffect(() => {
+    boxesStore.load()
+  }, [boxesStore])
 
-  const deleteMutation = useMutation({
-    mutationFn: deleteBox,
-    onSuccess: () => {
-      queryClient.invalidateQueries(['partner', 'boxes'])
-      toast.success('Бокс удалён')
-    },
-    onError: (error) => {
-      console.error('Delete error:', error)
+  const handleDelete = async (box) => {
+    if (!window.confirm(`Удалить бокс "${box.name}"?`)) return
+    try {
+      await boxesStore.remove(box.id)
+      toast.success('Бокс удален')
+    } catch {
       toast.error('Не удалось удалить бокс')
-    },
-  })
-
-  const handleEdit = (box) => {
-    navigate(`/partner/boxes/${box.id}/edit`)
-  }
-
-  const handleDelete = (box) => {
-    if (window.confirm(`Удалить бокс "${box.name}"?`)) {
-      deleteMutation.mutate(box.id)
     }
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-cream-50">
-      <PartnerNav />
-
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-brand-900">Мои боксы</h1>
-            <p className="text-brand-600 mt-1">
-              Управляйте своими предложениями для клиентов
-            </p>
-          </div>
-          <Button
-            onClick={() => navigate('/partner/boxes/new')}
-            className="gap-2"
-          >
-            <Plus size={18} />
-            Создать бокс
-          </Button>
+    <PartnerLayout
+      title="Мои боксы"
+      subtitle="Управляйте активными и черновыми предложениями"
+      actions={
+        <Button onClick={() => navigate('/partner/boxes/new')} className="gap-2">
+          <Plus size={16} />
+          Создать бокс
+        </Button>
+      }
+    >
+      {boxesStore.loading && (
+        <div className="flex justify-center py-24">
+          <Spinner size={34} />
         </div>
+      )}
 
-        {/* Loading */}
-        {isLoading && (
-          <div className="flex justify-center py-20">
-            <Spinner size={32} />
-          </div>
-        )}
+      {boxesStore.error && (
+        <div className="card text-center py-12 text-red-600">Не удалось загрузить боксы</div>
+      )}
 
-        {/* Error */}
-        {isError && (
-          <div className="card text-center py-12 text-red-500">
-            Не удалось загрузить боксы
-          </div>
-        )}
+      {!boxesStore.loading && !boxesStore.error && boxesStore.items.length === 0 && (
+        <div className="card text-center py-14">
+          <p className="text-brand-700 font-medium">Пока нет боксов</p>
+          <p className="text-sm text-brand-500 mt-1">Создайте первый сюрприз-бокс для клиентов</p>
+          <Button onClick={() => navigate('/partner/boxes/new')} className="mt-5">Создать</Button>
+        </div>
+      )}
 
-        {/* Empty state */}
-        {boxes && boxes.length === 0 && (
-          <div className="card text-center py-16">
-            <div className="w-20 h-20 rounded-full bg-cream-200 flex items-center justify-center mx-auto mb-4">
-              <Package size={40} className="text-cream-400" />
-            </div>
-            <h3 className="font-semibold text-brand-700 text-lg mb-2">
-              Нет боксов
-            </h3>
-            <p className="text-brand-500 mb-6">
-              Создайте свой первый бокс-сюрприз для клиентов
-            </p>
-            <Button
-              onClick={() => navigate('/partner/boxes/new')}
-              className="gap-2"
-            >
-              <Plus size={18} />
-              Создать бокс
-            </Button>
-          </div>
-        )}
-
-        {/* Boxes grid */}
-        {boxes && boxes.length > 0 && (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {boxes.map((box) => (
-              <BoxCard
-                key={box.id}
-                box={box}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-              />
-            ))}
-          </div>
-        )}
-      </main>
-    </div>
+      {!boxesStore.loading && boxesStore.items.length > 0 && (
+        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
+          {boxesStore.items.map((box) => (
+            <BoxCard
+              key={box.id}
+              box={box}
+              onEdit={() => navigate(`/partner/boxes/${box.id}/edit`)}
+              onDelete={handleDelete}
+            />
+          ))}
+        </div>
+      )}
+    </PartnerLayout>
   )
 }
+
+export default observer(BoxesPageBase)

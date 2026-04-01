@@ -1,42 +1,28 @@
-import { createContext, useContext, useState, useCallback } from 'react'
-import { partnerLogin } from '@/api/partner'
+import { createContext, useContext } from 'react'
+import { observer } from 'mobx-react-lite'
+import { useStores } from '@/context/StoresContext'
 
 const AuthContext = createContext(null)
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try {
-      const stored = localStorage.getItem('partner_user')
-      return stored ? JSON.parse(stored) : null
-    } catch {
-      return null
-    }
-  })
-
-  const login = useCallback(async (email, password) => {
-    const data = await partnerLogin(email, password)
-    const userData = {
-      user_id: data.user_id,
-      must_change_password: data.must_change_password,
-    }
-    localStorage.setItem('partner_token', data.token)
-    localStorage.setItem('partner_user', JSON.stringify(userData))
-    setUser(userData)
-    return data
-  }, [])
-
-  const logout = useCallback(() => {
-    localStorage.removeItem('partner_token')
-    localStorage.removeItem('partner_user')
-    setUser(null)
-  }, [])
+const AuthProviderBase = ({ children }) => {
+  const { authStore } = useStores()
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider
+      value={{
+        user: authStore.user,
+        login: authStore.login,
+        logout: authStore.logout,
+        isAuthenticated: authStore.isAuthenticated,
+        markPasswordChanged: authStore.markPasswordChanged,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )
 }
+
+export const AuthProvider = observer(AuthProviderBase)
 
 export function useAuth() {
   const ctx = useContext(AuthContext)

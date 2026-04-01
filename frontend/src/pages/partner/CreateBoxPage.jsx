@@ -1,87 +1,73 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { observer } from 'mobx-react-lite'
 import { useNavigate } from 'react-router-dom'
-import { createBox, getPartnerProfile } from '@/api/partner'
-import { toast } from 'sonner'
 import { ArrowLeft } from 'lucide-react'
-import PartnerNav from '@/components/PartnerNav'
-import BoxForm from '@/components/BoxForm'
-import Spinner from '@/components/ui/Spinner'
+import { toast } from 'sonner'
+import PartnerLayout from '@/components/partner/layout/PartnerLayout'
+import BoxForm from '@/components/partner/boxes/BoxForm'
+import Spinner from '@/components/ui/feedback/Spinner'
+import Button from '@/components/ui/actions/Button'
+import { useStores } from '@/context/StoresContext'
 
-export default function CreateBoxPage() {
+function CreateBoxPageBase() {
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
+  const { boxesStore, locationsStore } = useStores()
 
-  const { data: profile, isLoading: isLoadingProfile } = useQuery({
-    queryKey: ['partner', 'profile'],
-    queryFn: getPartnerProfile,
-  })
+  useEffect(() => {
+    locationsStore.loadProfile()
+  }, [locationsStore])
 
-  const createMutation = useMutation({
-    mutationFn: createBox,
-    onSuccess: () => {
-      queryClient.invalidateQueries(['partner', 'boxes'])
-      toast.success('Бокс создан')
-      navigate('/partner/boxes')
-    },
-    onError: (error) => {
-      console.error('Create error:', error)
-      const message = error.response?.data?.message || 'Не удалось создать бокс'
-      toast.error(message)
-    },
-  })
-
-  const handleSubmit = (formData) => {
-    // Transform form data to match backend expectations
+  const handleSubmit = async (formData) => {
     const payload = {
       location_id: formData.location_id,
       name: formData.name,
       description: formData.description,
-      discount_price: formData.discount_price,
       original_price: formData.original_price || null,
+      discount_price: Number(formData.discount_price),
+      quantity_available: Number(formData.quantity_available),
       pickup_time_start: formData.pickup_time_start,
       pickup_time_end: formData.pickup_time_end,
-      quantity: parseInt(formData.quantity),
       image_url: formData.image_url || '',
       status: formData.status,
     }
-    createMutation.mutate(payload)
+
+    try {
+      await boxesStore.create(payload)
+      toast.success('Бокс создан')
+      navigate('/partner/boxes')
+    } catch {
+      toast.error('Не удалось создать бокс')
+    }
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-cream-50">
-      <PartnerNav />
-
-      <main className="flex-1 max-w-3xl mx-auto w-full px-4 sm:px-6 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <button
-            onClick={() => navigate('/partner/boxes')}
-            className="flex items-center gap-2 text-brand-600 hover:text-brand-800 mb-4 transition-colors"
-          >
-            <ArrowLeft size={18} />
-            Назад к боксам
-          </button>
-          <h1 className="text-3xl font-bold text-brand-900">Создать бокс</h1>
-          <p className="text-brand-600 mt-1">
-            Заполните информацию о новом предложении
-          </p>
-        </div>
-
-        {/* Form */}
+    <PartnerLayout
+      title="Создать бокс"
+      subtitle="Заполните данные предложения для публикации"
+      actions={
+        <Button variant="secondary" onClick={() => navigate('/partner/boxes')} className="gap-2">
+          <ArrowLeft size={16} />
+          К списку
+        </Button>
+      }
+    >
+      <div className="max-w-3xl">
         <div className="card">
-          {isLoadingProfile ? (
-            <div className="flex justify-center py-12">
-              <Spinner size={32} />
+          {locationsStore.loading ? (
+            <div className="py-14 flex justify-center">
+              <Spinner size={30} />
             </div>
           ) : (
             <BoxForm
-              locations={profile?.locations || []}
+              locations={locationsStore.locations}
               onSubmit={handleSubmit}
-              isLoading={createMutation.isPending}
+              isLoading={boxesStore.submitting}
             />
           )}
         </div>
-      </main>
-    </div>
+      </div>
+    </PartnerLayout>
   )
 }
+
+export default observer(CreateBoxPageBase)
