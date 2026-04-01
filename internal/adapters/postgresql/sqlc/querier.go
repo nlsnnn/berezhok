@@ -19,6 +19,7 @@ type Querier interface {
 	CountActiveBoxesByLocationID(ctx context.Context, locationID uuid.UUID) (int64, error)
 	// Count active locations for pagination
 	CountActiveLocations(ctx context.Context, categoryCode pgtype.Text) (int64, error)
+	CountOrdersByCustomerID(ctx context.Context, arg CountOrdersByCustomerIDParams) (int64, error)
 	CreateApplication(ctx context.Context, arg CreateApplicationParams) (PartnerApplication, error)
 	// Create a new box
 	CreateBox(ctx context.Context, arg CreateBoxParams) (SurpriseBox, error)
@@ -59,6 +60,9 @@ type Querier interface {
 	// Get location details by ID with category info
 	GetLocationDetailsByID(ctx context.Context, id uuid.UUID) (GetLocationDetailsByIDRow, error)
 	GetOrderByID(ctx context.Context, id uuid.UUID) (Order, error)
+	GetOrderDetailsByID(ctx context.Context, id uuid.UUID) (GetOrderDetailsByIDRow, error)
+	GetPartnerOrderByID(ctx context.Context, arg GetPartnerOrderByIDParams) (GetPartnerOrderByIDRow, error)
+	GetPartnerOrderByPickupCode(ctx context.Context, arg GetPartnerOrderByPickupCodeParams) (GetPartnerOrderByPickupCodeRow, error)
 	GetPartnerProfile(ctx context.Context, id uuid.UUID) (GetPartnerProfileRow, error)
 	GetPaymentByID(ctx context.Context, id uuid.UUID) (Payment, error)
 	GetPaymentByOrderID(ctx context.Context, orderID uuid.UUID) (Payment, error)
@@ -76,10 +80,12 @@ type Querier interface {
 	// List all media files (paginated)
 	ListMediaFiles(ctx context.Context, arg ListMediaFilesParams) ([]MediaFile, error)
 	ListOrdersByCustomerID(ctx context.Context, userID uuid.UUID) ([]Order, error)
+	ListOrdersByCustomerIDFiltered(ctx context.Context, arg ListOrdersByCustomerIDFilteredParams) ([]ListOrdersByCustomerIDFilteredRow, error)
 	// Сотрудники партнёров
 	ListPartnerEmployees(ctx context.Context) ([]PartnerEmployee, error)
 	// Партнёры (юридические лица)
 	ListPartners(ctx context.Context) ([]Partner, error)
+	MarkOrderPickedUp(ctx context.Context, arg MarkOrderPickedUpParams) (int64, error)
 	ReserveBox(ctx context.Context, id uuid.UUID) (int64, error)
 	// Location queries for customer app
 	// Search locations

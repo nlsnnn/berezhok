@@ -5,10 +5,12 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+
 	"github.com/nlsnnn/berezhok/internal/lib/logger/sl"
 	"github.com/nlsnnn/berezhok/internal/lib/validator"
 	catalogErrors "github.com/nlsnnn/berezhok/internal/modules/catalog/errors"
@@ -21,9 +23,12 @@ import (
 )
 
 type orderServiceInterface interface {
-	CreateOrder(ctx context.Context, boxID uuid.UUID, customerID uuid.UUID) (*orderService.CreateOrderResult, error)
+	CreateOrder(ctx context.Context, boxID, customerID uuid.UUID) (*orderService.CreateOrderResult, error)
 	GetOrderByID(ctx context.Context, orderID uuid.UUID) (*domain.Order, error)
-	ListOrdersByCustomerID(ctx context.Context, customerID uuid.UUID) ([]domain.Order, error)
+	GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) (*domain.OrderDetails, error)
+	GetPartnerOrderByPickupCode(ctx context.Context, partnerID uuid.UUID, pickupCode string) (*domain.PartnerOrderByCode, error)
+	MarkOrderPickedUp(ctx context.Context, orderID, partnerID, employeeID uuid.UUID) error
+	ListOrdersByCustomerID(ctx context.Context, customerID uuid.UUID, status string, limit, offset int) (*orderService.ListOrdersResult, error)
 }
 
 type orderHandler struct {
@@ -126,8 +131,8 @@ func (h *orderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get order
-	order, err := h.service.GetOrderByID(r.Context(), orderID)
+	// Get order details
+	order, err := h.service.GetOrderDetailsByID(r.Context(), orderID)
 	if err != nil {
 		if errors.Is(err, orderErrors.ErrOrderNotFound) {
 			response.NotFound(w, "order not found")
@@ -148,7 +153,7 @@ func (h *orderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := dto.ToOrderResponse(order)
+	resp := dto.ToOrderDetailResponse(order)
 	response.Success(w, resp)
 }
 
@@ -165,15 +170,48 @@ func (h *orderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Parse query params
+	status := r.URL.Query().Get("status")
+
+	limit := 20
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+	}
+
+	offset := 0
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
+			offset = o
+		}
+	}
+
 	// List orders
-	orders, err := h.service.ListOrdersByCustomerID(r.Context(), customerID)
+	result, err := h.service.ListOrdersByCustomerID(r.Context(), customerID, status, limit, offset)
 	if err != nil {
 		log.Error("failed to list orders", sl.Err(err))
 		response.InternalError(w, nil)
 		return
 	}
 
-	resp := dto.ToOrderListResponse(orders)
+	// Build response items
+	items := make([]dto.OrderListItem, len(result.Items))
+	for i, item := range result.Items {
+		items[i] = dto.ToOrderListItem(
+			item.ID.String(),
+			string(item.Status),
+			item.PickupCode,
+			item.Amount,
+			item.BoxName,
+			item.LocationName,
+			item.PickupTimeStart,
+			item.CreatedAt,
+			item.HasReview,
+		)
+	}
+
+	resp := dto.ToOrderListResponse(items, result.Total, result.Limit, result.Offset)
 	response.Success(w, resp)
 }
 
@@ -185,6 +223,87 @@ func (h *orderHandler) ConfirmPickup(w http.ResponseWriter, r *http.Request) {
 // CreateDispute handles POST /customer/orders/{order_id}/dispute
 func (h *orderHandler) CreateDispute(w http.ResponseWriter, r *http.Request) {
 	response.Error(w, "Dispute creation not implemented yet", http.StatusNotImplemented)
+}
+
+// GetPartnerOrderByPickupCode handles GET /partner/orders/by-code/{pickup_code}
+func (h *orderHandler) GetPartnerOrderByPickupCode(w http.ResponseWriter, r *http.Request) {
+	const op = "order.handler.GetPartnerOrderByPickupCode"
+	log := h.log.With(slog.String("op", op))
+
+	pickupCode := chi.URLParam(r, "pickup_code")
+	if pickupCode == "" {
+		response.BadRequest(w, "pickup_code is required")
+		return
+	}
+
+	partnerID, err := h.getPartnerIDFromContext(r)
+	if err != nil {
+		log.Error("failed to get partner_id from context", sl.Err(err))
+		response.Unauthorized(w, "authentication required")
+		return
+	}
+
+	order, err := h.service.GetPartnerOrderByPickupCode(r.Context(), partnerID, pickupCode)
+	if err != nil {
+		if errors.Is(err, orderErrors.ErrOrderNotFound) {
+			response.NotFound(w, "order not found")
+			return
+		}
+
+		log.Error("failed to get order by pickup code", sl.Err(err))
+		response.InternalError(w, nil)
+		return
+	}
+
+	response.Success(w, dto.ToPartnerOrderByCodeResponse(order))
+}
+
+// PartnerPickupOrder handles POST /partner/orders/{order_id}/pickup
+func (h *orderHandler) PartnerPickupOrder(w http.ResponseWriter, r *http.Request) {
+	const op = "order.handler.PartnerPickupOrder"
+	log := h.log.With(slog.String("op", op))
+
+	orderIDStr := chi.URLParam(r, "order_id")
+	orderID, err := uuid.Parse(orderIDStr)
+	if err != nil {
+		response.BadRequest(w, "invalid order_id format")
+		return
+	}
+
+	partnerID, err := h.getPartnerIDFromContext(r)
+	if err != nil {
+		log.Error("failed to get partner_id from context", sl.Err(err))
+		response.Unauthorized(w, "authentication required")
+		return
+	}
+
+	employeeID, err := h.getEmployeeIDFromContext(r)
+	if err != nil {
+		log.Error("failed to get employee user_id from context", sl.Err(err))
+		response.Unauthorized(w, "authentication required")
+		return
+	}
+
+	err = h.service.MarkOrderPickedUp(r.Context(), orderID, partnerID, employeeID)
+	if err != nil {
+		switch {
+		case errors.Is(err, orderErrors.ErrOrderNotFound):
+			response.NotFound(w, "order not found")
+		case errors.Is(err, orderErrors.ErrOrderNotReady):
+			response.BadRequest(w, "order is not ready for pickup")
+		default:
+			log.Error("failed to mark order as picked up", sl.Err(err))
+			response.InternalError(w, nil)
+		}
+
+		return
+	}
+
+	response.Success(w, dto.ToPartnerPickupResponse(
+		orderID.String(),
+		string(domain.OrderStatusPickedUp),
+		"order marked as picked up successfully",
+	))
 }
 
 func (h *orderHandler) getCustomerIDFromContext(r *http.Request) (uuid.UUID, error) {
@@ -199,4 +318,37 @@ func (h *orderHandler) getCustomerIDFromContext(r *http.Request) (uuid.UUID, err
 	}
 
 	return customerID, nil
+}
+
+func (h *orderHandler) getPartnerIDFromContext(r *http.Request) (uuid.UUID, error) {
+	partnerIDRaw := r.Context().Value("partner_id")
+	if partnerIDRaw == nil {
+		return uuid.Nil, sharedErrors.ErrNotFoundContextValue
+	}
+
+	partnerIDString, ok := partnerIDRaw.(string)
+	if !ok {
+		return uuid.Nil, sharedErrors.ErrNotFoundContextValue
+	}
+
+	partnerID, err := uuid.Parse(partnerIDString)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	return partnerID, nil
+}
+
+func (h *orderHandler) getEmployeeIDFromContext(r *http.Request) (uuid.UUID, error) {
+	employeeIDRaw := r.Context().Value("user_id")
+	if employeeIDRaw == nil {
+		return uuid.Nil, sharedErrors.ErrNotFoundContextValue
+	}
+
+	employeeID, ok := employeeIDRaw.(uuid.UUID)
+	if !ok {
+		return uuid.Nil, sharedErrors.ErrNotFoundContextValue
+	}
+
+	return employeeID, nil
 }

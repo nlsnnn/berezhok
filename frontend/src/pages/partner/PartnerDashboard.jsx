@@ -8,7 +8,7 @@ import Spinner from '@/components/ui/Spinner'
 import Button from '@/components/ui/Button'
 import StatusBadge from '@/components/ui/StatusBadge'
 import LocationCard from '@/components/ui/LocationCard'
-import { Building2, MapPin, Mail, User, KeyRound, Plus, AlertTriangle, Package } from 'lucide-react'
+import { Building2, MapPin, Mail, User, KeyRound, Plus, AlertTriangle, Package, QrCode } from 'lucide-react'
 
 export default function PartnerDashboard() {
   const { data, isLoading, isError, refetch } = useQuery({
@@ -143,7 +143,7 @@ function DashboardContent({ data }) {
       </div>
 
       {/* Quick actions */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <QuickAction
           icon={MapPin}
           title="Новая локация"
@@ -161,6 +161,12 @@ function DashboardContent({ data }) {
           title="Сменить пароль"
           desc="Обновить пароль входа"
           to="/partner/change-password"
+        />
+        <QuickAction
+          icon={QrCode}
+          title="Выдача заказа"
+          desc="Сканирование или код"
+          to="/partner/orders/pickup"
         />
       </div>
     </div>

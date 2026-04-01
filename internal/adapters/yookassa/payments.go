@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/nlsnnn/berezhok/internal/modules/payment/domain"
 	yk "github.com/rvinnie/yookassa-sdk-go/yookassa"
 	yoocommon "github.com/rvinnie/yookassa-sdk-go/yookassa/common"
 	yoopayment "github.com/rvinnie/yookassa-sdk-go/yookassa/payment"
+
+	"github.com/nlsnnn/berezhok/internal/modules/payment/domain"
 )
 
 type YookassaAdapter struct {
@@ -18,7 +19,7 @@ func NewAdapter(client *yk.PaymentHandler) *YookassaAdapter {
 	return &YookassaAdapter{client: client}
 }
 
-func (a *YookassaAdapter) Create(ctx context.Context, amount string, description string, returnURL string, metadata map[string]string) (domain.ProviderPaymentResult, error) {
+func (a *YookassaAdapter) Create(ctx context.Context, amount, description, returnURL string, metadata map[string]string) (domain.ProviderPaymentResult, error) {
 	payment, err := a.client.CreatePayment(ctx, &yoopayment.Payment{
 		Amount: &yoocommon.Amount{
 			Value:    amount,
@@ -32,7 +33,6 @@ func (a *YookassaAdapter) Create(ctx context.Context, amount string, description
 		Capture:     true,
 		Metadata:    metadata,
 	})
-
 	if err != nil {
 		return domain.ProviderPaymentResult{}, err
 	}

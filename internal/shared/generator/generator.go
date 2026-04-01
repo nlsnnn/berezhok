@@ -5,8 +5,10 @@ import (
 	"math/rand"
 )
 
-const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-const bytesForCode = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+const (
+	letterBytes  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	bytesForCode = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+)
 
 func randStringBytes(n int, charSet string) string {
 	b := make([]byte, n)
