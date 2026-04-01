@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -14,14 +13,15 @@ import (
 	catalogErrors "github.com/nlsnnn/berezhok/internal/modules/catalog/errors"
 	"github.com/nlsnnn/berezhok/internal/modules/order/domain"
 	orderErrors "github.com/nlsnnn/berezhok/internal/modules/order/errors"
-	orderRepos "github.com/nlsnnn/berezhok/internal/modules/order/repository"
 )
 
 type orderRepository interface {
 	CreateOrder(ctx context.Context, order *domain.Order) error
 	GetOrderByID(ctx context.Context, orderID uuid.UUID) (*domain.Order, error)
-	GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) (*orderRepos.OrderDetails, error)
-	ListOrdersFiltered(ctx context.Context, customerID uuid.UUID, status string, limit, offset int) ([]orderRepos.OrderListItem, int, error)
+	GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) (*domain.OrderDetails, error)
+	GetPartnerOrderByPickupCode(ctx context.Context, pickupCode string, partnerID uuid.UUID) (*domain.PartnerOrderByCode, error)
+	MarkOrderPickedUp(ctx context.Context, orderID, partnerID, employeeID uuid.UUID) error
+	ListOrdersFiltered(ctx context.Context, customerID uuid.UUID, status string, limit, offset int) ([]domain.OrderListItem, int, error)
 	UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, status domain.OrderStatus) error
 	ReserveBox(ctx context.Context, boxID uuid.UUID) (bool, error)
 }
@@ -39,40 +39,6 @@ type orderService struct {
 	paymentProvider paymentProvider
 	boxProvider     boxProvider
 	log             *slog.Logger
-}
-
-type CreateOrderResult struct {
-	PaymentLink string
-	OrderID     uuid.UUID
-}
-
-// ListOrdersResult contains paginated order list data
-type ListOrdersResult struct {
-	Items  []orderRepos.OrderListItem
-	Total  int
-	Limit  int
-	Offset int
-}
-
-// OrderDetailsResult contains detailed order data for GET /customer/orders/{order_id}
-type OrderDetailsResult struct {
-	ID              string
-	CustomerID      uuid.UUID
-	Status          string
-	PickupCode      string
-	QRCodeURL       string
-	Amount          float64
-	BoxName         string
-	BoxImageURL     string
-	LocationName    string
-	LocationAddress string
-	LocationPhone   string
-	LocationLat     float64
-	LocationLng     float64
-	PickupTimeStart time.Time
-	PickupTimeEnd   time.Time
-	CreatedAt       time.Time
-	ConfirmedAt     *time.Time
 }
 
 func NewOrderService(repo orderRepository, boxProvider boxProvider, paymentProvider paymentProvider, log *slog.Logger) *orderService {
@@ -156,8 +122,8 @@ func (s *orderService) GetOrderByID(ctx context.Context, orderID uuid.UUID) (*do
 	return order, nil
 }
 
-// GetOrderDetailsByID retrieves enriched order details for customer endpoint
-func (s *orderService) GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) (*OrderDetailsResult, error) {
+// GetOrderDetailsByID retrieves enriched order details for customer endpoint.
+func (s *orderService) GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) (*domain.OrderDetails, error) {
 	const op = "order.service.GetOrderDetailsByID"
 
 	order, err := s.repo.GetOrderDetailsByID(ctx, orderID)
@@ -165,25 +131,31 @@ func (s *orderService) GetOrderDetailsByID(ctx context.Context, orderID uuid.UUI
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	return &OrderDetailsResult{
-		ID:              order.ID.String(),
-		CustomerID:      order.CustomerID,
-		Status:          string(order.Status),
-		PickupCode:      order.PickupCode,
-		QRCodeURL:       order.QRCodeURL,
-		Amount:          order.Amount,
-		BoxName:         order.BoxName,
-		BoxImageURL:     order.BoxImageURL,
-		LocationName:    order.LocationName,
-		LocationAddress: order.LocationAddress,
-		LocationPhone:   order.LocationPhone,
-		LocationLat:     order.LocationLat,
-		LocationLng:     order.LocationLng,
-		PickupTimeStart: order.PickupTimeStart,
-		PickupTimeEnd:   order.PickupTimeEnd,
-		CreatedAt:       order.CreatedAt,
-		ConfirmedAt:     order.ConfirmedAt,
-	}, nil
+	return order, nil
+}
+
+// GetPartnerOrderByPickupCode retrieves partner-scoped order details by pickup code.
+func (s *orderService) GetPartnerOrderByPickupCode(ctx context.Context, partnerID uuid.UUID, pickupCode string) (*domain.PartnerOrderByCode, error) {
+	const op = "order.service.GetPartnerOrderByPickupCode"
+
+	order, err := s.repo.GetPartnerOrderByPickupCode(ctx, pickupCode, partnerID)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return order, nil
+}
+
+// MarkOrderPickedUp marks a partner's order as picked up.
+func (s *orderService) MarkOrderPickedUp(ctx context.Context, orderID, partnerID, employeeID uuid.UUID) error {
+	const op = "order.service.MarkOrderPickedUp"
+
+	err := s.repo.MarkOrderPickedUp(ctx, orderID, partnerID, employeeID)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	return nil
 }
 
 // ListOrdersByCustomerID retrieves filtered, paginated orders for a customer

@@ -216,6 +216,10 @@ func (app *application) mount() http.Handler {
 
 			// Media
 			r.Post("/media/upload", mediaHandler.Upload)
+
+			// Orders
+			r.Get("/partner/orders/by-code/{pickup_code}", orderHandler.GetPartnerOrderByPickupCode)
+			r.Post("/partner/orders/{order_id}/pickup", orderHandler.PartnerPickupOrder)
 		})
 
 		// == Admin Routes ==

@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
 	"github.com/nlsnnn/berezhok/internal/lib/pgconverter"
@@ -17,27 +18,6 @@ import (
 
 type OrderRepo struct {
 	q *sqlc.Queries
-}
-
-// OrderDetails represents enriched order data for detailed customer view
-type OrderDetails struct {
-	ID              uuid.UUID
-	CustomerID      uuid.UUID
-	Status          domain.OrderStatus
-	PickupCode      string
-	QRCodeURL       string
-	Amount          float64
-	BoxName         string
-	BoxImageURL     string
-	LocationName    string
-	LocationAddress string
-	LocationPhone   string
-	LocationLat     float64
-	LocationLng     float64
-	PickupTimeStart time.Time
-	PickupTimeEnd   time.Time
-	CreatedAt       time.Time
-	ConfirmedAt     *time.Time
 }
 
 func NewOrderRepo(q *sqlc.Queries) *OrderRepo {
@@ -84,7 +64,7 @@ func (r *OrderRepo) GetOrderByID(ctx context.Context, orderID uuid.UUID) (*domai
 }
 
 // GetOrderDetailsByID retrieves enriched order details by order ID
-func (r *OrderRepo) GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) (*OrderDetails, error) {
+func (r *OrderRepo) GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) (*domain.OrderDetails, error) {
 	row, err := r.q.GetOrderDetailsByID(ctx, orderID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -102,7 +82,7 @@ func (r *OrderRepo) GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) 
 		confirmedAt = &value
 	}
 
-	return &OrderDetails{
+	return &domain.OrderDetails{
 		ID:              row.ID,
 		CustomerID:      row.UserID,
 		Status:          domain.OrderStatus(row.Status),
@@ -121,6 +101,70 @@ func (r *OrderRepo) GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) 
 		CreatedAt:       row.CreatedAt,
 		ConfirmedAt:     confirmedAt,
 	}, nil
+}
+
+// GetPartnerOrderByPickupCode retrieves partner-scoped order details by pickup code.
+func (r *OrderRepo) GetPartnerOrderByPickupCode(ctx context.Context, pickupCode string, partnerID uuid.UUID) (*domain.PartnerOrderByCode, error) {
+	row, err := r.q.GetPartnerOrderByPickupCode(ctx, sqlc.GetPartnerOrderByPickupCodeParams{
+		PickupCode: pickupCode,
+		PartnerID:  partnerID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, orderErrors.ErrOrderNotFound
+		}
+
+		return nil, err
+	}
+
+	return &domain.PartnerOrderByCode{
+		ID:              row.ID,
+		PickupCode:      row.PickupCode,
+		Status:          domain.OrderStatus(row.Status),
+		BoxName:         row.BoxName,
+		BoxImageURL:     row.BoxImageUrl,
+		CustomerPhone:   row.CustomerPhone,
+		CustomerName:    row.CustomerName,
+		PickupTimeStart: row.PickupTimeStart,
+		PickupTimeEnd:   row.PickupTimeEnd,
+		CreatedAt:       row.CreatedAt,
+	}, nil
+}
+
+// MarkOrderPickedUp marks partner-owned order as picked up by employee.
+func (r *OrderRepo) MarkOrderPickedUp(ctx context.Context, orderID, partnerID, employeeID uuid.UUID) error {
+	partnerOrder, err := r.q.GetPartnerOrderByID(ctx, sqlc.GetPartnerOrderByIDParams{
+		ID:        orderID,
+		PartnerID: partnerID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return orderErrors.ErrOrderNotFound
+		}
+
+		return err
+	}
+
+	if domain.OrderStatus(partnerOrder.Status) != domain.OrderStatusConfirmed {
+		return orderErrors.ErrOrderNotReady
+	}
+
+	rowsAffected, err := r.q.MarkOrderPickedUp(ctx, sqlc.MarkOrderPickedUpParams{
+		ID: orderID,
+		PickedUpConfirmedBy: pgtype.UUID{
+			Bytes: employeeID,
+			Valid: true,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return orderErrors.ErrOrderNotReady
+	}
+
+	return nil
 }
 
 // ListOrdersByCustomerID retrieves all orders for a customer
@@ -234,21 +278,8 @@ func (r *OrderRepo) toDomain(sqlOrder sqlc.Order) *domain.Order {
 	return order
 }
 
-// OrderListItem represents enriched order data for list view
-type OrderListItem struct {
-	ID              uuid.UUID
-	Status          domain.OrderStatus
-	PickupCode      string
-	Amount          float64
-	BoxName         string
-	LocationName    string
-	PickupTimeStart time.Time
-	CreatedAt       time.Time
-	HasReview       bool
-}
-
 // ListOrdersFiltered returns paginated, optionally filtered orders with box/location names
-func (r *OrderRepo) ListOrdersFiltered(ctx context.Context, customerID uuid.UUID, status string, limit, offset int) ([]OrderListItem, int, error) {
+func (r *OrderRepo) ListOrdersFiltered(ctx context.Context, customerID uuid.UUID, status string, limit, offset int) ([]domain.OrderListItem, int, error) {
 	sqlItems, err := r.q.ListOrdersByCustomerIDFiltered(ctx, sqlc.ListOrdersByCustomerIDFilteredParams{
 		UserID:  customerID,
 		Column2: status,
@@ -259,9 +290,9 @@ func (r *OrderRepo) ListOrdersFiltered(ctx context.Context, customerID uuid.UUID
 		return nil, 0, err
 	}
 
-	items := make([]OrderListItem, len(sqlItems))
+	items := make([]domain.OrderListItem, len(sqlItems))
 	for i, row := range sqlItems {
-		items[i] = OrderListItem{
+		items[i] = domain.OrderListItem{
 			ID:              row.ID,
 			Status:          domain.OrderStatus(row.Status),
 			PickupCode:      row.PickupCode,

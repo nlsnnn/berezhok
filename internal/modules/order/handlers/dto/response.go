@@ -3,7 +3,7 @@ package dto
 import (
 	"time"
 
-	orderService "github.com/nlsnnn/berezhok/internal/modules/order/service"
+	"github.com/nlsnnn/berezhok/internal/modules/order/domain"
 )
 
 // CreateOrderResponse represents response after creating order
@@ -50,6 +50,32 @@ type OrderPickupTimeResponse struct {
 	End   time.Time `json:"end"`
 }
 
+type PartnerOrderByCodeResponse struct {
+	ID         string                             `json:"id"`
+	PickupCode string                             `json:"pickup_code"`
+	Status     string                             `json:"status"`
+	Box        PartnerOrderByCodeBoxResponse      `json:"box"`
+	Customer   PartnerOrderByCodeCustomerResponse `json:"customer"`
+	PickupTime OrderPickupTimeResponse            `json:"pickup_time"`
+	CreatedAt  time.Time                          `json:"created_at"`
+}
+
+type PartnerOrderByCodeBoxResponse struct {
+	Name     string `json:"name"`
+	ImageURL string `json:"image_url"`
+}
+
+type PartnerOrderByCodeCustomerResponse struct {
+	Phone string `json:"phone"`
+	Name  string `json:"name,omitempty"`
+}
+
+type PartnerPickupResponse struct {
+	OrderID string `json:"order_id"`
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
+
 // PaginationResponse represents pagination metadata
 type PaginationResponse struct {
 	Total   int  `json:"total"`
@@ -65,10 +91,10 @@ type OrderListResponse struct {
 }
 
 // ToOrderDetailResponse converts order details to API response contract for GET /customer/orders/{order_id}
-func ToOrderDetailResponse(order *orderService.OrderDetailsResult) OrderDetailResponse {
+func ToOrderDetailResponse(order *domain.OrderDetails) OrderDetailResponse {
 	return OrderDetailResponse{
-		ID:         order.ID,
-		Status:     order.Status,
+		ID:         order.ID.String(),
+		Status:     string(order.Status),
 		PickupCode: order.PickupCode,
 		QRCodeURL:  order.QRCodeURL,
 		Amount:     order.Amount,
@@ -91,6 +117,35 @@ func ToOrderDetailResponse(order *orderService.OrderDetailsResult) OrderDetailRe
 		},
 		CreatedAt:   order.CreatedAt,
 		ConfirmedAt: order.ConfirmedAt,
+	}
+}
+
+func ToPartnerOrderByCodeResponse(order *domain.PartnerOrderByCode) PartnerOrderByCodeResponse {
+	return PartnerOrderByCodeResponse{
+		ID:         order.ID.String(),
+		PickupCode: order.PickupCode,
+		Status:     string(order.Status),
+		CreatedAt:  order.CreatedAt,
+		Box: PartnerOrderByCodeBoxResponse{
+			Name:     order.BoxName,
+			ImageURL: order.BoxImageURL,
+		},
+		Customer: PartnerOrderByCodeCustomerResponse{
+			Phone: order.CustomerPhone,
+			Name:  order.CustomerName,
+		},
+		PickupTime: OrderPickupTimeResponse{
+			Start: order.PickupTimeStart,
+			End:   order.PickupTimeEnd,
+		},
+	}
+}
+
+func ToPartnerPickupResponse(orderID, status, message string) PartnerPickupResponse {
+	return PartnerPickupResponse{
+		OrderID: orderID,
+		Status:  status,
+		Message: message,
 	}
 }
 

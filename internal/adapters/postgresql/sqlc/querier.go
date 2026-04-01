@@ -61,6 +61,8 @@ type Querier interface {
 	GetLocationDetailsByID(ctx context.Context, id uuid.UUID) (GetLocationDetailsByIDRow, error)
 	GetOrderByID(ctx context.Context, id uuid.UUID) (Order, error)
 	GetOrderDetailsByID(ctx context.Context, id uuid.UUID) (GetOrderDetailsByIDRow, error)
+	GetPartnerOrderByID(ctx context.Context, arg GetPartnerOrderByIDParams) (GetPartnerOrderByIDRow, error)
+	GetPartnerOrderByPickupCode(ctx context.Context, arg GetPartnerOrderByPickupCodeParams) (GetPartnerOrderByPickupCodeRow, error)
 	GetPartnerProfile(ctx context.Context, id uuid.UUID) (GetPartnerProfileRow, error)
 	GetPaymentByID(ctx context.Context, id uuid.UUID) (Payment, error)
 	GetPaymentByOrderID(ctx context.Context, orderID uuid.UUID) (Payment, error)
@@ -83,6 +85,7 @@ type Querier interface {
 	ListPartnerEmployees(ctx context.Context) ([]PartnerEmployee, error)
 	// Партнёры (юридические лица)
 	ListPartners(ctx context.Context) ([]Partner, error)
+	MarkOrderPickedUp(ctx context.Context, arg MarkOrderPickedUpParams) (int64, error)
 	ReserveBox(ctx context.Context, id uuid.UUID) (int64, error)
 	// Location queries for customer app
 	// Search locations

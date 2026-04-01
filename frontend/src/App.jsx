@@ -14,6 +14,7 @@ import LocationsPage from '@/pages/partner/LocationsPage'
 import BoxesPage from '@/pages/partner/BoxesPage'
 import CreateBoxPage from '@/pages/partner/CreateBoxPage'
 import EditBoxPage from '@/pages/partner/EditBoxPage'
+import OrderPickupPage from '@/pages/partner/OrderPickupPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -53,6 +54,9 @@ export default function App() {
               <Route path="/partner/boxes" element={<BoxesPage />} />
               <Route path="/partner/boxes/new" element={<CreateBoxPage />} />
               <Route path="/partner/boxes/:id/edit" element={<EditBoxPage />} />
+
+              {/* Orders */}
+              <Route path="/partner/orders/pickup" element={<OrderPickupPage />} />
             </Route>
 
             {/* Fallback */}

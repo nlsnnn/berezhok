@@ -38,6 +38,45 @@ JOIN surprise_boxes sb ON sb.id = o.box_id
 JOIN locations l ON l.id = o.location_id
 WHERE o.id = $1;
 
+-- name: GetPartnerOrderByPickupCode :one
+SELECT
+    o.id,
+    o.pickup_code,
+    o.status,
+    sb.name AS box_name,
+    COALESCE(sb.image_url, '') AS box_image_url,
+    u.phone AS customer_phone,
+    COALESCE(u.name, '') AS customer_name,
+    o.pickup_time_start,
+    o.pickup_time_end,
+    o.created_at
+FROM orders o
+JOIN surprise_boxes sb ON sb.id = o.box_id
+JOIN users u ON u.id = o.user_id
+JOIN locations l ON l.id = o.location_id
+WHERE o.pickup_code = $1
+  AND l.partner_id = $2
+ORDER BY o.created_at DESC
+LIMIT 1;
+
+-- name: GetPartnerOrderByID :one
+SELECT
+    o.id,
+    o.status
+FROM orders o
+JOIN locations l ON l.id = o.location_id
+WHERE o.id = $1
+  AND l.partner_id = $2;
+
+-- name: MarkOrderPickedUp :execrows
+UPDATE orders
+SET status = 'completed',
+    picked_up_at = NOW(),
+    picked_up_confirmed_by = $2,
+    updated_at = NOW()
+WHERE id = $1
+  AND status = 'confirmed';
+
 -- name: ListOrdersByCustomerID :many
 SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC;
 
