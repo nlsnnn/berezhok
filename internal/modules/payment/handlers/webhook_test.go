@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+
 	"github.com/nlsnnn/berezhok/internal/lib/validator"
 )
 

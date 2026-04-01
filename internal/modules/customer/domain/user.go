@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
 	sharedDomain "github.com/nlsnnn/berezhok/internal/shared/domain"
 )
 

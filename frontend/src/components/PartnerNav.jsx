@@ -1,13 +1,11 @@
-import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { Leaf, LogOut, LayoutDashboard, MapPin, Package } from 'lucide-react'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { Leaf, LogOut, LayoutDashboard, MapPin, Package, QrCode } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { cn } from '@/lib/utils'
 
 export default function PartnerNav() {
   const { logout } = useAuth()
   const navigate = useNavigate()
-  const location = useLocation()
-
   const handleLogout = () => {
     logout()
     navigate('/partner/login')
@@ -17,6 +15,7 @@ export default function PartnerNav() {
     { to: '/partner/dashboard', label: 'Дашборд', icon: LayoutDashboard },
     { to: '/partner/locations', label: 'Локации', icon: MapPin },
     { to: '/partner/boxes', label: 'Боксы', icon: Package },
+    { to: '/partner/orders/pickup', label: 'Выдача', icon: QrCode },
   ]
 
   return (

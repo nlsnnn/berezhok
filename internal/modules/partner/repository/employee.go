@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 )
@@ -59,7 +60,7 @@ func (r *EmployeeRepo) ListByPartnerID(ctx context.Context, partnerID string) ([
 	return result, nil
 }
 
-func (r *EmployeeRepo) Create(ctx context.Context, partnerID string, email, passwordHash, name string, role domain.EmployeeRole) (domain.Employee, error) {
+func (r *EmployeeRepo) Create(ctx context.Context, partnerID, email, passwordHash, name string, role domain.EmployeeRole) (domain.Employee, error) {
 	uid := uuid.MustParse(partnerID)
 	e, err := r.q.CreatePartnerEmployee(ctx, sqlc.CreatePartnerEmployeeParams{
 		PartnerID:    uid,

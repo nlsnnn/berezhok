@@ -22,7 +22,7 @@ type paymentRepo interface {
 }
 
 type paymentProvider interface {
-	Create(ctx context.Context, amount string, description string, returnURL string, metadata map[string]string) (domain.ProviderPaymentResult, error)
+	Create(ctx context.Context, amount, description, returnURL string, metadata map[string]string) (domain.ProviderPaymentResult, error)
 }
 
 type orderStatusUpdater interface {

@@ -32,13 +32,13 @@ type UploadFileInput struct {
 }
 
 type mediaService struct {
-	storage  Storage
+	storage   Storage
 	mediaRepo MediaRepository
-	log      *slog.Logger
+	log       *slog.Logger
 }
 
 type Storage interface {
-	UploadFile(ctx context.Context, file io.Reader, filename string, contentType string) (string, error)
+	UploadFile(ctx context.Context, file io.Reader, filename, contentType string) (string, error)
 	DeleteFile(ctx context.Context, key string) error
 	GetPublicURL(key string) string
 }
@@ -51,9 +51,9 @@ type MediaRepository interface {
 
 func NewMediaService(storage Storage, mediaRepo MediaRepository, log *slog.Logger) *mediaService {
 	return &mediaService{
-		storage:  storage,
+		storage:   storage,
 		mediaRepo: mediaRepo,
-		log:      log,
+		log:       log,
 	}
 }
 

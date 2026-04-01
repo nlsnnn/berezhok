@@ -4,9 +4,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
+
 	"github.com/nlsnnn/berezhok/internal/shared/domain"
 	"github.com/nlsnnn/berezhok/internal/shared/generator"
-	"github.com/shopspring/decimal"
 )
 
 type OrderStatus string

@@ -4,9 +4,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nlsnnn/berezhok/internal/shared/config"
 	yk "github.com/rvinnie/yookassa-sdk-go/yookassa"
 	yooopts "github.com/rvinnie/yookassa-sdk-go/yookassa/opts"
+
+	"github.com/nlsnnn/berezhok/internal/shared/config"
 )
 
 func New(cfg config.Yookassa) *yk.PaymentHandler {

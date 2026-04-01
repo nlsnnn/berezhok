@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/google/uuid"
+
 	sharedConfig "github.com/nlsnnn/berezhok/internal/shared/config"
 )
 
@@ -46,7 +47,7 @@ func NewStorage(cfg sharedConfig.S3) (*Storage, error) {
 	}, nil
 }
 
-func (s *Storage) UploadFile(ctx context.Context, file io.Reader, filename string, contentType string) (string, error) {
+func (s *Storage) UploadFile(ctx context.Context, file io.Reader, filename, contentType string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 

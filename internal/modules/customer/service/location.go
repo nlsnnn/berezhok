@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+
 	catalogDomain "github.com/nlsnnn/berezhok/internal/modules/catalog/domain"
 	"github.com/nlsnnn/berezhok/internal/modules/customer/repository"
 )

@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
+
 	"github.com/nlsnnn/berezhok/internal/modules/order/domain"
 )
 
@@ -24,7 +25,7 @@ func (u *orderStatusUpdater) MarkOrderPaid(ctx context.Context, orderID uuid.UUI
 	const op = "orderStatusUpdater.MarkOrderPaid"
 	log := u.log.With(slog.String("op", op), slog.String("order_id", orderID.String()))
 
-	err := u.repo.UpdateOrderStatus(ctx, orderID, domain.OrderStatusPaid)
+	err := u.repo.UpdateOrderStatus(ctx, orderID, domain.OrderStatusConfirmed)
 	if err != nil {
 		log.Error("failed to update order status to paid", slog.String("error", err.Error()))
 		return err

@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	prefixKey   = "sms:code:"
-	codeTTL     = 5 * time.Minute
+	prefixKey = "sms:code:"
+	codeTTL   = 5 * time.Minute
 )
 
 var ErrCodeNotFound = errors.New("code not found")

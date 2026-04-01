@@ -3,9 +3,12 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
 	"github.com/nlsnnn/berezhok/internal/lib/pgconverter"
 	"github.com/nlsnnn/berezhok/internal/modules/order/domain"
@@ -58,6 +61,110 @@ func (r *OrderRepo) GetOrderByID(ctx context.Context, orderID uuid.UUID) (*domai
 	}
 
 	return r.toDomain(sqlOrder), nil
+}
+
+// GetOrderDetailsByID retrieves enriched order details by order ID
+func (r *OrderRepo) GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) (*domain.OrderDetails, error) {
+	row, err := r.q.GetOrderDetailsByID(ctx, orderID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, orderErrors.ErrOrderNotFound
+		}
+		return nil, err
+	}
+
+	lat, _ := row.LocationLat.(float64)
+	lng, _ := row.LocationLng.(float64)
+
+	var confirmedAt *time.Time
+	if row.PartnerConfirmedAt.Valid {
+		value := row.PartnerConfirmedAt.Time
+		confirmedAt = &value
+	}
+
+	return &domain.OrderDetails{
+		ID:              row.ID,
+		CustomerID:      row.UserID,
+		Status:          domain.OrderStatus(row.Status),
+		PickupCode:      row.PickupCode,
+		QRCodeURL:       row.QrCodeUrl,
+		Amount:          pgconverter.NumericToDecimalOrZero(row.Amount).InexactFloat64(),
+		BoxName:         row.BoxName,
+		BoxImageURL:     row.BoxImageUrl,
+		LocationName:    row.LocationName,
+		LocationAddress: row.LocationAddress,
+		LocationPhone:   row.LocationPhone,
+		LocationLat:     lat,
+		LocationLng:     lng,
+		PickupTimeStart: row.PickupTimeStart,
+		PickupTimeEnd:   row.PickupTimeEnd,
+		CreatedAt:       row.CreatedAt,
+		ConfirmedAt:     confirmedAt,
+	}, nil
+}
+
+// GetPartnerOrderByPickupCode retrieves partner-scoped order details by pickup code.
+func (r *OrderRepo) GetPartnerOrderByPickupCode(ctx context.Context, pickupCode string, partnerID uuid.UUID) (*domain.PartnerOrderByCode, error) {
+	row, err := r.q.GetPartnerOrderByPickupCode(ctx, sqlc.GetPartnerOrderByPickupCodeParams{
+		PickupCode: pickupCode,
+		PartnerID:  partnerID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, orderErrors.ErrOrderNotFound
+		}
+
+		return nil, err
+	}
+
+	return &domain.PartnerOrderByCode{
+		ID:              row.ID,
+		PickupCode:      row.PickupCode,
+		Status:          domain.OrderStatus(row.Status),
+		BoxName:         row.BoxName,
+		BoxImageURL:     row.BoxImageUrl,
+		CustomerPhone:   row.CustomerPhone,
+		CustomerName:    row.CustomerName,
+		PickupTimeStart: row.PickupTimeStart,
+		PickupTimeEnd:   row.PickupTimeEnd,
+		CreatedAt:       row.CreatedAt,
+	}, nil
+}
+
+// MarkOrderPickedUp marks partner-owned order as picked up by employee.
+func (r *OrderRepo) MarkOrderPickedUp(ctx context.Context, orderID, partnerID, employeeID uuid.UUID) error {
+	partnerOrder, err := r.q.GetPartnerOrderByID(ctx, sqlc.GetPartnerOrderByIDParams{
+		ID:        orderID,
+		PartnerID: partnerID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return orderErrors.ErrOrderNotFound
+		}
+
+		return err
+	}
+
+	if domain.OrderStatus(partnerOrder.Status) != domain.OrderStatusConfirmed {
+		return orderErrors.ErrOrderNotReady
+	}
+
+	rowsAffected, err := r.q.MarkOrderPickedUp(ctx, sqlc.MarkOrderPickedUpParams{
+		ID: orderID,
+		PickedUpConfirmedBy: pgtype.UUID{
+			Bytes: employeeID,
+			Valid: true,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return orderErrors.ErrOrderNotReady
+	}
+
+	return nil
 }
 
 // ListOrdersByCustomerID retrieves all orders for a customer
@@ -169,4 +276,42 @@ func (r *OrderRepo) toDomain(sqlOrder sqlc.Order) *domain.Order {
 	}
 
 	return order
+}
+
+// ListOrdersFiltered returns paginated, optionally filtered orders with box/location names
+func (r *OrderRepo) ListOrdersFiltered(ctx context.Context, customerID uuid.UUID, status string, limit, offset int) ([]domain.OrderListItem, int, error) {
+	sqlItems, err := r.q.ListOrdersByCustomerIDFiltered(ctx, sqlc.ListOrdersByCustomerIDFilteredParams{
+		UserID:  customerID,
+		Column2: status,
+		Limit:   int32(limit),
+		Offset:  int32(offset),
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+
+	items := make([]domain.OrderListItem, len(sqlItems))
+	for i, row := range sqlItems {
+		items[i] = domain.OrderListItem{
+			ID:              row.ID,
+			Status:          domain.OrderStatus(row.Status),
+			PickupCode:      row.PickupCode,
+			Amount:          pgconverter.NumericToDecimalOrZero(row.Amount).InexactFloat64(),
+			BoxName:         row.BoxName,
+			LocationName:    row.LocationName,
+			PickupTimeStart: row.PickupTimeStart,
+			CreatedAt:       row.CreatedAt,
+			HasReview:       row.HasReview,
+		}
+	}
+
+	total, err := r.q.CountOrdersByCustomerID(ctx, sqlc.CountOrdersByCustomerIDParams{
+		UserID:  customerID,
+		Column2: status,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return items, int(total), nil
 }

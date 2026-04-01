@@ -5,8 +5,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nlsnnn/berezhok/internal/shared/domain"
 	"github.com/shopspring/decimal"
+
+	"github.com/nlsnnn/berezhok/internal/shared/domain"
 )
 
 type BoxStatus string
