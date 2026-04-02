@@ -24,7 +24,7 @@ function CreateBoxPageBase() {
       description: formData.description,
       original_price: formData.original_price || null,
       discount_price: Number(formData.discount_price),
-      quantity_available: Number(formData.quantity_available),
+      quantity: Number(formData.quantity_available),
       pickup_time_start: formData.pickup_time_start,
       pickup_time_end: formData.pickup_time_end,
       image_url: formData.image_url || '',

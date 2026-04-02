@@ -17,7 +17,10 @@ const countOrdersByCustomerID = `-- name: CountOrdersByCustomerID :one
 SELECT COUNT(*)
 FROM orders o
 WHERE o.user_id = $1
-  AND ($2 = '' OR o.status::text = $2)
+  AND (
+    $2 = ''
+    OR o.status::text = $2
+  )
 `
 
 type CountOrdersByCustomerIDParams struct {
@@ -34,11 +37,19 @@ func (q *Queries) CountOrdersByCustomerID(ctx context.Context, arg CountOrdersBy
 
 const createOrder = `-- name: CreateOrder :one
 INSERT INTO orders (
-    user_id, box_id, location_id, pickup_code, qr_code_url, amount,
-    pickup_time_start, pickup_time_end, status, partner_confirmation_deadline
-) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
-) RETURNING id, user_id, box_id, location_id, pickup_code, qr_code_url, amount, pickup_time_start, pickup_time_end, status, partner_confirmation_deadline, partner_confirmed_at, partner_confirmed_by, cancellation_reason, cancelled_at, picked_up_at, picked_up_confirmed_by, user_confirmed_at, auto_completed_at, created_at, updated_at
+    user_id,
+    box_id,
+    location_id,
+    pickup_code,
+    qr_code_url,
+    amount,
+    pickup_time_start,
+    pickup_time_end,
+    status,
+    partner_confirmation_deadline
+  )
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING id, user_id, box_id, location_id, pickup_code, qr_code_url, amount, pickup_time_start, pickup_time_end, status, partner_confirmation_deadline, partner_confirmed_at, partner_confirmed_by, cancellation_reason, cancelled_at, picked_up_at, picked_up_confirmed_by, user_confirmed_at, auto_completed_at, created_at, updated_at
 `
 
 type CreateOrderParams struct {
@@ -95,9 +106,12 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 }
 
 const findActiveOrdersByLocationId = `-- name: FindActiveOrdersByLocationId :many
-SELECT o.id, o.user_id, o.box_id, o.location_id, o.pickup_code, o.qr_code_url, o.amount, o.pickup_time_start, o.pickup_time_end, o.status, o.partner_confirmation_deadline, o.partner_confirmed_at, o.partner_confirmed_by, o.cancellation_reason, o.cancelled_at, o.picked_up_at, o.picked_up_confirmed_by, o.user_confirmed_at, o.auto_completed_at, o.created_at, o.updated_at FROM orders o
-JOIN surprise_boxes sb ON o.box_id = sb.id
-WHERE o.location_id = $1 AND o.status IN ('pending', 'paid', 'confirmed') AND sb.quantity_available > 0
+SELECT o.id, o.user_id, o.box_id, o.location_id, o.pickup_code, o.qr_code_url, o.amount, o.pickup_time_start, o.pickup_time_end, o.status, o.partner_confirmation_deadline, o.partner_confirmed_at, o.partner_confirmed_by, o.cancellation_reason, o.cancelled_at, o.picked_up_at, o.picked_up_confirmed_by, o.user_confirmed_at, o.auto_completed_at, o.created_at, o.updated_at
+FROM orders o
+  JOIN surprise_boxes sb ON o.box_id = sb.id
+WHERE o.location_id = $1
+  AND o.status IN ('pending', 'paid', 'confirmed')
+  AND sb.quantity_available > 0
 `
 
 func (q *Queries) FindActiveOrdersByLocationId(ctx context.Context, locationID uuid.UUID) ([]Order, error) {
@@ -143,7 +157,9 @@ func (q *Queries) FindActiveOrdersByLocationId(ctx context.Context, locationID u
 }
 
 const getOrderByID = `-- name: GetOrderByID :one
-SELECT id, user_id, box_id, location_id, pickup_code, qr_code_url, amount, pickup_time_start, pickup_time_end, status, partner_confirmation_deadline, partner_confirmed_at, partner_confirmed_by, cancellation_reason, cancelled_at, picked_up_at, picked_up_confirmed_by, user_confirmed_at, auto_completed_at, created_at, updated_at FROM orders WHERE id = $1
+SELECT id, user_id, box_id, location_id, pickup_code, qr_code_url, amount, pickup_time_start, pickup_time_end, status, partner_confirmation_deadline, partner_confirmed_at, partner_confirmed_by, cancellation_reason, cancelled_at, picked_up_at, picked_up_confirmed_by, user_confirmed_at, auto_completed_at, created_at, updated_at
+FROM orders
+WHERE id = $1
 `
 
 func (q *Queries) GetOrderByID(ctx context.Context, id uuid.UUID) (Order, error) {
@@ -176,27 +192,26 @@ func (q *Queries) GetOrderByID(ctx context.Context, id uuid.UUID) (Order, error)
 }
 
 const getOrderDetailsByID = `-- name: GetOrderDetailsByID :one
-SELECT
-    o.id,
-    o.user_id,
-    o.status,
-    o.pickup_code,
-    COALESCE(o.qr_code_url, '') AS qr_code_url,
-    o.amount,
-    o.pickup_time_start,
-    o.pickup_time_end,
-    o.created_at,
-    o.partner_confirmed_at,
-    sb.name AS box_name,
-    COALESCE(sb.image_url, '') AS box_image_url,
-    l.name AS location_name,
-    l.address AS location_address,
-    COALESCE(l.phone, '') AS location_phone,
-    ST_Y(l.location::geometry) AS location_lat,
-    ST_X(l.location::geometry) AS location_lng
+SELECT o.id,
+  o.user_id,
+  o.status,
+  o.pickup_code,
+  COALESCE(o.qr_code_url, '') AS qr_code_url,
+  o.amount,
+  o.pickup_time_start,
+  o.pickup_time_end,
+  o.created_at,
+  o.partner_confirmed_at,
+  sb.name AS box_name,
+  COALESCE(sb.image_url, '') AS box_image_url,
+  l.name AS location_name,
+  l.address AS location_address,
+  COALESCE(l.phone, '') AS location_phone,
+  ST_Y(l.location::geometry) AS location_lat,
+  ST_X(l.location::geometry) AS location_lng
 FROM orders o
-JOIN surprise_boxes sb ON sb.id = o.box_id
-JOIN locations l ON l.id = o.location_id
+  JOIN surprise_boxes sb ON sb.id = o.box_id
+  JOIN locations l ON l.id = o.location_id
 WHERE o.id = $1
 `
 
@@ -246,11 +261,10 @@ func (q *Queries) GetOrderDetailsByID(ctx context.Context, id uuid.UUID) (GetOrd
 }
 
 const getPartnerOrderByID = `-- name: GetPartnerOrderByID :one
-SELECT
-    o.id,
-    o.status
+SELECT o.id,
+  o.status
 FROM orders o
-JOIN locations l ON l.id = o.location_id
+  JOIN locations l ON l.id = o.location_id
 WHERE o.id = $1
   AND l.partner_id = $2
 `
@@ -273,21 +287,20 @@ func (q *Queries) GetPartnerOrderByID(ctx context.Context, arg GetPartnerOrderBy
 }
 
 const getPartnerOrderByPickupCode = `-- name: GetPartnerOrderByPickupCode :one
-SELECT
-    o.id,
-    o.pickup_code,
-    o.status,
-    sb.name AS box_name,
-    COALESCE(sb.image_url, '') AS box_image_url,
-    u.phone AS customer_phone,
-    COALESCE(u.name, '') AS customer_name,
-    o.pickup_time_start,
-    o.pickup_time_end,
-    o.created_at
+SELECT o.id,
+  o.pickup_code,
+  o.status,
+  sb.name AS box_name,
+  COALESCE(sb.image_url, '') AS box_image_url,
+  u.phone AS customer_phone,
+  COALESCE(u.name, '') AS customer_name,
+  o.pickup_time_start,
+  o.pickup_time_end,
+  o.created_at
 FROM orders o
-JOIN surprise_boxes sb ON sb.id = o.box_id
-JOIN users u ON u.id = o.user_id
-JOIN locations l ON l.id = o.location_id
+  JOIN surprise_boxes sb ON sb.id = o.box_id
+  JOIN users u ON u.id = o.user_id
+  JOIN locations l ON l.id = o.location_id
 WHERE o.pickup_code = $1
   AND l.partner_id = $2
 ORDER BY o.created_at DESC
@@ -331,7 +344,10 @@ func (q *Queries) GetPartnerOrderByPickupCode(ctx context.Context, arg GetPartne
 }
 
 const listOrdersByCustomerID = `-- name: ListOrdersByCustomerID :many
-SELECT id, user_id, box_id, location_id, pickup_code, qr_code_url, amount, pickup_time_start, pickup_time_end, status, partner_confirmation_deadline, partner_confirmed_at, partner_confirmed_by, cancellation_reason, cancelled_at, picked_up_at, picked_up_confirmed_by, user_confirmed_at, auto_completed_at, created_at, updated_at FROM orders WHERE user_id = $1 ORDER BY created_at DESC
+SELECT id, user_id, box_id, location_id, pickup_code, qr_code_url, amount, pickup_time_start, pickup_time_end, status, partner_confirmation_deadline, partner_confirmed_at, partner_confirmed_by, cancellation_reason, cancelled_at, picked_up_at, picked_up_confirmed_by, user_confirmed_at, auto_completed_at, created_at, updated_at
+FROM orders
+WHERE user_id = $1
+ORDER BY created_at DESC
 `
 
 func (q *Queries) ListOrdersByCustomerID(ctx context.Context, userID uuid.UUID) ([]Order, error) {
@@ -377,21 +393,27 @@ func (q *Queries) ListOrdersByCustomerID(ctx context.Context, userID uuid.UUID) 
 }
 
 const listOrdersByCustomerIDFiltered = `-- name: ListOrdersByCustomerIDFiltered :many
-SELECT
-    o.id, o.status, o.pickup_code, o.amount,
-    o.pickup_time_start, o.created_at,
-    sb.name AS box_name,
-    l.name AS location_name,
-    EXISTS(
-        SELECT 1
-        FROM reviews r
-        WHERE r.order_id = o.id
-    ) AS has_review
+SELECT o.id,
+  o.status,
+  o.pickup_code,
+  o.amount,
+  o.pickup_time_start,
+  o.created_at,
+  sb.name AS box_name,
+  l.name AS location_name,
+  EXISTS(
+    SELECT 1
+    FROM reviews r
+    WHERE r.order_id = o.id
+  ) AS has_review
 FROM orders o
-JOIN surprise_boxes sb ON o.box_id = sb.id
-JOIN locations l ON o.location_id = l.id
+  JOIN surprise_boxes sb ON o.box_id = sb.id
+  JOIN locations l ON o.location_id = l.id
 WHERE o.user_id = $1
-  AND ($2 = '' OR o.status::text = $2)
+  AND (
+    $2 = ''
+    OR o.status::text = $2
+  )
 ORDER BY o.created_at DESC
 LIMIT $3 OFFSET $4
 `
@@ -453,9 +475,9 @@ func (q *Queries) ListOrdersByCustomerIDFiltered(ctx context.Context, arg ListOr
 const markOrderPickedUp = `-- name: MarkOrderPickedUp :execrows
 UPDATE orders
 SET status = 'completed',
-    picked_up_at = NOW(),
-    picked_up_confirmed_by = $2,
-    updated_at = NOW()
+  picked_up_at = NOW(),
+  picked_up_confirmed_by = $2,
+  updated_at = NOW()
 WHERE id = $1
   AND status = 'confirmed'
 `
@@ -476,7 +498,9 @@ func (q *Queries) MarkOrderPickedUp(ctx context.Context, arg MarkOrderPickedUpPa
 const reserveBox = `-- name: ReserveBox :execrows
 UPDATE surprise_boxes
 SET quantity_available = quantity_available - 1
-WHERE id = $1 AND quantity_available > 0 AND status = 'active'
+WHERE id = $1
+  AND quantity_available > 0
+  AND status = 'active'
 `
 
 func (q *Queries) ReserveBox(ctx context.Context, id uuid.UUID) (int64, error) {
@@ -488,10 +512,11 @@ func (q *Queries) ReserveBox(ctx context.Context, id uuid.UUID) (int64, error) {
 }
 
 const updateOrderStatus = `-- name: UpdateOrderStatus :one
-UPDATE orders SET
-    status = $2,
-    updated_at = NOW()
-WHERE id = $1 RETURNING id, user_id, box_id, location_id, pickup_code, qr_code_url, amount, pickup_time_start, pickup_time_end, status, partner_confirmation_deadline, partner_confirmed_at, partner_confirmed_by, cancellation_reason, cancelled_at, picked_up_at, picked_up_confirmed_by, user_confirmed_at, auto_completed_at, created_at, updated_at
+UPDATE orders
+SET status = $2,
+  updated_at = NOW()
+WHERE id = $1
+RETURNING id, user_id, box_id, location_id, pickup_code, qr_code_url, amount, pickup_time_start, pickup_time_end, status, partner_confirmation_deadline, partner_confirmed_at, partner_confirmed_by, cancellation_reason, cancelled_at, picked_up_at, picked_up_confirmed_by, user_confirmed_at, auto_completed_at, created_at, updated_at
 `
 
 type UpdateOrderStatusParams struct {

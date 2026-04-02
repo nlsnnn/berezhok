@@ -28,18 +28,14 @@ func (q *Queries) CountLocationReviews(ctx context.Context, locationID uuid.UUID
 
 const createReview = `-- name: CreateReview :one
 INSERT INTO reviews (
-    order_id,
-    user_id,
-    location_id,
-    rating,
-    comment
-) VALUES (
-    $1,
-    $2,
-    $3,
-    $4,
-    $5
-) RETURNING id, order_id, user_id, location_id, rating, comment, created_at, updated_at
+        order_id,
+        user_id,
+        location_id,
+        rating,
+        comment
+    )
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, order_id, user_id, location_id, rating, comment, created_at, updated_at
 `
 
 type CreateReviewParams struct {
@@ -73,14 +69,13 @@ func (q *Queries) CreateReview(ctx context.Context, arg CreateReviewParams) (Rev
 }
 
 const listLocationReviews = `-- name: ListLocationReviews :many
-SELECT
-    r.id,
+SELECT r.id,
     r.rating,
     COALESCE(r.comment, '') AS comment,
     COALESCE(u.name, '') AS user_name,
     r.created_at
 FROM reviews r
-JOIN users u ON u.id = r.user_id
+    JOIN users u ON u.id = r.user_id
 WHERE r.location_id = $1
 ORDER BY r.created_at DESC
 LIMIT $2 OFFSET $3
@@ -109,7 +104,13 @@ func (q *Queries) ListLocationReviews(ctx context.Context, arg ListLocationRevie
 	var items []ListLocationReviewsRow
 	for rows.Next() {
 		var i ListLocationReviewsRow
-		if err := rows.Scan(&i.ID, &i.Rating, &i.Comment, &i.UserName, &i.CreatedAt); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Rating,
+			&i.Comment,
+			&i.UserName,
+			&i.CreatedAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

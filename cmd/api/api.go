@@ -208,6 +208,7 @@ func (app *application) mount() http.Handler {
 
 			r.Post("/partner/change-password", partHandler.ChangePassword)
 			r.Get("/partner/profile", partHandler.Profile)
+			r.Get("/partner/dashboard", partHandler.Dashboard)
 
 			// Location
 			r.Get("/partner/locations", locationHandler.List)

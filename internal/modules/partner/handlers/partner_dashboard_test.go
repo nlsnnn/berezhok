@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -48,6 +49,8 @@ func TestPartnerDashboardSuccess(t *testing.T) {
 				t.Fatalf("expected user id %s, got %s", userID, gotUserID)
 			}
 
+			nextPayoutDate := time.Date(2026, 4, 10, 0, 0, 0, 0, time.UTC)
+
 			return domain.PartnerDashboard{
 				Partner:  domain.Partner{ID: "partner-id", BrandName: "Mama pechet", Status: domain.PartnerStatusActive},
 				Employee: domain.Employee{ID: "employee-id", Name: "Egor", Email: "owner@example.com", Role: domain.EmployeeRoleOwner},
@@ -58,6 +61,22 @@ func TestPartnerDashboardSuccess(t *testing.T) {
 					Status:           domain.LocationStatusActive,
 					ActiveBoxesCount: 3,
 				}},
+				Today: domain.DashboardTodayStats{
+					PendingConfirmation: 2,
+					Confirmed:           5,
+					PickedUp:            1,
+					Completed:           8,
+				},
+				Week: domain.DashboardWeekStats{
+					OrdersCompleted: 42,
+					GrossRevenue:    8550,
+					NetRevenue:      7695,
+					AvgRating:       4.5,
+				},
+				Finance: domain.DashboardFinance{
+					BalancePending: 7695,
+					NextPayoutDate: &nextPayoutDate,
+				},
 			}, nil
 		},
 	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
@@ -79,6 +98,38 @@ func TestPartnerDashboardSuccess(t *testing.T) {
 
 	if body["success"] != true {
 		t.Fatalf("expected success=true, got %v", body["success"])
+	}
+
+	data, ok := body["data"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected data object, got %T", body["data"])
+	}
+
+	today, ok := data["today"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected today object, got %T", data["today"])
+	}
+
+	if today["pending_confirmation"] != float64(2) {
+		t.Fatalf("expected pending_confirmation=2, got %v", today["pending_confirmation"])
+	}
+
+	week, ok := data["week"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected week object, got %T", data["week"])
+	}
+
+	if week["net_revenue"] != float64(7695) {
+		t.Fatalf("expected net_revenue=7695, got %v", week["net_revenue"])
+	}
+
+	finance, ok := data["finance"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected finance object, got %T", data["finance"])
+	}
+
+	if finance["balance_pending"] != float64(7695) {
+		t.Fatalf("expected balance_pending=7695, got %v", finance["balance_pending"])
 	}
 }
 

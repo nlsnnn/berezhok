@@ -14,6 +14,10 @@ import BoxesPage from '@/pages/partner/BoxesPage'
 import CreateBoxPage from '@/pages/partner/CreateBoxPage'
 import EditBoxPage from '@/pages/partner/EditBoxPage'
 import OrderPickupPage from '@/pages/partner/OrderPickupPage'
+import OrdersPage from '@/pages/partner/OrdersPage'
+import EmployeesPage from '@/pages/partner/EmployeesPage'
+import StatsPage from '@/pages/partner/StatsPage'
+import ProfilePage from '@/pages/partner/ProfilePage'
 
 export default function App() {
   return (
@@ -40,7 +44,17 @@ export default function App() {
               <Route path="/partner/boxes/:id/edit" element={<EditBoxPage />} />
 
               {/* Orders */}
+              <Route path="/partner/orders" element={<OrdersPage />} />
               <Route path="/partner/orders/pickup" element={<OrderPickupPage />} />
+
+              {/* Employees */}
+              <Route path="/partner/employees" element={<EmployeesPage />} />
+
+              {/* Stats */}
+              <Route path="/partner/stats" element={<StatsPage />} />
+
+              {/* Profile */}
+              <Route path="/partner/profile" element={<ProfilePage />} />
             </Route>
 
           <Route path="/partner" element={<Navigate to="/partner/dashboard" replace />} />
