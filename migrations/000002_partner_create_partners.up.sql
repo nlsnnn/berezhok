@@ -15,12 +15,12 @@ CREATE TABLE partners (
     logo_url TEXT,
     parent_partner_id UUID REFERENCES partners(id) ON DELETE SET NULL,
     account_type VARCHAR(20) DEFAULT 'independent' CHECK (account_type IN ('independent', 'network_head', 'franchise')),
-    
+
     -- Комиссии
     commission_rate NUMERIC(5, 4) NOT NULL DEFAULT 0.20 CHECK (commission_rate >= 0 AND commission_rate <= 1),
     promo_commission_rate NUMERIC(5, 4) CHECK (promo_commission_rate >= 0 AND promo_commission_rate <= 1),
     promo_commission_until DATE,
-    
+
     status VARCHAR(20) NOT NULL DEFAULT 'pending_documents' CHECK (status IN ('pending_documents', 'active', 'suspended', 'blocked')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

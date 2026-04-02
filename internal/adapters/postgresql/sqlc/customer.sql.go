@@ -13,7 +13,7 @@ import (
 )
 
 const createCustomer = `-- name: CreateCustomer :one
-INSERT INTO users (phone) 
+INSERT INTO users (phone)
 VALUES ($1)
 RETURNING id
 `
@@ -63,7 +63,7 @@ func (q *Queries) FindCustomerByPhone(ctx context.Context, phone string) (User, 
 }
 
 const updateCustomerProfile = `-- name: UpdateCustomerProfile :one
-UPDATE users 
+UPDATE users
 SET name = $2
 WHERE id = $1
 RETURNING id, phone, name, created_at, updated_at

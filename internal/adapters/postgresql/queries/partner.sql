@@ -7,9 +7,9 @@ SELECT * FROM partner_applications WHERE id = $1;
 
 -- name: CreateApplication :one
 INSERT INTO partner_applications (
-    contact_name, contact_email, contact_phone, business_name, category_code, 
+    contact_name, contact_email, contact_phone, business_name, category_code,
     address, description, status, latitude, longitude
-) 
+)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *;
 
 -- name: UpdateApplication :exec
@@ -37,12 +37,12 @@ SELECT EXISTS (
 
 
 -- name: GetPartnerProfile :one
-SELECT 
+SELECT
     e.id as employee_id, e.name as employee_name, e.email, e.role, e.created_at as employee_created_at, e.must_change_password,
     p.id as partner_id, p.brand_name, p.status as partner_status,
-    CASE 
+    CASE
         WHEN p.promo_commission_until >= NOW() THEN COALESCE(p.promo_commission_rate, p.commission_rate)
-        ELSE p.commission_rate 
+        ELSE p.commission_rate
     END AS commission_rate,
     p.promo_commission_until,
     p.created_at as partner_created_at,
@@ -54,15 +54,15 @@ WHERE e.id = $1;
 
 -- name: CreatePartner :one
 INSERT INTO partners (
-    brand_name, logo_url, parent_partner_id, account_type, 
+    brand_name, logo_url, parent_partner_id, account_type,
     commission_rate, promo_commission_rate, promo_commission_until, status
 )
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;
 
 -- name: UpdatePartner :exec
 UPDATE partners
-SET brand_name = $1, logo_url = $2, parent_partner_id = $3, 
-    account_type = $4, commission_rate = $5, promo_commission_rate = $6, 
+SET brand_name = $1, logo_url = $2, parent_partner_id = $3,
+    account_type = $4, commission_rate = $5, promo_commission_rate = $6,
     promo_commission_until = $7, status = $8
 WHERE id = $9;
 
@@ -87,7 +87,7 @@ INSERT INTO partner_employees (
 
 -- name: UpdatePartnerEmployee :exec
 UPDATE partner_employees
-SET partner_id = $1, location_id = $2, email = $3, password_hash = $4, 
+SET partner_id = $1, location_id = $2, email = $3, password_hash = $4,
     role = $5, name = $6
 WHERE id = $7;
 
@@ -111,14 +111,14 @@ SELECT * FROM locations WHERE id = $1;
 SELECT * FROM locations WHERE partner_id = $1;
 
 -- name: CreateLocation :one
-INSERT INTO locations (name, address, partner_id, category_code, status, location) 
+INSERT INTO locations (name, address, partner_id, category_code, status, location)
 VALUES ($1, $2, $3, $4, $5, ST_SetSRID(ST_MakePoint($6, $7), 4326))
 RETURNING *;
 
 -- name: UpdateLocation :one
 UPDATE locations
-SET 
-    name = COALESCE($2, name), 
+SET
+    name = COALESCE($2, name),
     address = COALESCE($3, address),
     category_code = COALESCE($4, category_code),
     logo_url = COALESCE($5, logo_url),
@@ -132,7 +132,7 @@ RETURNING *;
 -- name: ActivateLocation :exec
 UPDATE locations SET status = 'active', updated_at = NOW() WHERE id = $1;
 
--- name: DeactivateLocation :exec  
+-- name: DeactivateLocation :exec
 UPDATE locations SET status = 'inactive', updated_at = NOW() WHERE id = $1;
 
 -- name: CloseLocation :exec

@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS payments (
     -- Платёжная система может возвращать свой ID платежа для последующей сверки
     provider_payment_id VARCHAR(255) UNIQUE,
     -- URL для оплаты (redirect)
-    payment_url TEXT, 
+    payment_url TEXT,
     -- Метод оплаты, выбранный пользователем (может быть NULL, если ещё не выбран)
     method payment_method,
     provider payment_provider DEFAULT 'yookassa',
