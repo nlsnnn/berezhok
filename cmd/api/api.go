@@ -37,6 +37,9 @@ import (
 	paymentHandlers "github.com/nlsnnn/berezhok/internal/modules/payment/handlers"
 	paymentRepos "github.com/nlsnnn/berezhok/internal/modules/payment/repository"
 	paymentServices "github.com/nlsnnn/berezhok/internal/modules/payment/service"
+	reviewHandlers "github.com/nlsnnn/berezhok/internal/modules/review/handlers"
+	reviewRepos "github.com/nlsnnn/berezhok/internal/modules/review/repository"
+	reviewServices "github.com/nlsnnn/berezhok/internal/modules/review/service"
 	"github.com/nlsnnn/berezhok/internal/shared/config"
 	"github.com/nlsnnn/berezhok/internal/shared/jwt"
 	middlewares "github.com/nlsnnn/berezhok/internal/shared/middleware"
@@ -126,10 +129,14 @@ func (app *application) mount() http.Handler {
 	// Order module — handlers
 	orderHandler := orderHandlers.NewOrderHandler(orderSvc, app.log, v)
 
+	// Review module
+	reviewRepo := reviewRepos.NewReviewRepo(queries)
+	reviewSvc := reviewServices.NewReviewService(reviewRepo, orderSvc)
+	reviewHandler := reviewHandlers.NewReviewHandler(reviewSvc, app.log, v)
+
 	// Customer module — handlers
 	customerHandler := customerHandlers.NewCustomerHandler(customerSvc, app.log, v)
 	customerLocationHandler := customerHandlers.NewLocationHandler(customerLocationSvc, app.log)
-	customerReviewHandler := customerHandlers.NewReviewHandler(app.log)
 
 	// SMS module
 	smsStorage := redisAdapter.NewSMSStorage(app.redis)
@@ -190,9 +197,9 @@ func (app *application) mount() http.Handler {
 			r.Post("/customer/orders/{order_id}/confirm-pickup", orderHandler.ConfirmPickup)
 			r.Post("/customer/orders/{order_id}/dispute", orderHandler.CreateDispute)
 
-			// Reviews (stubs)
-			r.Post("/customer/reviews", customerReviewHandler.CreateReview)
-			r.Get("/customer/locations/{location_id}/reviews", customerReviewHandler.ListLocationReviews)
+			// Reviews
+			r.Post("/customer/reviews", reviewHandler.CreateReview)
+			r.Get("/customer/locations/{location_id}/reviews", reviewHandler.ListLocationReviews)
 		})
 
 		// == Partner Routes ==

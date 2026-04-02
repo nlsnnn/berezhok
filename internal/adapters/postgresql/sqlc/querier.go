@@ -19,6 +19,7 @@ type Querier interface {
 	CountActiveBoxesByLocationID(ctx context.Context, locationID uuid.UUID) (int64, error)
 	// Count active locations for pagination
 	CountActiveLocations(ctx context.Context, categoryCode pgtype.Text) (int64, error)
+	CountLocationReviews(ctx context.Context, locationID uuid.UUID) (int64, error)
 	CountOrdersByCustomerID(ctx context.Context, arg CountOrdersByCustomerIDParams) (int64, error)
 	CreateApplication(ctx context.Context, arg CreateApplicationParams) (PartnerApplication, error)
 	// Create a new box
@@ -33,6 +34,7 @@ type Querier interface {
 	CreatePartner(ctx context.Context, arg CreatePartnerParams) (Partner, error)
 	CreatePartnerEmployee(ctx context.Context, arg CreatePartnerEmployeeParams) (PartnerEmployee, error)
 	CreatePayment(ctx context.Context, arg CreatePaymentParams) (Payment, error)
+	CreateReview(ctx context.Context, arg CreateReviewParams) (Review, error)
 	DeactivateLocation(ctx context.Context, id uuid.UUID) error
 	DeleteApplication(ctx context.Context, id uuid.UUID) error
 	// Delete a box
@@ -75,6 +77,7 @@ type Querier interface {
 	// List boxes by partner ID
 	ListBoxesByPartnerID(ctx context.Context, partnerID uuid.UUID) ([]SurpriseBox, error)
 	ListEmployeesByPartnerID(ctx context.Context, partnerID uuid.UUID) ([]PartnerEmployee, error)
+	ListLocationReviews(ctx context.Context, arg ListLocationReviewsParams) ([]ListLocationReviewsRow, error)
 	// Локации партнёров
 	ListLocations(ctx context.Context) ([]Location, error)
 	// List all media files (paginated)

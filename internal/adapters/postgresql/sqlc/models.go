@@ -340,6 +340,18 @@ type PaymentEvent struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// Отзывы пользователей о местах, связанных с их заказами
+type Review struct {
+	ID         uuid.UUID   `json:"id"`
+	OrderID    uuid.UUID   `json:"order_id"`
+	UserID     uuid.UUID   `json:"user_id"`
+	LocationID uuid.UUID   `json:"location_id"`
+	Rating     int32       `json:"rating"`
+	Comment    pgtype.Text `json:"comment"`
+	CreatedAt  time.Time   `json:"created_at"`
+	UpdatedAt  time.Time   `json:"updated_at"`
+}
+
 // Сюрприз-боксы для продажи
 type SurpriseBox struct {
 	ID                uuid.UUID      `json:"id"`
