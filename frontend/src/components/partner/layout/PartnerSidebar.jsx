@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, LayoutDashboard, LogOut, MapPin, Menu, Package, QrCode, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, LayoutDashboard, LogOut, MapPin, Menu, Package, QrCode, X, Users, ClipboardList, BarChart3, UserCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { cn } from '@/lib/utils'
@@ -10,7 +10,11 @@ const links = [
   { to: '/partner/dashboard', label: 'Дашборд', icon: LayoutDashboard },
   { to: '/partner/locations', label: 'Локации', icon: MapPin },
   { to: '/partner/boxes', label: 'Боксы', icon: Package },
+  { to: '/partner/orders', label: 'Заказы', icon: ClipboardList },
   { to: '/partner/orders/pickup', label: 'Выдача', icon: QrCode },
+  { to: '/partner/employees', label: 'Сотрудники', icon: Users },
+  { to: '/partner/stats', label: 'Статистика', icon: BarChart3 },
+  { to: '/partner/profile', label: 'Профиль', icon: UserCircle },
 ]
 
 function SidebarContent({ onClose, collapsed, onToggle }) {

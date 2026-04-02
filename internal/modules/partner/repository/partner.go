@@ -124,6 +124,8 @@ func (r *PartnerRepo) GetDashboard(ctx context.Context, employeeID string) (doma
 		return domain.PartnerDashboard{}, err
 	}
 
+	partnerID := uuid.MustParse(profile.Partner.ID)
+
 	locations := make([]domain.DashboardLocation, len(profile.Locations))
 	for i, loc := range profile.Locations {
 		count, err := r.q.CountActiveBoxesByLocationID(ctx, uuid.MustParse(loc.ID))
@@ -140,13 +142,43 @@ func (r *PartnerRepo) GetDashboard(ctx context.Context, employeeID string) (doma
 		}
 	}
 
+	todayStats, err := r.q.GetPartnerDashboardTodayStats(ctx, partnerID)
+	if err != nil {
+		return domain.PartnerDashboard{}, err
+	}
+
+	weekStats, err := r.q.GetPartnerDashboardWeekStats(ctx, partnerID)
+	if err != nil {
+		return domain.PartnerDashboard{}, err
+	}
+
+	financeStats, err := r.q.GetPartnerDashboardFinance(ctx, partnerID)
+	if err != nil {
+		return domain.PartnerDashboard{}, err
+	}
+
+	nextPayoutDate := financeStats.NextPayoutDate
+
 	return domain.PartnerDashboard{
 		Partner:   profile.Partner,
 		Employee:  profile.Employee,
 		Locations: locations,
-		Today:     domain.DashboardTodayStats{},
-		Week:      domain.DashboardWeekStats{},
-		Finance:   domain.DashboardFinance{},
+		Today: domain.DashboardTodayStats{
+			PendingConfirmation: int(todayStats.PendingConfirmation),
+			Confirmed:           int(todayStats.Confirmed),
+			PickedUp:            int(todayStats.PickedUp),
+			Completed:           int(todayStats.Completed),
+		},
+		Week: domain.DashboardWeekStats{
+			OrdersCompleted: int(weekStats.OrdersCompleted),
+			GrossRevenue:    int(weekStats.GrossRevenue),
+			NetRevenue:      int(weekStats.NetRevenue),
+			AvgRating:       weekStats.AvgRating,
+		},
+		Finance: domain.DashboardFinance{
+			BalancePending: int(financeStats.BalancePending),
+			NextPayoutDate: &nextPayoutDate,
+		},
 	}, nil
 }
 

@@ -52,6 +52,71 @@ JOIN partners p ON e.partner_id = p.id
 LEFT JOIN locations l ON e.location_id = l.id
 WHERE e.id = $1;
 
+-- name: GetPartnerDashboardTodayStats :one
+SELECT
+    COUNT(*) FILTER (WHERE o.status = 'paid')::bigint AS pending_confirmation,
+    COUNT(*) FILTER (WHERE o.status = 'confirmed')::bigint AS confirmed,
+    COUNT(*) FILTER (WHERE o.status = 'picked_up')::bigint AS picked_up,
+    COUNT(*) FILTER (WHERE o.status = 'completed')::bigint AS completed
+FROM orders o
+JOIN locations l ON l.id = o.location_id
+WHERE l.partner_id = $1
+  AND o.created_at >= date_trunc('day', NOW())
+  AND o.created_at < date_trunc('day', NOW()) + interval '1 day';
+
+-- name: GetPartnerDashboardWeekStats :one
+WITH commission AS (
+    SELECT
+        CASE
+            WHEN p.promo_commission_until >= NOW() THEN COALESCE(p.promo_commission_rate, p.commission_rate)
+            ELSE p.commission_rate
+        END AS rate
+    FROM partners p
+    WHERE p.id = $1
+),
+order_stats AS (
+    SELECT
+        COUNT(*) FILTER (WHERE o.status = 'completed')::bigint AS orders_completed,
+        COALESCE(SUM(o.amount) FILTER (WHERE o.status = 'completed'), 0)::bigint AS gross_revenue,
+        COALESCE(SUM(o.amount * (1 - c.rate)) FILTER (WHERE o.status = 'completed'), 0)::bigint AS net_revenue
+    FROM orders o
+    JOIN locations l ON l.id = o.location_id
+    CROSS JOIN commission c
+    WHERE l.partner_id = $1
+      AND o.created_at >= NOW() - interval '7 days'
+),
+review_stats AS (
+    SELECT COALESCE(AVG(r.rating), 0)::double precision AS avg_rating
+    FROM reviews r
+    JOIN locations l ON l.id = r.location_id
+    WHERE l.partner_id = $1
+      AND r.created_at >= NOW() - interval '7 days'
+)
+SELECT
+    order_stats.orders_completed,
+    order_stats.gross_revenue,
+    order_stats.net_revenue,
+    review_stats.avg_rating
+FROM order_stats, review_stats;
+
+-- name: GetPartnerDashboardFinance :one
+WITH commission AS (
+    SELECT
+        CASE
+            WHEN p.promo_commission_until >= NOW() THEN COALESCE(p.promo_commission_rate, p.commission_rate)
+            ELSE p.commission_rate
+        END AS rate
+    FROM partners p
+    WHERE p.id = $1
+)
+SELECT
+    COALESCE(SUM(o.amount * (1 - c.rate)) FILTER (WHERE o.status = 'completed'), 0)::bigint AS balance_pending,
+    (date_trunc('week', NOW()) + interval '1 week')::timestamptz AS next_payout_date
+FROM orders o
+JOIN locations l ON l.id = o.location_id
+CROSS JOIN commission c
+WHERE l.partner_id = $1;
+
 -- name: CreatePartner :one
 INSERT INTO partners (
     brand_name, logo_url, parent_partner_id, account_type,
