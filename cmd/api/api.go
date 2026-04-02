@@ -62,7 +62,7 @@ func (app *application) mount() http.Handler {
 	}))
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("OK"))
+		_, _ = w.Write([]byte("OK"))
 	})
 
 	// Shared infrastructure
@@ -166,7 +166,7 @@ func (app *application) mount() http.Handler {
 		// == Public Routes ==
 
 		// Auth
-		r.Post("/partner/auth/login", authHandler.PartnerLogin)
+		r.Post("/auth/partner/login", authHandler.PartnerLogin)
 		r.Post("/auth/customer/send-code", authHandler.CustomerSendCode)
 		r.Post("/auth/customer/login", authHandler.CustomerLogin)
 
@@ -250,7 +250,7 @@ func (app *application) run(log *slog.Logger, h http.Handler) error {
 	srv := &http.Server{
 		Addr:         app.cfg.Address,
 		Handler:      h,
-		ReadTimeout:  app.cfg.HTTPServer.Timeout,
+		ReadTimeout:  app.cfg.Timeout,
 		WriteTimeout: app.cfg.Timeout,
 		IdleTimeout:  app.cfg.IdleTimeout,
 	}

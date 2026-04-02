@@ -9,6 +9,7 @@ import (
 	"github.com/nlsnnn/berezhok/internal/lib/validator"
 	partnerErrors "github.com/nlsnnn/berezhok/internal/modules/partner/errors"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/handlers/dto"
+	"github.com/nlsnnn/berezhok/internal/shared/contextx"
 	"github.com/nlsnnn/berezhok/internal/shared/response"
 )
 
@@ -39,9 +40,9 @@ func (h *locationHandler) Create(w http.ResponseWriter, r *http.Request) {
 	const op = "partner.handler.location.Create"
 	log := h.log.With(slog.String("op", op))
 
-	partnerID, ok := r.Context().Value("partner_id").(string)
-	if !ok {
-		log.Error("partner_id not found in context")
+	partnerID, err := contextx.PartnerID(r)
+	if err != nil {
+		log.Error("partner_id not found in context", sl.Err(err))
 		response.InternalError(w, nil)
 		return
 	}
@@ -54,7 +55,7 @@ func (h *locationHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	location, err := h.svc.Create(r.Context(), req.ToInput(partnerID))
+	location, err := h.svc.Create(r.Context(), req.ToInput(partnerID.String()))
 	if err != nil {
 		switch {
 		case errors.Is(err, partnerErrors.ErrPartnerNotFound):

@@ -15,6 +15,7 @@ import (
 	catalogErrors "github.com/nlsnnn/berezhok/internal/modules/catalog/errors"
 	"github.com/nlsnnn/berezhok/internal/modules/catalog/handlers/dto"
 	"github.com/nlsnnn/berezhok/internal/modules/catalog/service"
+	"github.com/nlsnnn/berezhok/internal/shared/contextx"
 	"github.com/nlsnnn/berezhok/internal/shared/response"
 )
 
@@ -45,9 +46,9 @@ func (h *boxHandler) Create(w http.ResponseWriter, r *http.Request) {
 	const op = "catalog.handler.box.Create"
 	log := h.log.With(slog.String("op", op))
 
-	partnerID, ok := r.Context().Value("partner_id").(string)
-	if !ok {
-		log.Error("partner_id not found in context")
+	partnerID, err := contextx.PartnerID(r)
+	if err != nil {
+		log.Error("partner_id not found in context", sl.Err(err))
 		response.InternalError(w, nil)
 		return
 	}
@@ -60,7 +61,7 @@ func (h *boxHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	box, err := h.boxService.CreateBox(r.Context(), uuid.MustParse(partnerID), req.ToInput())
+	box, err := h.boxService.CreateBox(r.Context(), partnerID, req.ToInput())
 	if err != nil {
 		switch {
 		case errors.Is(err, catalogErrors.ErrInvalidPickupTimeFormat):
@@ -99,14 +100,14 @@ func (h *boxHandler) GetAllByLocationID(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *boxHandler) GetAllByPartnerID(w http.ResponseWriter, r *http.Request) {
-	partnerID, ok := r.Context().Value("partner_id").(string)
-	if !ok {
-		h.log.Error("partner_id not found in context")
+	partnerID, err := contextx.PartnerID(r)
+	if err != nil {
+		h.log.Error("partner_id not found in context", sl.Err(err))
 		response.InternalError(w, nil)
 		return
 	}
 
-	boxes, err := h.boxService.GetBoxesByPartnerID(r.Context(), uuid.MustParse(partnerID))
+	boxes, err := h.boxService.GetBoxesByPartnerID(r.Context(), partnerID)
 	if err != nil {
 		h.log.Error("failed to get boxes by partner id", sl.Err(err))
 		response.InternalError(w, nil)

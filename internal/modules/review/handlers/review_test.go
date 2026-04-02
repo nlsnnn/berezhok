@@ -20,6 +20,7 @@ import (
 	reviewDomain "github.com/nlsnnn/berezhok/internal/modules/review/domain"
 	reviewErrors "github.com/nlsnnn/berezhok/internal/modules/review/errors"
 	reviewService "github.com/nlsnnn/berezhok/internal/modules/review/service"
+	"github.com/nlsnnn/berezhok/internal/shared/contextx"
 )
 
 type testReviewService struct {
@@ -61,7 +62,7 @@ func TestCreateReviewReturnsConflictWhenAlreadyExists(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/customer/reviews", bytes.NewReader(body))
-	req = req.WithContext(context.WithValue(req.Context(), "customer_id", customerID))
+	req = req.WithContext(context.WithValue(req.Context(), contextx.CustomerIDKey, customerID))
 	rr := httptest.NewRecorder()
 
 	h.CreateReview(rr, req)
@@ -89,7 +90,7 @@ func TestCreateReviewReturnsNotFoundWhenOrderMissing(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/customer/reviews", bytes.NewReader(body))
-	req = req.WithContext(context.WithValue(req.Context(), "customer_id", customerID))
+	req = req.WithContext(context.WithValue(req.Context(), contextx.CustomerIDKey, customerID))
 	rr := httptest.NewRecorder()
 
 	h.CreateReview(rr, req)
@@ -125,7 +126,7 @@ func TestCreateReviewSuccess(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/customer/reviews", bytes.NewReader(body))
-	req = req.WithContext(context.WithValue(req.Context(), "customer_id", customerID))
+	req = req.WithContext(context.WithValue(req.Context(), contextx.CustomerIDKey, customerID))
 	rr := httptest.NewRecorder()
 
 	h.CreateReview(rr, req)
@@ -198,7 +199,7 @@ func TestCreateReviewReturnsBadRequestWhenOrderNotCompleted(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/customer/reviews", bytes.NewReader(body))
-	req = req.WithContext(context.WithValue(req.Context(), "customer_id", customerID))
+	req = req.WithContext(context.WithValue(req.Context(), contextx.CustomerIDKey, customerID))
 	rr := httptest.NewRecorder()
 
 	h.CreateReview(rr, req)
@@ -226,7 +227,7 @@ func TestCreateReviewReturnsBadRequestWhenOrderBelongsToAnotherCustomer(t *testi
 	})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/customer/reviews", bytes.NewReader(body))
-	req = req.WithContext(context.WithValue(req.Context(), "customer_id", customerID))
+	req = req.WithContext(context.WithValue(req.Context(), contextx.CustomerIDKey, customerID))
 	rr := httptest.NewRecorder()
 
 	h.CreateReview(rr, req)
@@ -254,7 +255,7 @@ func TestCreateReviewReturnsInternalErrorOnUnknownServiceError(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/customer/reviews", bytes.NewReader(body))
-	req = req.WithContext(context.WithValue(req.Context(), "customer_id", customerID))
+	req = req.WithContext(context.WithValue(req.Context(), contextx.CustomerIDKey, customerID))
 	rr := httptest.NewRecorder()
 
 	h.CreateReview(rr, req)
