@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/nlsnnn/berezhok/internal/shared/config"
 	"github.com/redis/go-redis/v9"
+
+	"github.com/nlsnnn/berezhok/internal/shared/config"
 )
 
 func New(ctx context.Context, cfg config.Redis) (*redis.Client, error) {

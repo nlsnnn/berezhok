@@ -46,6 +46,13 @@ export const pickupOrder = (orderId) =>
 export const listLocationBoxes = (locationId) =>
   api.get(`/locations/${locationId}/boxes`).then((r) => r.data.data)
 
+// Orders
+export const getOrderByPickupCode = (pickupCode) =>
+  api.get(`/partner/orders/by-code/${encodeURIComponent(pickupCode)}`).then((r) => r.data.data)
+
+export const pickupOrder = (orderId) =>
+  api.post(`/partner/orders/${orderId}/pickup`).then((r) => r.data.data)
+
 // Media
 export const uploadMedia = (file) => {
   const formData = new FormData()

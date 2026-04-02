@@ -4,8 +4,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nlsnnn/berezhok/internal/modules/payment/errors"
 	"github.com/shopspring/decimal"
+
+	"github.com/nlsnnn/berezhok/internal/modules/payment/errors"
 )
 
 type PaymentStatus string

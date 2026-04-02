@@ -6,9 +6,10 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
+
 	"github.com/nlsnnn/berezhok/internal/modules/payment/domain"
 	paymentErrors "github.com/nlsnnn/berezhok/internal/modules/payment/errors"
-	"github.com/shopspring/decimal"
 )
 
 type testRepo struct {
@@ -55,10 +56,10 @@ func (r *testRepo) UpdatePaymentStatus(ctx context.Context, paymentID uuid.UUID,
 }
 
 type testProvider struct {
-	createFn func(ctx context.Context, amount string, description string, returnURL string, metadata map[string]string) (domain.ProviderPaymentResult, error)
+	createFn func(ctx context.Context, amount, description, returnURL string, metadata map[string]string) (domain.ProviderPaymentResult, error)
 }
 
-func (p *testProvider) Create(ctx context.Context, amount string, description string, returnURL string, metadata map[string]string) (domain.ProviderPaymentResult, error) {
+func (p *testProvider) Create(ctx context.Context, amount, description, returnURL string, metadata map[string]string) (domain.ProviderPaymentResult, error) {
 	if p.createFn != nil {
 		return p.createFn(ctx, amount, description, returnURL, metadata)
 	}
@@ -148,7 +149,7 @@ func TestCreateProviderError(t *testing.T) {
 	}
 
 	provider := &testProvider{
-		createFn: func(ctx context.Context, amount string, description string, returnURL string, metadata map[string]string) (domain.ProviderPaymentResult, error) {
+		createFn: func(ctx context.Context, amount, description, returnURL string, metadata map[string]string) (domain.ProviderPaymentResult, error) {
 			return domain.ProviderPaymentResult{}, providerErr
 		},
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/errors"
 	sharedDomain "github.com/nlsnnn/berezhok/internal/shared/domain"

@@ -13,31 +13,31 @@ type ProfileResponse struct {
 
 // LocationSearchResponse represents location in search results
 type LocationSearchResponse struct {
-	ID                 string                    `json:"id"`
-	Name               string                    `json:"name"`
-	Category           CategoryResponse          `json:"category"`
-	Address            string                    `json:"address"`
-	Distance           *float64                  `json:"distance,omitempty"` // in meters, optional for now
-	Coordinates        CoordinatesResponse       `json:"coordinates"`
-	Rating             *RatingResponse           `json:"rating,omitempty"`
-	LogoURL            string                    `json:"logo_url,omitempty"`
-	ActiveBoxesCount   int                       `json:"active_boxes_count"`
+	ID               string              `json:"id"`
+	Name             string              `json:"name"`
+	Category         CategoryResponse    `json:"category"`
+	Address          string              `json:"address"`
+	Distance         *float64            `json:"distance,omitempty"` // in meters, optional for now
+	Coordinates      CoordinatesResponse `json:"coordinates"`
+	Rating           *RatingResponse     `json:"rating,omitempty"`
+	LogoURL          string              `json:"logo_url,omitempty"`
+	ActiveBoxesCount int                 `json:"active_boxes_count"`
 }
 
 // LocationDetailsResponse represents full location details
 type LocationDetailsResponse struct {
-	ID              string                    `json:"id"`
-	Name            string                    `json:"name"`
-	Category        CategoryResponse          `json:"category"`
-	Address         string                    `json:"address"`
-	Coordinates     CoordinatesResponse       `json:"coordinates"`
-	Phone           string                    `json:"phone,omitempty"`
-	WorkingHours    map[string]string         `json:"working_hours,omitempty"`
-	LogoURL         string                    `json:"logo_url,omitempty"`
-	CoverImageURL   string                    `json:"cover_image_url,omitempty"`
-	Gallery         []string                  `json:"gallery,omitempty"`
-	Rating          *RatingResponse           `json:"rating,omitempty"`
-	ActiveBoxes     []BoxResponse             `json:"active_boxes"`
+	ID            string              `json:"id"`
+	Name          string              `json:"name"`
+	Category      CategoryResponse    `json:"category"`
+	Address       string              `json:"address"`
+	Coordinates   CoordinatesResponse `json:"coordinates"`
+	Phone         string              `json:"phone,omitempty"`
+	WorkingHours  map[string]string   `json:"working_hours,omitempty"`
+	LogoURL       string              `json:"logo_url,omitempty"`
+	CoverImageURL string              `json:"cover_image_url,omitempty"`
+	Gallery       []string            `json:"gallery,omitempty"`
+	Rating        *RatingResponse     `json:"rating,omitempty"`
+	ActiveBoxes   []BoxResponse       `json:"active_boxes"`
 }
 
 // CategoryResponse represents location category
@@ -55,9 +55,9 @@ type CoordinatesResponse struct {
 
 // RatingResponse represents location rating (stub for now)
 type RatingResponse struct {
-	Average       float64                `json:"average"`
-	TotalReviews  int                    `json:"total_reviews"`
-	Distribution  *RatingDistribution    `json:"distribution,omitempty"`
+	Average      float64             `json:"average"`
+	TotalReviews int                 `json:"total_reviews"`
+	Distribution *RatingDistribution `json:"distribution,omitempty"`
 }
 
 // RatingDistribution represents rating breakdown
@@ -71,14 +71,14 @@ type RatingDistribution struct {
 
 // BoxResponse represents a surprise box
 type BoxResponse struct {
-	ID                string            `json:"id"`
-	Name              string            `json:"name"`
-	Description       string            `json:"description"`
-	OriginalPrice     float64           `json:"original_price"`
-	DiscountPrice     float64           `json:"discount_price"`
-	QuantityAvailable int               `json:"quantity_available"`
+	ID                string             `json:"id"`
+	Name              string             `json:"name"`
+	Description       string             `json:"description"`
+	OriginalPrice     float64            `json:"original_price"`
+	DiscountPrice     float64            `json:"discount_price"`
+	QuantityAvailable int                `json:"quantity_available"`
 	PickupTime        PickupTimeResponse `json:"pickup_time"`
-	ImageURL          string            `json:"image_url,omitempty"`
+	ImageURL          string             `json:"image_url,omitempty"`
 }
 
 // PickupTimeResponse represents pickup time window

@@ -1,10 +1,9 @@
 package handlers
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
-
-	"errors"
 
 	"github.com/nlsnnn/berezhok/internal/lib/logger/sl"
 	"github.com/nlsnnn/berezhok/internal/lib/validator"
@@ -56,7 +55,6 @@ func (h *locationHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	location, err := h.svc.Create(r.Context(), req.ToInput(partnerID))
-
 	if err != nil {
 		switch {
 		case errors.Is(err, partnerErrors.ErrPartnerNotFound):
