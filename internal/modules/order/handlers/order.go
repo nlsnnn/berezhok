@@ -18,7 +18,7 @@ import (
 	orderErrors "github.com/nlsnnn/berezhok/internal/modules/order/errors"
 	"github.com/nlsnnn/berezhok/internal/modules/order/handlers/dto"
 	orderService "github.com/nlsnnn/berezhok/internal/modules/order/service"
-	sharedErrors "github.com/nlsnnn/berezhok/internal/shared/errors"
+	"github.com/nlsnnn/berezhok/internal/shared/contextx"
 	"github.com/nlsnnn/berezhok/internal/shared/response"
 )
 
@@ -59,7 +59,7 @@ func (h *orderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Extract customer ID from JWT context
-	customerID, err := h.getCustomerIDFromContext(r)
+	customerID, err := contextx.CustomerID(r)
 	if err != nil {
 		log.Error("failed to get customer_id from context", sl.Err(err))
 		response.Unauthorized(w, "authentication required")
@@ -124,7 +124,7 @@ func (h *orderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Extract customer ID from JWT context
-	customerID, err := h.getCustomerIDFromContext(r)
+	customerID, err := contextx.CustomerID(r)
 	if err != nil {
 		log.Error("failed to get customer_id from context", sl.Err(err))
 		response.Unauthorized(w, "authentication required")
@@ -163,7 +163,7 @@ func (h *orderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 	log := h.log.With(slog.String("op", op))
 
 	// Extract customer ID from JWT context
-	customerID, err := h.getCustomerIDFromContext(r)
+	customerID, err := contextx.CustomerID(r)
 	if err != nil {
 		log.Error("failed to get customer_id from context", sl.Err(err))
 		response.Unauthorized(w, "authentication required")
@@ -236,7 +236,7 @@ func (h *orderHandler) GetPartnerOrderByPickupCode(w http.ResponseWriter, r *htt
 		return
 	}
 
-	partnerID, err := h.getPartnerIDFromContext(r)
+	partnerID, err := contextx.PartnerID(r)
 	if err != nil {
 		log.Error("failed to get partner_id from context", sl.Err(err))
 		response.Unauthorized(w, "authentication required")
@@ -270,14 +270,14 @@ func (h *orderHandler) PartnerPickupOrder(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	partnerID, err := h.getPartnerIDFromContext(r)
+	partnerID, err := contextx.PartnerID(r)
 	if err != nil {
 		log.Error("failed to get partner_id from context", sl.Err(err))
 		response.Unauthorized(w, "authentication required")
 		return
 	}
 
-	employeeID, err := h.getEmployeeIDFromContext(r)
+	employeeID, err := contextx.EmployeeID(r)
 	if err != nil {
 		log.Error("failed to get employee user_id from context", sl.Err(err))
 		response.Unauthorized(w, "authentication required")
@@ -304,51 +304,4 @@ func (h *orderHandler) PartnerPickupOrder(w http.ResponseWriter, r *http.Request
 		string(domain.OrderStatusPickedUp),
 		"order marked as picked up successfully",
 	))
-}
-
-func (h *orderHandler) getCustomerIDFromContext(r *http.Request) (uuid.UUID, error) {
-	customerIDRaw := r.Context().Value("customer_id")
-	if customerIDRaw == nil {
-		return uuid.Nil, sharedErrors.ErrNotFoundContextValue
-	}
-
-	customerID, ok := customerIDRaw.(uuid.UUID)
-	if !ok {
-		return uuid.Nil, sharedErrors.ErrNotFoundContextValue
-	}
-
-	return customerID, nil
-}
-
-func (h *orderHandler) getPartnerIDFromContext(r *http.Request) (uuid.UUID, error) {
-	partnerIDRaw := r.Context().Value("partner_id")
-	if partnerIDRaw == nil {
-		return uuid.Nil, sharedErrors.ErrNotFoundContextValue
-	}
-
-	partnerIDString, ok := partnerIDRaw.(string)
-	if !ok {
-		return uuid.Nil, sharedErrors.ErrNotFoundContextValue
-	}
-
-	partnerID, err := uuid.Parse(partnerIDString)
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	return partnerID, nil
-}
-
-func (h *orderHandler) getEmployeeIDFromContext(r *http.Request) (uuid.UUID, error) {
-	employeeIDRaw := r.Context().Value("user_id")
-	if employeeIDRaw == nil {
-		return uuid.Nil, sharedErrors.ErrNotFoundContextValue
-	}
-
-	employeeID, ok := employeeIDRaw.(uuid.UUID)
-	if !ok {
-		return uuid.Nil, sharedErrors.ErrNotFoundContextValue
-	}
-
-	return employeeID, nil
 }
