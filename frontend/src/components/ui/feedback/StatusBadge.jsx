@@ -6,9 +6,5 @@ export default function StatusBadge({ status, customLabel, customColor }) {
   const label = customLabel ?? cfg?.label ?? status
   const color = customColor ?? cfg?.color ?? 'bg-gray-100 text-gray-700'
 
-  return (
-    <span className={cn('badge', color)}>
-      {label}
-    </span>
-  )
+  return <span className={cn('badge', color)}>{label}</span>
 }

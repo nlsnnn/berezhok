@@ -2,10 +2,10 @@ import { cn } from '@/lib/utils'
 
 export default function Button({ className, variant = 'primary', size = 'md', children, ...props }) {
   const base = {
-    primary:   'btn-primary',
+    primary: 'btn-primary',
     secondary: 'btn-secondary',
-    danger:    'btn-danger',
-    ghost:     'btn-ghost',
+    danger: 'btn-danger',
+    ghost: 'btn-ghost',
   }[variant]
 
   const sizes = {

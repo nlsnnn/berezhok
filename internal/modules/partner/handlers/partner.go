@@ -126,3 +126,65 @@ func (h *partnerHandler) Profile(w http.ResponseWriter, r *http.Request) {
 
 	response.Success(w, res)
 }
+
+func (h *partnerHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value("user_id").(uuid.UUID)
+	if !ok {
+		h.log.Error("user_id not found in context")
+		response.InternalError(w, nil)
+		return
+	}
+
+	dashboard, err := h.partService.Dashboard(r.Context(), userID.String())
+	if err != nil {
+		h.log.Error("failed to get dashboard", sl.Err(err))
+		response.InternalError(w, nil)
+		return
+	}
+
+	locations := make([]dto.DashboardLocationResponse, len(dashboard.Locations))
+	for i, loc := range dashboard.Locations {
+		locations[i] = dto.DashboardLocationResponse{
+			ID:               loc.ID,
+			Name:             loc.Name,
+			Address:          loc.Address,
+			Status:           string(loc.Status),
+			ActiveBoxesCount: loc.ActiveBoxesCount,
+		}
+	}
+
+	res := dto.PartnerDashboardResponse{
+		Partner: dto.DashboardPartnerResponse{
+			ID:             dashboard.Partner.ID,
+			BrandName:      dashboard.Partner.BrandName,
+			Status:         string(dashboard.Partner.Status),
+			CommissionRate: dashboard.Partner.Commission.Rate,
+			PromoUntil:     dashboard.Partner.Commission.ValidUntil,
+		},
+		Employee: dto.DashboardEmployeeResponse{
+			ID:    dashboard.Employee.ID,
+			Name:  dashboard.Employee.Name,
+			Email: dashboard.Employee.Email,
+			Role:  string(dashboard.Employee.Role),
+		},
+		Locations: locations,
+		Today: dto.DashboardTodayResponse{
+			PendingConfirmation: dashboard.Today.PendingConfirmation,
+			Confirmed:           dashboard.Today.Confirmed,
+			PickedUp:            dashboard.Today.PickedUp,
+			Completed:           dashboard.Today.Completed,
+		},
+		Week: dto.DashboardWeekResponse{
+			OrdersCompleted: dashboard.Week.OrdersCompleted,
+			GrossRevenue:    dashboard.Week.GrossRevenue,
+			NetRevenue:      dashboard.Week.NetRevenue,
+			AvgRating:       dashboard.Week.AvgRating,
+		},
+		Finance: dto.DashboardFinanceResponse{
+			BalancePending: dashboard.Finance.BalancePending,
+			NextPayoutDate: dashboard.Finance.NextPayoutDate,
+		},
+	}
+
+	response.Success(w, res)
+}

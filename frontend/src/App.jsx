@@ -1,5 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { AuthProvider } from '@/context/AuthContext'
 import RequireAuth from '@/components/RequireAuth'
@@ -16,30 +15,15 @@ import CreateBoxPage from '@/pages/partner/CreateBoxPage'
 import EditBoxPage from '@/pages/partner/EditBoxPage'
 import OrderPickupPage from '@/pages/partner/OrderPickupPage'
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      staleTime: 30_000,
-    },
-  },
-})
-
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <Toaster position="top-right" richColors closeButton />
-          <Routes>
-            {/* Landing */}
-            <Route path="/" element={<LandingPage />} />
-
-            {/* Admin (no auth) */}
-            <Route path="/admin" element={<AdminPage />} />
-
-            {/* Partner — public */}
-            <Route path="/partner/login" element={<PartnerLoginPage />} />
+    <BrowserRouter>
+      <AuthProvider>
+        <Toaster position="top-right" richColors closeButton />
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/partner/login" element={<PartnerLoginPage />} />
 
             {/* Partner — protected */}
             <Route element={<RequireAuth />}>
@@ -59,12 +43,10 @@ export default function App() {
               <Route path="/partner/orders/pickup" element={<OrderPickupPage />} />
             </Route>
 
-            {/* Fallback */}
-            <Route path="/partner" element={<Navigate to="/partner/dashboard" replace />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </QueryClientProvider>
+          <Route path="/partner" element={<Navigate to="/partner/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
   )
 }

@@ -1,75 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
-import { QrCode, Keyboard, Camera, StopCircle, PackageCheck, User, Clock3, BadgeCheck } from 'lucide-react'
+import { observer } from 'mobx-react-lite'
+import { BadgeCheck, Camera, Clock3, Keyboard, PackageCheck, QrCode, StopCircle, User } from 'lucide-react'
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
 import { toast } from 'sonner'
-import { getOrderByPickupCode, pickupOrder } from '@/api/partner'
 import { formatDateTime, getErrorMessage } from '@/lib/utils'
-import PartnerNav from '@/components/PartnerNav'
-import Input from '@/components/ui/Input'
-import Button from '@/components/ui/Button'
+import PartnerLayout from '@/components/partner/layout/PartnerLayout'
+import Input from '@/components/ui/form/Input'
+import Button from '@/components/ui/actions/Button'
+import { useStores } from '@/context/StoresContext'
 
 const SCANNER_ID = 'partner-order-qr-reader'
 
-export default function OrderPickupPage() {
+function OrderPickupPageBase() {
+  const { ordersStore } = useStores()
   const scannerRef = useRef(null)
   const isMountedRef = useRef(true)
   const hasScannedRef = useRef(false)
 
   const [pickupCode, setPickupCode] = useState('')
-  const [order, setOrder] = useState(null)
   const [isScannerActive, setIsScannerActive] = useState(false)
   const [scannerError, setScannerError] = useState('')
 
-  const lookupMutation = useMutation({
-    mutationFn: (code) => getOrderByPickupCode(code),
-    onSuccess: (data) => {
-      setOrder(data)
-      toast.success('Заказ найден')
-    },
-    onError: (error) => {
-      setOrder(null)
-      if (error?.response?.status === 404) {
-        toast.error('Заказ с таким кодом не найден')
-        return
-      }
-      toast.error(getErrorMessage(error))
-    },
-  })
-
-  const pickupMutation = useMutation({
-    mutationFn: (orderId) => pickupOrder(orderId),
-    onSuccess: (data) => {
-      setOrder((prev) => {
-        if (!prev) return prev
-        return {
-          ...prev,
-          status: data?.status ?? 'picked_up',
-        }
-      })
-      toast.success(data?.message || 'Заказ отмечен как выданный')
-    },
-    onError: (error) => {
-      if (error?.response?.status === 409) {
-        toast.error('Заказ нельзя выдать в текущем статусе')
-        return
-      }
-      if (error?.response?.status === 403) {
-        toast.error('Нет доступа к этому заказу')
-        return
-      }
-      toast.error(getErrorMessage(error))
-    },
-  })
-
-  const statusBadge = useMemo(() => {
-    return STATUS_META[order?.status] || {
-      label: order?.status || '—',
-      className: 'bg-gray-100 text-gray-800',
-    }
-  }, [order?.status])
-
-  const canIssueOrder = order?.status === 'confirmed'
+  const order = ordersStore.current
 
   const stopScanner = useCallback(async () => {
     const scanner = scannerRef.current
@@ -79,9 +31,7 @@ export default function OrderPickupPage() {
     }
 
     try {
-      if (scanner.isScanning) {
-        await scanner.stop()
-      }
+      if (scanner.isScanning) await scanner.stop()
     } catch {
       // noop
     }
@@ -94,24 +44,31 @@ export default function OrderPickupPage() {
 
     scannerRef.current = null
     hasScannedRef.current = false
-    if (isMountedRef.current) {
-      setIsScannerActive(false)
-    }
+    if (isMountedRef.current) setIsScannerActive(false)
   }, [])
 
-  const handleLookup = useCallback((rawCode) => {
+  const handleLookup = useCallback(async (rawCode) => {
     const code = (rawCode || '').trim().toUpperCase()
     if (!code) {
       toast.error('Введите код получения')
       return
     }
+
     setPickupCode(code)
-    lookupMutation.mutate(code)
-  }, [lookupMutation])
+    try {
+      await ordersStore.lookupByCode(code)
+      toast.success('Заказ найден')
+    } catch (error) {
+      if (error?.response?.status === 404) {
+        toast.error('Заказ с таким кодом не найден')
+        return
+      }
+      toast.error(getErrorMessage(error))
+    }
+  }, [ordersStore])
 
   const handleScanSuccess = useCallback((decodedText) => {
     if (hasScannedRef.current) return
-
     const code = (decodedText || '').trim().toUpperCase()
     if (!code) return
 
@@ -122,24 +79,16 @@ export default function OrderPickupPage() {
 
   const startScanner = useCallback(async () => {
     if (isScannerActive) return
-
     setScannerError('')
 
     try {
-      if (!Html5Qrcode.getCameras) {
-        setScannerError('Сканирование QR недоступно на этом устройстве')
-        return
-      }
-
       const cameras = await Html5Qrcode.getCameras()
       if (!cameras?.length) {
         setScannerError('Камера не найдена на устройстве')
         return
       }
 
-      const backCamera = cameras.find((camera) =>
-        /back|rear|environment|traseira|trasera/i.test(camera.label)
-      )
+      const backCamera = cameras.find((camera) => /back|rear|environment|traseira|trasera/i.test(camera.label))
       const cameraConfig = backCamera ? { deviceId: { exact: backCamera.id } } : { facingMode: 'environment' }
 
       const scanner = new Html5Qrcode(SCANNER_ID)
@@ -147,11 +96,7 @@ export default function OrderPickupPage() {
 
       await scanner.start(
         cameraConfig,
-        {
-          fps: 10,
-          qrbox: { width: 240, height: 240 },
-          formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-        },
+        { fps: 10, qrbox: { width: 240, height: 240 }, formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] },
         handleScanSuccess,
         () => {}
       )
@@ -159,14 +104,10 @@ export default function OrderPickupPage() {
       setIsScannerActive(true)
     } catch (error) {
       try {
-        const scanner = scannerRef.current
-        if (scanner) {
-          await scanner.clear()
-        }
+        if (scannerRef.current) await scannerRef.current.clear()
       } catch {
         // noop
       }
-
       scannerRef.current = null
       setIsScannerActive(false)
       setScannerError(error?.message || 'Не удалось запустить камеру')
@@ -180,80 +121,73 @@ export default function OrderPickupPage() {
     }
   }, [stopScanner])
 
+  const statusBadge = useMemo(() => {
+    return STATUS_META[order?.status] || { label: order?.status || '—', className: 'bg-gray-100 text-gray-800' }
+  }, [order?.status])
+
+  const canIssueOrder = order?.status === 'confirmed'
+
+  const handlePickup = async () => {
+    try {
+      const data = await ordersStore.pickup(order.id)
+      toast.success(data?.message || 'Заказ отмечен как выданный')
+    } catch (error) {
+      if (error?.response?.status === 409) {
+        toast.error('Заказ нельзя выдать в текущем статусе')
+        return
+      }
+      toast.error(getErrorMessage(error))
+    }
+  }
+
   return (
-    <div className="min-h-screen flex flex-col bg-cream-50">
-      <PartnerNav />
-
-      <main className="flex-1 max-w-5xl mx-auto w-full px-4 sm:px-6 py-8 space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-brand-900">Выдача заказа</h1>
-          <p className="text-brand-600 mt-1">Отсканируйте QR-код клиента или введите код получения вручную</p>
-        </div>
-
-        <div className="grid lg:grid-cols-2 gap-6">
+    <PartnerLayout title="Выдача заказа" subtitle="Отсканируйте QR или введите код получения вручную">
+      <div className="space-y-6 max-w-6xl">
+        <div className="grid lg:grid-cols-2 gap-5">
           <section className="card space-y-4">
             <h2 className="text-base font-semibold text-brand-900 flex items-center gap-2">
-              <Camera size={18} className="text-brand-500" />
-              Сканирование QR
+              <Camera size={18} className="text-brand-500" /> Сканирование QR
             </h2>
-
             <div className="rounded-xl border border-cream-200 bg-white p-4">
               <div id={SCANNER_ID} className="min-h-[280px] w-full overflow-hidden rounded-lg bg-cream-100" />
             </div>
-
-            {scannerError && (
-              <p className="text-sm text-red-600">{scannerError}</p>
-            )}
-
-            <div className="flex flex-wrap gap-3">
+            {scannerError && <p className="text-sm text-red-600">{scannerError}</p>}
+            <div className="flex gap-3 flex-wrap">
               <Button onClick={startScanner} disabled={isScannerActive} className="gap-2">
-                <QrCode size={16} />
-                Запустить сканер
+                <QrCode size={16} /> Запустить сканер
               </Button>
-
               <Button variant="secondary" onClick={stopScanner} disabled={!isScannerActive} className="gap-2">
-                <StopCircle size={16} />
-                Остановить
+                <StopCircle size={16} /> Остановить
               </Button>
             </div>
           </section>
 
           <section className="card space-y-4">
             <h2 className="text-base font-semibold text-brand-900 flex items-center gap-2">
-              <Keyboard size={18} className="text-brand-500" />
-              Ручной ввод кода
+              <Keyboard size={18} className="text-brand-500" /> Ручной ввод кода
             </h2>
-
-            <div className="space-y-3">
-              <Input
-                value={pickupCode}
-                onChange={(e) => setPickupCode(e.target.value.toUpperCase())}
-                placeholder="Например, NR0NMLU6"
-                autoCapitalize="characters"
-                autoCorrect="off"
-                spellCheck={false}
-                maxLength={32}
-              />
-
-              <Button
-                onClick={() => handleLookup(pickupCode)}
-                disabled={lookupMutation.isPending || !pickupCode.trim()}
-                className="w-full"
-              >
-                {lookupMutation.isPending ? 'Ищем заказ...' : 'Найти заказ'}
-              </Button>
-            </div>
+            <Input
+              value={pickupCode}
+              onChange={(e) => setPickupCode(e.target.value.toUpperCase())}
+              placeholder="Например, AB12CD34"
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
+              maxLength={32}
+            />
+            <Button onClick={() => handleLookup(pickupCode)} disabled={ordersStore.lookupLoading || !pickupCode.trim()} className="w-full">
+              {ordersStore.lookupLoading ? 'Ищем заказ...' : 'Найти заказ'}
+            </Button>
           </section>
         </div>
 
         <section className="card space-y-4">
           <h2 className="text-base font-semibold text-brand-900 flex items-center gap-2">
-            <PackageCheck size={18} className="text-brand-500" />
-            Информация о заказе
+            <PackageCheck size={18} className="text-brand-500" /> Информация о заказе
           </h2>
 
           {!order && (
-            <div className="border-2 border-dashed border-cream-300 rounded-xl p-8 text-center text-brand-500">
+            <div className="rounded-xl border-2 border-dashed border-cream-300 p-8 text-center text-brand-500">
               Сначала найдите заказ по QR или коду получения
             </div>
           )}
@@ -270,44 +204,30 @@ export default function OrderPickupPage() {
 
               <div className="grid md:grid-cols-2 gap-4">
                 <InfoRow label="Бокс" value={order.box?.name || '—'} icon={PackageCheck} />
-                <InfoRow label="Клиент" value={order.customer.name ? order.customer.name + ' (' + order.customer.phone + ')' : order.customer?.phone || '—'} icon={User} />
-                <InfoRow
-                  label="Окно выдачи"
-                  value={`${formatDateTime(order.pickup_time?.start)} - ${formatDateTime(order.pickup_time?.end)}`}
-                  icon={Clock3}
-                />
+                <InfoRow label="Клиент" value={order.customer?.name ? `${order.customer.name} (${order.customer.phone})` : order.customer?.phone || '—'} icon={User} />
+                <InfoRow label="Окно выдачи" value={`${formatDateTime(order.pickup_time?.start)} - ${formatDateTime(order.pickup_time?.end)}`} icon={Clock3} />
                 <InfoRow label="Создан" value={formatDateTime(order.created_at)} icon={BadgeCheck} />
               </div>
 
-              <Button
-                onClick={() => pickupMutation.mutate(order.id)}
-                disabled={!canIssueOrder || pickupMutation.isPending}
-                className="w-full sm:w-auto gap-2"
-              >
+              <Button onClick={handlePickup} disabled={!canIssueOrder || ordersStore.pickupLoading} className="w-full sm:w-auto gap-2">
                 <PackageCheck size={16} />
-                {pickupMutation.isPending ? 'Выдаём заказ...' : 'Выдать заказ'}
+                {ordersStore.pickupLoading ? 'Выдаем заказ...' : 'Выдать заказ'}
               </Button>
-
-              {!canIssueOrder && (
-                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  Выдача доступна только для заказов в статусе confirmed.
-                </p>
-              )}
             </div>
           )}
         </section>
-      </main>
-    </div>
+      </div>
+    </PartnerLayout>
   )
 }
 
 const STATUS_META = {
-  confirmed: { label: 'Подтверждён', className: 'bg-green-100 text-green-800' },
+  confirmed: { label: 'Подтвержден', className: 'bg-green-100 text-green-800' },
   picked_up: { label: 'Выдан', className: 'bg-blue-100 text-blue-800' },
-  completed: { label: 'Завершён', className: 'bg-brand-100 text-brand-800' },
+  completed: { label: 'Завершен', className: 'bg-brand-100 text-brand-800' },
   pending: { label: 'Ожидает', className: 'bg-yellow-100 text-yellow-800' },
   paid: { label: 'Оплачен', className: 'bg-emerald-100 text-emerald-800' },
-  cancelled: { label: 'Отменён', className: 'bg-red-100 text-red-800' },
+  cancelled: { label: 'Отменен', className: 'bg-red-100 text-red-800' },
 }
 
 function InfoRow({ label, value, icon: Icon }) {
@@ -321,3 +241,5 @@ function InfoRow({ label, value, icon: Icon }) {
     </div>
   )
 }
+
+export default observer(OrderPickupPageBase)

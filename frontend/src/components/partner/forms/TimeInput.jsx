@@ -1,5 +1,5 @@
-import { cn } from '@/lib/utils'
 import { forwardRef } from 'react'
+import { cn } from '@/lib/utils'
 
 const TimeInput = forwardRef(function TimeInput({ className, error, label, ...props }, ref) {
   return (
@@ -8,11 +8,7 @@ const TimeInput = forwardRef(function TimeInput({ className, error, label, ...pr
       <input
         ref={ref}
         type="time"
-        className={cn(
-          'input-base',
-          error && 'border-red-400 focus:ring-red-400',
-          className
-        )}
+        className={cn('input-base', error && 'border-red-400 focus:ring-red-400', className)}
         {...props}
       />
       {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
