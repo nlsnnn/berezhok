@@ -50,7 +50,7 @@ func (h *mediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "no file provided")
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	mediaFile, err := h.mediaService.UploadFile(r.Context(), service.UploadFileInput{
 		File:        file,

@@ -12,47 +12,54 @@ import (
 type key string
 
 const (
-	customerIDKey key = "customer_id"
-	partnerIDKey  key = "partner_id"
-	employeeIDKey key = "employee_id"
+	UserIDKey     key = "user_id"
+	UserTypeKey   key = "user_type"
+	CustomerIDKey key = "customer_id"
+	PartnerIDKey  key = "partner_id"
+	EmployeeIDKey key = "employee_id"
 )
 
-// Retrieves the customer ID from the request context
+func UserID(r *http.Request) (uuid.UUID, error) {
+	return getIDFromCtx(r.Context(), UserIDKey)
+}
+
+func UserIDFromContext(ctx context.Context) (uuid.UUID, error) {
+	return getIDFromCtx(ctx, UserIDKey)
+}
+
+func UserType(r *http.Request) (string, error) {
+	return getStringFromCtx(r.Context(), UserTypeKey)
+}
+
 func CustomerID(r *http.Request) (uuid.UUID, error) {
-	return getIDFromCtx(r.Context(), customerIDKey)
+	return getIDFromCtx(r.Context(), CustomerIDKey)
 }
 
-// Retrieves the customer ID from a context.Context
 func CustomerIDFromContext(ctx context.Context) (uuid.UUID, error) {
-	return getIDFromCtx(ctx, customerIDKey)
+	return getIDFromCtx(ctx, CustomerIDKey)
 }
 
-// Retrieves the partner ID from the request context
 func PartnerID(r *http.Request) (uuid.UUID, error) {
-	return getIDFromCtx(r.Context(), partnerIDKey)
+	return getIDFromCtx(r.Context(), PartnerIDKey)
 }
 
-// Retrieves the partner ID from a context.Context
 func PartnerIDFromContext(ctx context.Context) (uuid.UUID, error) {
-	return getIDFromCtx(ctx, partnerIDKey)
+	return getIDFromCtx(ctx, PartnerIDKey)
 }
 
-// EmployeeID retrieves the employee ID from the request context
 func EmployeeID(r *http.Request) (uuid.UUID, error) {
-	return getIDFromCtx(r.Context(), employeeIDKey)
+	return getIDFromCtx(r.Context(), EmployeeIDKey)
 }
 
-// EmployeeID retrieves the employee ID from the request context
 func EmployeeIDFromContext(ctx context.Context) (uuid.UUID, error) {
-	return getIDFromCtx(ctx, employeeIDKey)
+	return getIDFromCtx(ctx, EmployeeIDKey)
 }
 
-// helper function to extract a UUID from the context using the provided key
-func getIDFromCtx(ctx context.Context, key key) (uuid.UUID, error) {
+func getIDFromCtx(ctx context.Context, k key) (uuid.UUID, error) {
 	if ctx == nil {
 		return uuid.Nil, sharedErrors.ErrNotFoundContextValue
 	}
-	val := ctx.Value(key)
+	val := ctx.Value(k)
 	if val == nil {
 		return uuid.Nil, sharedErrors.ErrNotFoundContextValue
 	}
@@ -61,4 +68,19 @@ func getIDFromCtx(ctx context.Context, key key) (uuid.UUID, error) {
 		return uuid.Nil, sharedErrors.ErrNotFoundContextValue
 	}
 	return id, nil
+}
+
+func getStringFromCtx(ctx context.Context, k key) (string, error) {
+	if ctx == nil {
+		return "", sharedErrors.ErrNotFoundContextValue
+	}
+	val := ctx.Value(k)
+	if val == nil {
+		return "", sharedErrors.ErrNotFoundContextValue
+	}
+	s, ok := val.(string)
+	if !ok {
+		return "", sharedErrors.ErrNotFoundContextValue
+	}
+	return s, nil
 }

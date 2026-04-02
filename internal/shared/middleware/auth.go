@@ -5,7 +5,10 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
+
 	"github.com/nlsnnn/berezhok/internal/modules/auth"
+	"github.com/nlsnnn/berezhok/internal/shared/contextx"
 	"github.com/nlsnnn/berezhok/internal/shared/response"
 )
 
@@ -58,15 +61,21 @@ func (a *authMiddleware) RequireAuth(allowedTypes ...string) func(http.Handler) 
 				}
 			}
 
-			ctx := context.WithValue(r.Context(), "user_id", claims.UserID)
-			ctx = context.WithValue(ctx, "user_type", claims.UserType)
+			ctx := context.WithValue(r.Context(), contextx.UserIDKey, claims.UserID)
+			ctx = context.WithValue(ctx, contextx.UserTypeKey, claims.UserType)
 
 			if claims.UserType == "partner" {
-				ctx = context.WithValue(ctx, "partner_id", claims.UserData.(string))
+				if pid, ok := claims.UserData.(uuid.UUID); ok {
+					ctx = context.WithValue(ctx, contextx.PartnerIDKey, pid)
+				} else if pidStr, ok := claims.UserData.(string); ok {
+					if pid, err := uuid.Parse(pidStr); err == nil {
+						ctx = context.WithValue(ctx, contextx.PartnerIDKey, pid)
+					}
+				}
 			}
 
 			if claims.UserType == "customer" {
-				ctx = context.WithValue(ctx, "customer_id", claims.UserID)
+				ctx = context.WithValue(ctx, contextx.CustomerIDKey, claims.UserID)
 			}
 
 			next.ServeHTTP(w, r.WithContext(ctx))

@@ -14,6 +14,7 @@ import (
 
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/service"
+	"github.com/nlsnnn/berezhok/internal/shared/contextx"
 )
 
 type partnerSvcDashboardStub struct {
@@ -62,7 +63,7 @@ func TestPartnerDashboardSuccess(t *testing.T) {
 	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/partner/dashboard", nil)
-	req = req.WithContext(context.WithValue(req.Context(), "user_id", userID))
+	req = req.WithContext(context.WithValue(req.Context(), contextx.UserIDKey, userID))
 	rr := httptest.NewRecorder()
 
 	h.Dashboard(rr, req)
@@ -93,7 +94,7 @@ func TestPartnerDashboardInternalError(t *testing.T) {
 	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/partner/dashboard", nil)
-	req = req.WithContext(context.WithValue(req.Context(), "user_id", userID))
+	req = req.WithContext(context.WithValue(req.Context(), contextx.UserIDKey, userID))
 	rr := httptest.NewRecorder()
 
 	h.Dashboard(rr, req)

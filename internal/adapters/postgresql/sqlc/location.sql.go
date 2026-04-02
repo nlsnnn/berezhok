@@ -13,10 +13,10 @@ import (
 )
 
 const countActiveBoxesByLocationID = `-- name: CountActiveBoxesByLocationID :one
-SELECT COUNT(*) 
-FROM surprise_boxes 
-WHERE location_id = $1 
-    AND status = 'active' 
+SELECT COUNT(*)
+FROM surprise_boxes
+WHERE location_id = $1
+    AND status = 'active'
     AND quantity_available > 0
 `
 
@@ -44,7 +44,7 @@ func (q *Queries) CountActiveLocations(ctx context.Context, categoryCode pgtype.
 }
 
 const getLocationDetailsByID = `-- name: GetLocationDetailsByID :one
-SELECT 
+SELECT
     l.id,
     l.partner_id,
     l.name,

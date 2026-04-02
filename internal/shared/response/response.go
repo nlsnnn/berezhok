@@ -26,7 +26,7 @@ func JSON(w http.ResponseWriter, statusCode int, data any) {
 		Data:    data,
 	}
 
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // Success sends a successful JSON response
@@ -48,7 +48,7 @@ func Error(w http.ResponseWriter, message string, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 
-	json.NewEncoder(w).Encode(Response{
+	_ = json.NewEncoder(w).Encode(Response{
 		Success: false,
 		Error: &ErrorInfo{
 			Code:    http.StatusText(statusCode),
@@ -70,7 +70,7 @@ func ValidationError(w http.ResponseWriter, message string, details map[string]a
 		},
 	}
 
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // BadRequest sends a 400 Bad Request response

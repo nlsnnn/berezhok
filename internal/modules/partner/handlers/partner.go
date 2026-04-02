@@ -5,13 +5,12 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/google/uuid"
-
 	"github.com/nlsnnn/berezhok/internal/lib/logger/sl"
 	"github.com/nlsnnn/berezhok/internal/lib/validator"
 	partnerErrors "github.com/nlsnnn/berezhok/internal/modules/partner/errors"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/handlers/dto"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/service"
+	"github.com/nlsnnn/berezhok/internal/shared/contextx"
 	"github.com/nlsnnn/berezhok/internal/shared/response"
 )
 
@@ -30,9 +29,12 @@ func NewPartnerHandler(partService partnerSvc, log *slog.Logger) partnerHandler 
 }
 
 func (h *partnerHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("user_id").(uuid.UUID)
-	if !ok {
-		h.log.Error("user_id not found in context")
+	const op = "partner.handler.ChangePassword"
+	log := h.log.With(slog.String("op", op))
+
+	userID, err := contextx.UserID(r)
+	if err != nil {
+		log.Error("user_id not found in context", sl.Err(err))
 		response.InternalError(w, nil)
 		return
 	}
@@ -40,30 +42,28 @@ func (h *partnerHandler) ChangePassword(w http.ResponseWriter, r *http.Request) 
 	var req dto.ChangePasswordRequest
 
 	if errs := h.validator.DecodeAndValidate(r, &req); errs != nil {
-		h.log.Error("validation failed", slog.Any("errors", errs))
+		log.Error("validation failed", slog.Any("errors", errs))
 		response.ValidationError(w, "validation failed", errs)
 		return
 	}
 
-	err := h.partService.ChangePassword(r.Context(), service.ChangePasswordInput{
+	err = h.partService.ChangePassword(r.Context(), service.ChangePasswordInput{
 		UserID:          userID.String(),
 		CurrentPassword: req.CurrentPassword,
 		NewPassword:     req.NewPassword,
 	})
 	if err != nil {
-		if errors.Is(err, partnerErrors.ErrInvalidCredentials) {
-			h.log.Warn("invalid current password", sl.Err(err))
-			response.BadRequest(w, "invalid current password")
-			return
-		}
-		if errors.Is(err, partnerErrors.ErrPasswordUnchanged) {
-			h.log.Warn("password unchanged", sl.Err(err))
+		switch {
+		case errors.Is(err, partnerErrors.ErrInvalidCredentials), errors.Is(err, partnerErrors.ErrPasswordUnchanged):
+			log.Warn("password change failed", sl.Err(err))
+			response.BadRequest(w, err.Error())
+		case errors.Is(err, partnerErrors.ErrPasswordUnchanged):
+			log.Warn("password unchanged", sl.Err(err))
 			response.BadRequest(w, "password must be different from the current one")
-			return
+		default:
+			log.Error("failed to change password", sl.Err(err))
+			response.InternalError(w, nil)
 		}
-
-		h.log.Error("failed to change password", sl.Err(err))
-		response.InternalError(w, nil)
 		return
 	}
 
@@ -71,16 +71,19 @@ func (h *partnerHandler) ChangePassword(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *partnerHandler) Profile(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("user_id").(uuid.UUID)
-	if !ok {
-		h.log.Error("user_id not found in context")
+	const op = "partner.handler.Profile"
+	log := h.log.With(slog.String("op", op))
+
+	userID, err := contextx.UserID(r)
+	if err != nil {
+		log.Error("user_id not found in context", sl.Err(err))
 		response.InternalError(w, nil)
 		return
 	}
 
 	profile, err := h.partService.Profile(r.Context(), userID.String())
 	if err != nil {
-		h.log.Error("failed to get profile", sl.Err(err))
+		log.Error("failed to get profile", sl.Err(err))
 		response.InternalError(w, nil)
 		return
 	}
@@ -113,7 +116,6 @@ func (h *partnerHandler) Profile(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Map all partner locations
 	res.Locations = make([]dto.LocationResponse, len(profile.Locations))
 	for i, loc := range profile.Locations {
 		res.Locations[i] = dto.LocationResponse{
@@ -128,16 +130,19 @@ func (h *partnerHandler) Profile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *partnerHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("user_id").(uuid.UUID)
-	if !ok {
-		h.log.Error("user_id not found in context")
+	const op = "partner.handler.Dashboard"
+	log := h.log.With(slog.String("op", op))
+
+	userID, err := contextx.UserID(r)
+	if err != nil {
+		log.Error("user_id not found in context", sl.Err(err))
 		response.InternalError(w, nil)
 		return
 	}
 
 	dashboard, err := h.partService.Dashboard(r.Context(), userID.String())
 	if err != nil {
-		h.log.Error("failed to get dashboard", sl.Err(err))
+		log.Error("failed to get dashboard", sl.Err(err))
 		response.InternalError(w, nil)
 		return
 	}
