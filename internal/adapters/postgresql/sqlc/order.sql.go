@@ -382,7 +382,11 @@ SELECT
     o.pickup_time_start, o.created_at,
     sb.name AS box_name,
     l.name AS location_name,
-    false AS has_review
+    EXISTS(
+        SELECT 1
+        FROM reviews r
+        WHERE r.order_id = o.id
+    ) AS has_review
 FROM orders o
 JOIN surprise_boxes sb ON o.box_id = sb.id
 JOIN locations l ON o.location_id = l.id
