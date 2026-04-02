@@ -48,9 +48,9 @@ func (q *Queries) CloseLocation(ctx context.Context, id uuid.UUID) error {
 
 const createApplication = `-- name: CreateApplication :one
 INSERT INTO partner_applications (
-    contact_name, contact_email, contact_phone, business_name, category_code, 
+    contact_name, contact_email, contact_phone, business_name, category_code,
     address, description, status, latitude, longitude
-) 
+)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, contact_name, contact_email, contact_phone, business_name, category_code, address, description, status, reviewed_at, rejection_reason, created_at, latitude, longitude
 `
 
@@ -101,7 +101,7 @@ func (q *Queries) CreateApplication(ctx context.Context, arg CreateApplicationPa
 }
 
 const createLocation = `-- name: CreateLocation :one
-INSERT INTO locations (name, address, partner_id, category_code, status, location) 
+INSERT INTO locations (name, address, partner_id, category_code, status, location)
 VALUES ($1, $2, $3, $4, $5, ST_SetSRID(ST_MakePoint($6, $7), 4326))
 RETURNING id, partner_id, category_code, name, address, location, phone, logo_url, cover_image_url, gallery_urls, working_hours, status, created_at, updated_at
 `
@@ -148,7 +148,7 @@ func (q *Queries) CreateLocation(ctx context.Context, arg CreateLocationParams) 
 
 const createPartner = `-- name: CreatePartner :one
 INSERT INTO partners (
-    brand_name, logo_url, parent_partner_id, account_type, 
+    brand_name, logo_url, parent_partner_id, account_type,
     commission_rate, promo_commission_rate, promo_commission_until, status
 )
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, brand_name, logo_url, parent_partner_id, account_type, commission_rate, promo_commission_rate, promo_commission_until, status, created_at, updated_at
@@ -449,12 +449,12 @@ func (q *Queries) FindPartnerEmployeeByID(ctx context.Context, id uuid.UUID) (Pa
 }
 
 const getPartnerProfile = `-- name: GetPartnerProfile :one
-SELECT 
+SELECT
     e.id as employee_id, e.name as employee_name, e.email, e.role, e.created_at as employee_created_at, e.must_change_password,
     p.id as partner_id, p.brand_name, p.status as partner_status,
-    CASE 
+    CASE
         WHEN p.promo_commission_until >= NOW() THEN COALESCE(p.promo_commission_rate, p.commission_rate)
-        ELSE p.commission_rate 
+        ELSE p.commission_rate
     END AS commission_rate,
     p.promo_commission_until,
     p.created_at as partner_created_at,
@@ -723,8 +723,8 @@ func (q *Queries) UpdateApplication(ctx context.Context, arg UpdateApplicationPa
 
 const updateLocation = `-- name: UpdateLocation :one
 UPDATE locations
-SET 
-    name = COALESCE($2, name), 
+SET
+    name = COALESCE($2, name),
     address = COALESCE($3, address),
     category_code = COALESCE($4, category_code),
     logo_url = COALESCE($5, logo_url),
@@ -809,8 +809,8 @@ func (q *Queries) UpdateLocationWorkingHours(ctx context.Context, arg UpdateLoca
 
 const updatePartner = `-- name: UpdatePartner :exec
 UPDATE partners
-SET brand_name = $1, logo_url = $2, parent_partner_id = $3, 
-    account_type = $4, commission_rate = $5, promo_commission_rate = $6, 
+SET brand_name = $1, logo_url = $2, parent_partner_id = $3,
+    account_type = $4, commission_rate = $5, promo_commission_rate = $6,
     promo_commission_until = $7, status = $8
 WHERE id = $9
 `
@@ -844,7 +844,7 @@ func (q *Queries) UpdatePartner(ctx context.Context, arg UpdatePartnerParams) er
 
 const updatePartnerEmployee = `-- name: UpdatePartnerEmployee :exec
 UPDATE partner_employees
-SET partner_id = $1, location_id = $2, email = $3, password_hash = $4, 
+SET partner_id = $1, location_id = $2, email = $3, password_hash = $4,
     role = $5, name = $6
 WHERE id = $7
 `

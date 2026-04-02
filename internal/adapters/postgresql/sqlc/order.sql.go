@@ -474,7 +474,7 @@ func (q *Queries) MarkOrderPickedUp(ctx context.Context, arg MarkOrderPickedUpPa
 }
 
 const reserveBox = `-- name: ReserveBox :execrows
-UPDATE surprise_boxes 
+UPDATE surprise_boxes
 SET quantity_available = quantity_available - 1
 WHERE id = $1 AND quantity_available > 0 AND status = 'active'
 `
@@ -488,7 +488,7 @@ func (q *Queries) ReserveBox(ctx context.Context, id uuid.UUID) (int64, error) {
 }
 
 const updateOrderStatus = `-- name: UpdateOrderStatus :one
-UPDATE orders SET 
+UPDATE orders SET
     status = $2,
     updated_at = NOW()
 WHERE id = $1 RETURNING id, user_id, box_id, location_id, pickup_code, qr_code_url, amount, pickup_time_start, pickup_time_end, status, partner_confirmation_deadline, partner_confirmed_at, partner_confirmed_by, cancellation_reason, cancelled_at, picked_up_at, picked_up_confirmed_by, user_confirmed_at, auto_completed_at, created_at, updated_at

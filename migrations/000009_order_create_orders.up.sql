@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS orders (
     box_id UUID NOT NULL REFERENCES surprise_boxes(id) ON DELETE CASCADE,
     location_id UUID NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
 
-    -- Код для получения 
+    -- Код для получения
     pickup_code VARCHAR(8) UNIQUE NOT NULL,
     qr_code_url TEXT,
 
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS orders (
     partner_confirmed_at TIMESTAMPTZ,
     partner_confirmed_by UUID REFERENCES partner_employees(id) ON DELETE SET NULL,
 
-    -- Отмена 
+    -- Отмена
     cancellation_reason TEXT,
     cancelled_at TIMESTAMPTZ,
 

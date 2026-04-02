@@ -16,6 +16,6 @@ DELETE FROM media_files WHERE id = $1;
 
 -- List all media files (paginated)
 -- name: ListMediaFiles :many
-SELECT * FROM media_files 
+SELECT * FROM media_files
 ORDER BY uploaded_at DESC
 LIMIT $1 OFFSET $2;

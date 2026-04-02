@@ -1,4 +1,4 @@
-ALTER TABLE partners 
+ALTER TABLE partners
     ADD COLUMN legal_name VARCHAR(200);
 
 ALTER TABLE partners

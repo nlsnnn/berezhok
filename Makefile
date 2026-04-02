@@ -17,3 +17,6 @@ migrate-down:
 
 migrate-down-all:
 	migrate -path ./migrations/${module} -database "postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable" down
+
+pre-commit:
+	pre-commit run --all-files

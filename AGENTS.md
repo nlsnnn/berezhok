@@ -7,7 +7,7 @@ Guide for AI coding agents working in this repository.
 Berezhok is a full-stack web application (Go backend + React frontend) — a platform for surprise box pickup from local partners (restaurants, cafes).
 
 **Go 1.25** backend with chi router, PostgreSQL (pgx), Redis, S3/Yandex Object Storage, JWT auth.
-**React 19** frontend with Vite, Tailwind CSS, React Query, Axios.
+**React 19** frontend with Vite, Tailwind CSS, MobX 6, Axios.
 
 ---
 
@@ -33,6 +33,9 @@ go test ./internal/modules/catalog/service/ -run TestCreateBox -v
 
 # Run E2E tests (require DB)
 task e2e_tests                # go test ./internal/tests/... -v -run TestAPI
+
+# Pre-commit (runs all linters + formatters)
+make pre-commit               # pre-commit run --all-files
 
 # SQL code generation (sqlc)
 make sql-gen                  # sqlc generate
@@ -143,7 +146,7 @@ frontend/src/
 - Validate with `h.validator.DecodeAndValidate(r, &req)` → returns `map[string]any` or nil
 - Use `response.Success(w, data)`, `response.Created(w, data)`, `response.NotFound(w, msg)` helpers
 - Extract path params with `chi.URLParam(r, "id")`
-- Extract auth context with `r.Context().Value("partner_id").(string)`
+- Extract auth context with `contextx.PartnerID(r)` / `contextx.CustomerID(r)` / `contextx.EmployeeID(r)` (returns `uuid.UUID, error`)
 
 ### Logging
 - Use `slog` (stdlib) exclusively
@@ -162,13 +165,22 @@ frontend/src/
 
 - **No TypeScript** — plain JS with JSX
 - Functional components, `export default function ComponentName`
-- Hooks: `useState`, `useCallback`, `useContext`, React Query `useQuery`/`useMutation`
+- State management: **MobX 6** stores (NOT React Query)
+  - Stores are classes with `makeAutoObservable`, async actions use `runInAction`
+  - Exported as singletons: `export const boxesStore = new BoxesStore()`
+  - Access via `useStores()` hook or `StoresContext`
+  - Pages wrapped with `observer()` from `mobx-react-lite`
+  - Pattern: `function PageBase() { ... }` then `export default observer(PageBase)`
 - Styling: Tailwind CSS + `cn()` utility (clsx + tailwind-merge)
+  - Reusable CSS classes: `btn-primary`, `btn-secondary`, `btn-danger`, `btn-ghost`, `input-base`, `badge`, `card`
+  - Custom colors: `brand` (green), `cream` (warm neutral)
 - Path alias: `@/` → `./src/`
 - API calls through centralized axios client (`api/client.js`) with JWT interceptor
-- Error display via `sonner` toast
+  - Response unwrapping: `.then((r) => r.data.data)` — strips `{success, data}` envelope
+- Error display via `sonner` toast: `toast.success('...')`, `toast.error('...')`
 - Component props destructured inline, spread `...props` for passthrough
 - Unused vars error disabled for uppercase/underscore patterns
+- UI text is in Russian
 
 ---
 
@@ -176,7 +188,10 @@ frontend/src/
 
 - Domain types are plain Go structs — no ORM tags, no JSON tags on domain layer
 - DTOs in `handlers/dto/` carry JSON/validation tags and converter methods (`ToInput()`, `ToResponse()`)
+  - Three-file pattern per module: `request.go`, `response.go`, `converter.go`
 - Services accept input structs, return domain types
 - Repositories accept/return domain types, internally map to/from sqlc generated types
 - JWT tokens: partner (email+password), customer (phone+SMS code), admin — role in middleware
 - Config via `.env` + `cleanenv` → `config/local.yaml`
+- Response envelope: `{ "success": bool, "data": any }` or `{ "success": false, "error": { code, message, details } }`
+- Prefer `contextx.PartnerID(r)` / `contextx.CustomerID(r)` / `contextx.EmployeeID(r)` over raw `r.Context().Value(...)`

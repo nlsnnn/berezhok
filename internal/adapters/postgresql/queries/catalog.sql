@@ -9,7 +9,7 @@ INSERT INTO surprise_boxes (
 
 -- Update an existing box
 -- name: UpdateBox :one
-UPDATE surprise_boxes SET 
+UPDATE surprise_boxes SET
     name = COALESCE($2, name),
     description = COALESCE($3, description),
     original_price = COALESCE($4, original_price),
@@ -31,7 +31,7 @@ SELECT * FROM surprise_boxes WHERE location_id = $1;
 
 -- List active boxes by location ID
 -- name: ListActiveBoxesByLocationID :many
-SELECT * FROM surprise_boxes 
+SELECT * FROM surprise_boxes
 WHERE location_id = $1 AND status = 'active' AND quantity_available > 0;
 
 -- List boxes by partner ID
@@ -43,4 +43,3 @@ WHERE l.partner_id = $1;
 -- Delete a box
 -- name: DeleteBox :exec
 DELETE FROM surprise_boxes WHERE id = $1;
-

@@ -46,7 +46,7 @@ func main() {
 		log.Error("failed to initialize Redis", "error", err)
 		os.Exit(1)
 	}
-	defer redisClient.Close()
+	defer func() { _ = redisClient.Close() }()
 
 	api := application{
 		cfg:   cfg,

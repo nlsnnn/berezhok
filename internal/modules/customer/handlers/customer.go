@@ -11,6 +11,7 @@ import (
 	"github.com/nlsnnn/berezhok/internal/lib/validator"
 	"github.com/nlsnnn/berezhok/internal/modules/customer/domain"
 	"github.com/nlsnnn/berezhok/internal/modules/customer/handlers/dto"
+	"github.com/nlsnnn/berezhok/internal/shared/contextx"
 	"github.com/nlsnnn/berezhok/internal/shared/response"
 )
 
@@ -35,9 +36,9 @@ func NewCustomerHandler(service customerSvc, log *slog.Logger, v *validator.Vali
 
 // GetProfile handles GET /customer/profile
 func (h *customerHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("user_id").(uuid.UUID)
-	if !ok {
-		h.log.Error("user_id not found in context")
+	userID, err := contextx.UserID(r)
+	if err != nil {
+		h.log.Error("user_id not found in context", sl.Err(err))
 		response.InternalError(w, nil)
 		return
 	}
@@ -62,9 +63,9 @@ func (h *customerHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 
 // UpdateProfile handles PATCH /customer/profile
 func (h *customerHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("user_id").(uuid.UUID)
-	if !ok {
-		h.log.Error("user_id not found in context")
+	userID, err := contextx.UserID(r)
+	if err != nil {
+		h.log.Error("user_id not found in context", sl.Err(err))
 		response.InternalError(w, nil)
 		return
 	}

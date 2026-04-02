@@ -84,7 +84,7 @@ func (q *Queries) FindMediaFileByID(ctx context.Context, id uuid.UUID) (MediaFil
 }
 
 const listMediaFiles = `-- name: ListMediaFiles :many
-SELECT id, filename, original_filename, storage_key, url, content_type, size_bytes, uploaded_at FROM media_files 
+SELECT id, filename, original_filename, storage_key, url, content_type, size_bytes, uploaded_at FROM media_files
 ORDER BY uploaded_at DESC
 LIMIT $1 OFFSET $2
 `

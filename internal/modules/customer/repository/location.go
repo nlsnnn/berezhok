@@ -132,7 +132,7 @@ type LocationWithDetails struct {
 func searchRowToLocationWithDetails(r sqlc.SearchLocationsRow) LocationWithDetails {
 	var workingHours map[string]string
 	if r.WorkingHours != nil {
-		json.Unmarshal(r.WorkingHours, &workingHours)
+		_ = json.Unmarshal(r.WorkingHours, &workingHours)
 	}
 
 	// Convert interface{} coordinates to float64
@@ -170,7 +170,7 @@ func searchRowToLocationWithDetails(r sqlc.SearchLocationsRow) LocationWithDetai
 func detailsRowToLocationWithDetails(r sqlc.GetLocationDetailsByIDRow) LocationWithDetails {
 	var workingHours map[string]string
 	if r.WorkingHours != nil {
-		json.Unmarshal(r.WorkingHours, &workingHours)
+		_ = json.Unmarshal(r.WorkingHours, &workingHours)
 	}
 
 	// Convert interface{} coordinates to float64

@@ -29,11 +29,11 @@ export default function App() {
             <Route element={<RequireAuth />}>
               <Route path="/partner/dashboard" element={<PartnerDashboard />} />
               <Route path="/partner/change-password" element={<ChangePasswordPage />} />
-              
+
               {/* Locations */}
               <Route path="/partner/locations" element={<LocationsPage />} />
               <Route path="/partner/locations/new" element={<CreateLocationPage />} />
-              
+
               {/* Boxes */}
               <Route path="/partner/boxes" element={<BoxesPage />} />
               <Route path="/partner/boxes/new" element={<CreateBoxPage />} />

@@ -1,6 +1,6 @@
 -- Create new customer
 -- name: CreateCustomer :one
-INSERT INTO users (phone) 
+INSERT INTO users (phone)
 VALUES ($1)
 RETURNING id;
 
@@ -14,7 +14,7 @@ SELECT * FROM users WHERE phone = $1;
 
 -- Update customer profile
 -- name: UpdateCustomerProfile :one
-UPDATE users 
+UPDATE users
 SET name = $2
 WHERE id = $1
 RETURNING *;

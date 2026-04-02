@@ -104,7 +104,7 @@ func (q *Queries) FindBoxByID(ctx context.Context, id uuid.UUID) (SurpriseBox, e
 }
 
 const listActiveBoxesByLocationID = `-- name: ListActiveBoxesByLocationID :many
-SELECT id, location_id, name, description, original_price, discount_price, quantity_available, pickup_time_start, pickup_time_end, image_url, status, created_at, updated_at FROM surprise_boxes 
+SELECT id, location_id, name, description, original_price, discount_price, quantity_available, pickup_time_start, pickup_time_end, image_url, status, created_at, updated_at FROM surprise_boxes
 WHERE location_id = $1 AND status = 'active' AND quantity_available > 0
 `
 
@@ -224,7 +224,7 @@ func (q *Queries) ListBoxesByPartnerID(ctx context.Context, partnerID uuid.UUID)
 }
 
 const updateBox = `-- name: UpdateBox :one
-UPDATE surprise_boxes SET 
+UPDATE surprise_boxes SET
     name = COALESCE($2, name),
     description = COALESCE($3, description),
     original_price = COALESCE($4, original_price),

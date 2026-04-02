@@ -10,6 +10,6 @@ CREATE TABLE partner_applications (
     status VARCHAR(20) DEFAULT 'pending' NOT NULL,
     reviewed_at TIMESTAMPTZ,
     rejection_reason TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW() 
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_applications_status ON partner_applications(status);

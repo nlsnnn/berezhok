@@ -38,7 +38,7 @@ WHERE status = 'active'
 
 -- Get location details by ID with category info
 -- name: GetLocationDetailsByID :one
-SELECT 
+SELECT
     l.id,
     l.partner_id,
     l.name,
@@ -63,8 +63,8 @@ WHERE l.id = $1;
 
 -- Count active boxes by location ID
 -- name: CountActiveBoxesByLocationID :one
-SELECT COUNT(*) 
-FROM surprise_boxes 
-WHERE location_id = $1 
-    AND status = 'active' 
+SELECT COUNT(*)
+FROM surprise_boxes
+WHERE location_id = $1
+    AND status = 'active'
     AND quantity_available > 0;

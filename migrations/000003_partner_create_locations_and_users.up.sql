@@ -23,19 +23,19 @@ CREATE TABLE locations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     partner_id UUID NOT NULL REFERENCES partners(id) ON DELETE CASCADE,
     category_code VARCHAR(50) NOT NULL REFERENCES location_categories(code),
-    
+
     name VARCHAR(200) NOT NULL,
     address TEXT NOT NULL,
     location GEOGRAPHY(POINT, 4326) NOT NULL,
     phone VARCHAR(15),
-    
+
     logo_url TEXT,
     cover_image_url TEXT,
     gallery_urls TEXT[] DEFAULT '{}',
-    
+
     working_hours JSONB,
     status VARCHAR(20) NOT NULL DEFAULT 'inactive' CHECK (status IN ('active', 'inactive', 'closed')),
-    
+
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -55,15 +55,15 @@ CREATE TABLE partner_employees (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     partner_id UUID NOT NULL REFERENCES partners(id) ON DELETE CASCADE,
     location_id UUID REFERENCES locations(id) ON DELETE SET NULL,
-    
+
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL DEFAULT 'employee' CHECK (role IN ('owner', 'manager', 'employee')),
     name VARCHAR(100),
-    
+
     must_change_password BOOLEAN DEFAULT TRUE,
     last_login_at TIMESTAMPTZ,
-    
+
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
