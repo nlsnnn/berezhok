@@ -4,11 +4,7 @@ export default function Select({ className, error, children, ...props }) {
   return (
     <div className="w-full">
       <select
-        className={cn(
-          'input-base appearance-none bg-white cursor-pointer',
-          error && 'border-red-400 focus:ring-red-400',
-          className
-        )}
+        className={cn('input-base appearance-none bg-white cursor-pointer', error && 'border-red-400 focus:ring-red-400', className)}
         {...props}
       >
         {children}

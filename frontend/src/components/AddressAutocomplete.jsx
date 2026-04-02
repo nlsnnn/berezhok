@@ -22,7 +22,6 @@ export default function AddressAutocomplete({ value, onChange, placeholder = 'Н
   useEffect(() => {
     if (!value) {
       clear()
-      setSelected(false)
     }
   }, [value, clear])
 

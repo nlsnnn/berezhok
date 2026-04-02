@@ -17,5 +17,6 @@ type LocationSummary struct {
 	ID        string
 	Name      string
 	Address   string
+	Status    LocationStatus
 	CreatedAt time.Time
 }

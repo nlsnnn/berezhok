@@ -92,6 +92,7 @@ func (r *PartnerRepo) GetProfile(ctx context.Context, employeeID string) (domain
 			ID:        row.LocationID.String(),
 			Name:      row.LocationName.String,
 			Address:   row.LocationAddress.String,
+			Status:    domain.LocationStatusActive,
 			CreatedAt: row.LocationCreatedAt.Time,
 		}
 	}
@@ -108,12 +109,45 @@ func (r *PartnerRepo) GetProfile(ctx context.Context, employeeID string) (domain
 			ID:        loc.ID.String(),
 			Name:      loc.Name,
 			Address:   loc.Address,
+			Status:    domain.LocationStatus(loc.Status),
 			CreatedAt: time.Now(), // TODO: Add CreatedAt to the SQL query and use it here
 		}
 	}
 	profile.Locations = locations
 
 	return profile, nil
+}
+
+func (r *PartnerRepo) GetDashboard(ctx context.Context, employeeID string) (domain.PartnerDashboard, error) {
+	profile, err := r.GetProfile(ctx, employeeID)
+	if err != nil {
+		return domain.PartnerDashboard{}, err
+	}
+
+	locations := make([]domain.DashboardLocation, len(profile.Locations))
+	for i, loc := range profile.Locations {
+		count, err := r.q.CountActiveBoxesByLocationID(ctx, uuid.MustParse(loc.ID))
+		if err != nil {
+			return domain.PartnerDashboard{}, err
+		}
+
+		locations[i] = domain.DashboardLocation{
+			ID:               loc.ID,
+			Name:             loc.Name,
+			Address:          loc.Address,
+			Status:           loc.Status,
+			ActiveBoxesCount: int(count),
+		}
+	}
+
+	return domain.PartnerDashboard{
+		Partner:   profile.Partner,
+		Employee:  profile.Employee,
+		Locations: locations,
+		Today:     domain.DashboardTodayStats{},
+		Week:      domain.DashboardWeekStats{},
+		Finance:   domain.DashboardFinance{},
+	}, nil
 }
 
 func (r *PartnerRepo) UpdateEmployeePassword(ctx context.Context, employeeID, newHash string) error {

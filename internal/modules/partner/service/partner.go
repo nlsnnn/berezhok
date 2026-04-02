@@ -25,6 +25,7 @@ type partnerRepo interface {
 	Create(ctx context.Context, name string) (domain.Partner, error)
 	CheckEmailExists(ctx context.Context, email string) (bool, error)
 	GetProfile(ctx context.Context, employeeID string) (domain.PartnerProfile, error)
+	GetDashboard(ctx context.Context, employeeID string) (domain.PartnerDashboard, error)
 	UpdateEmployeePassword(ctx context.Context, employeeID, newHash string) error
 }
 
@@ -81,4 +82,8 @@ func (s *partService) ChangePassword(ctx context.Context, input ChangePasswordIn
 
 func (s *partService) Profile(ctx context.Context, userID string) (domain.PartnerProfile, error) {
 	return s.repo.GetProfile(ctx, userID)
+}
+
+func (s *partService) Dashboard(ctx context.Context, userID string) (domain.PartnerDashboard, error) {
+	return s.repo.GetDashboard(ctx, userID)
 }
