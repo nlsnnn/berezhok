@@ -23,7 +23,7 @@ import (
 )
 
 type testReviewService struct {
-	createReviewFn       func(ctx context.Context, input reviewService.CreateReviewInput) (*reviewService.CreateReviewResult, error)
+	createReviewFn        func(ctx context.Context, input reviewService.CreateReviewInput) (*reviewService.CreateReviewResult, error)
 	listLocationReviewsFn func(ctx context.Context, locationID uuid.UUID, limit, offset int) (*reviewService.ListLocationReviewsResult, error)
 }
 

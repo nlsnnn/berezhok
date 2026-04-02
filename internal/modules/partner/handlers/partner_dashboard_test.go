@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/service"
 )
@@ -47,7 +48,7 @@ func TestPartnerDashboardSuccess(t *testing.T) {
 			}
 
 			return domain.PartnerDashboard{
-				Partner: domain.Partner{ID: "partner-id", BrandName: "Mama pechet", Status: domain.PartnerStatusActive},
+				Partner:  domain.Partner{ID: "partner-id", BrandName: "Mama pechet", Status: domain.PartnerStatusActive},
 				Employee: domain.Employee{ID: "employee-id", Name: "Egor", Email: "owner@example.com", Role: domain.EmployeeRoleOwner},
 				Locations: []domain.DashboardLocation{{
 					ID:               "location-id",
