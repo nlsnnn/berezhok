@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/nlsnnn/berezhok/internal/modules/review/errors"
 )
 
 type Review struct {
@@ -24,4 +25,19 @@ type ReviewWithUser struct {
 	Comment   string
 	UserName  string
 	CreatedAt time.Time
+}
+
+func NewReview(userID, locationID, orderID uuid.UUID, rating int, comment string) (*Review, error) {
+	if rating < 1 || rating > 5 {
+		return nil, errors.ErrRatingOutOfRange
+	}
+
+	return &Review{
+		ID:         uuid.New(),
+		UserID:     userID,
+		LocationID: locationID,
+		OrderID:    orderID,
+		Rating:     rating,
+		Comment:    comment,
+	}, nil
 }

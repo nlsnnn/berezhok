@@ -16,7 +16,7 @@ import (
 	reviewErrors "github.com/nlsnnn/berezhok/internal/modules/review/errors"
 	"github.com/nlsnnn/berezhok/internal/modules/review/handlers/dto"
 	reviewService "github.com/nlsnnn/berezhok/internal/modules/review/service"
-	sharedErrors "github.com/nlsnnn/berezhok/internal/shared/errors"
+	"github.com/nlsnnn/berezhok/internal/shared/contextx"
 	"github.com/nlsnnn/berezhok/internal/shared/response"
 )
 
@@ -43,7 +43,7 @@ func (h *reviewHandler) CreateReview(w http.ResponseWriter, r *http.Request) {
 	const op = "review.handler.CreateReview"
 	log := h.log.With(slog.String("op", op))
 
-	userID, err := h.getCustomerIDFromContext(r)
+	userID, err := contextx.CustomerID(r)
 	if err != nil {
 		log.Error("failed to get customer_id from context", sl.Err(err))
 		response.Unauthorized(w, "authentication required")
@@ -148,18 +148,4 @@ func (h *reviewHandler) ListLocationReviews(w http.ResponseWriter, r *http.Reque
 			HasMore: result.HasMore,
 		},
 	})
-}
-
-func (h *reviewHandler) getCustomerIDFromContext(r *http.Request) (uuid.UUID, error) {
-	customerIDRaw := r.Context().Value("customer_id")
-	if customerIDRaw == nil {
-		return uuid.Nil, sharedErrors.ErrNotFoundContextValue
-	}
-
-	customerID, ok := customerIDRaw.(uuid.UUID)
-	if !ok {
-		return uuid.Nil, sharedErrors.ErrNotFoundContextValue
-	}
-
-	return customerID, nil
 }

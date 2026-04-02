@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -23,31 +22,8 @@ type orderReader interface {
 }
 
 type reviewService struct {
-	repo    reviewRepo
-	orders  orderReader
-}
-
-type CreateReviewInput struct {
-	UserID  uuid.UUID
-	OrderID uuid.UUID
-	Rating  int
-	Comment string
-}
-
-type CreateReviewResult struct {
-	ID        uuid.UUID
-	Rating    int
-	Comment   string
-	OrderID   uuid.UUID
-	CreatedAt time.Time
-}
-
-type ListLocationReviewsResult struct {
-	Items   []reviewDomain.ReviewWithUser
-	Total   int
-	Limit   int
-	Offset  int
-	HasMore bool
+	repo   reviewRepo
+	orders orderReader
 }
 
 func NewReviewService(repo reviewRepo, orders orderReader) *reviewService {
@@ -70,13 +46,9 @@ func (s *reviewService) CreateReview(ctx context.Context, input CreateReviewInpu
 		return nil, reviewErrors.ErrOrderNotCompleted
 	}
 
-	review := &reviewDomain.Review{
-		ID:         uuid.New(),
-		UserID:     input.UserID,
-		LocationID: order.LocationID,
-		OrderID:    input.OrderID,
-		Rating:     input.Rating,
-		Comment:    input.Comment,
+	review, err := reviewDomain.NewReview(input.UserID, order.LocationID, input.OrderID, input.Rating, input.Comment)
+	if err != nil {
+		return nil, err
 	}
 
 	err = s.repo.Create(ctx, review)
