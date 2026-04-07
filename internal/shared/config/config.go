@@ -15,6 +15,7 @@ type Config struct {
 	Redis      `yaml:"redis"`
 	S3         `yaml:"s3"`
 	Yookassa   `yaml:"yookassa"`
+	RabbitMQ   `yaml:"rabbitmq"`
 }
 
 type Db struct {
@@ -49,6 +50,10 @@ type S3 struct {
 type Yookassa struct {
 	AccountID string `env:"YOOKASSA_ACCOUNT_ID"`
 	SecretKey string `env:"YOOKASSA_SECRET_KEY"`
+}
+
+type RabbitMQ struct {
+	URL string `yaml:"url" env:"RABBITMQ_URL"`
 }
 
 func MustLoad() *Config {
