@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql"
+	"github.com/nlsnnn/berezhok/internal/adapters/rabbitmq"
 	"github.com/nlsnnn/berezhok/internal/adapters/redis"
 	"github.com/nlsnnn/berezhok/internal/adapters/s3/yandex"
 	"github.com/nlsnnn/berezhok/internal/lib/logger/sl"
@@ -48,12 +49,21 @@ func main() {
 	}
 	defer func() { _ = redisClient.Close() }()
 
+	// RabbitMQ
+	rabbitClient, err := rabbitmq.New(cfg.URL, log)
+	if err != nil {
+		log.Error("failed to initialize RabbitMQ", "error", err)
+		os.Exit(1)
+	}
+	defer func() { _ = rabbitClient.Close() }()
+
 	api := application{
-		cfg:   cfg,
-		pool:  db,
-		log:   log,
-		s3:    s3Storage,
-		redis: redisClient,
+		cfg:      cfg,
+		pool:     db,
+		log:      log,
+		s3:       s3Storage,
+		redis:    redisClient,
+		rabbitmq: rabbitClient,
 	}
 
 	if err := api.run(log, api.mount()); err != nil {

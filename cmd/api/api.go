@@ -12,6 +12,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
+	"github.com/nlsnnn/berezhok/internal/adapters/rabbitmq"
 	redisAdapter "github.com/nlsnnn/berezhok/internal/adapters/redis"
 	"github.com/nlsnnn/berezhok/internal/adapters/s3/yandex"
 	smsAdapter "github.com/nlsnnn/berezhok/internal/adapters/sms"
@@ -31,6 +32,7 @@ import (
 	orderHandlers "github.com/nlsnnn/berezhok/internal/modules/order/handlers"
 	orderRepos "github.com/nlsnnn/berezhok/internal/modules/order/repository"
 	orderServices "github.com/nlsnnn/berezhok/internal/modules/order/service"
+	partneradapters "github.com/nlsnnn/berezhok/internal/modules/partner/adapters"
 	partnerHandlers "github.com/nlsnnn/berezhok/internal/modules/partner/handlers"
 	partnerRepos "github.com/nlsnnn/berezhok/internal/modules/partner/repository"
 	partnerServices "github.com/nlsnnn/berezhok/internal/modules/partner/service"
@@ -54,7 +56,7 @@ func (app *application) mount() http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins: []string{"http://localhost", "http://localhost:5173", "http://localhost:3000", "http://localhost:8000", "http://localhost:63333"},
+		AllowedOrigins: []string{"http://localhost", "http://localhost:5173", "http://localhost:3000", "http://localhost:8000", "http://localhost:52946"},
 		AllowedMethods: []string{"GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders: []string{"Link"},
@@ -69,6 +71,10 @@ func (app *application) mount() http.Handler {
 	queries := sqlc.New(app.pool)
 	v := validator.New()
 	jwtService := jwt.NewTokenService([]byte("supersecretkey"))
+	notificationPublisher := rabbitmq.NewNotificationPublisher(app.rabbitmq)
+
+	// Partner module - adapters
+	notificationAdapter := partneradapters.NewNotificationAdapter(notificationPublisher)
 
 	// Partner module — repositories
 	partnerRepo := partnerRepos.NewPartnerRepo(queries)
@@ -80,7 +86,7 @@ func (app *application) mount() http.Handler {
 	partnerSvc := partnerServices.NewPartnerService(partnerRepo, employeeRepo)
 	employeeSvc := partnerServices.NewEmployeeService(employeeRepo)
 	locationSvc := partnerServices.NewLocationService(locationRepo)
-	appSvc := partnerServices.NewApplicationService(appRepo, partnerSvc, employeeSvc, locationSvc)
+	appSvc := partnerServices.NewApplicationService(appRepo, partnerSvc, employeeSvc, locationSvc, notificationAdapter)
 
 	// Partner module — handlers
 	partHandler := partnerHandlers.NewPartnerHandler(partnerSvc, app.log)
@@ -262,9 +268,10 @@ func (app *application) run(log *slog.Logger, h http.Handler) error {
 }
 
 type application struct {
-	cfg   *config.Config
-	pool  *pgxpool.Pool
-	log   *slog.Logger
-	s3    *yandex.Storage
-	redis *redis.Client
+	cfg      *config.Config
+	pool     *pgxpool.Pool
+	log      *slog.Logger
+	s3       *yandex.Storage
+	redis    *redis.Client
+	rabbitmq *rabbitmq.Client
 }

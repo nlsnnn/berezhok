@@ -24,10 +24,11 @@ type CreateApplicationInput struct {
 }
 
 type appService struct {
-	repo             appRepo
-	partnerSvc       partnerProvider
-	employeeSvc      employeeCreator
-	locationProvider locationProvider
+	repo                 appRepo
+	partnerSvc           partnerProvider
+	employeeSvc          employeeCreator
+	locationProvider     locationProvider
+	notificationProvider notificationProvider
 }
 
 type appRepo interface {
@@ -52,12 +53,18 @@ type locationProvider interface {
 	FindCategoryByCode(ctx context.Context, code string) (domain.LocationCategory, error)
 }
 
-func NewApplicationService(repo appRepo, partnerSvc partnerProvider, employeeSvc employeeCreator, locationProvider locationProvider) *appService {
+type notificationProvider interface {
+	SendPartnerApprovalNotification(ctx context.Context, email, name, password string) error
+	SendPartnerRejectionNotification(ctx context.Context, email, name, reason string) error
+}
+
+func NewApplicationService(repo appRepo, partnerSvc partnerProvider, employeeSvc employeeCreator, locationProvider locationProvider, notificationProvider notificationProvider) *appService {
 	return &appService{
-		repo:             repo,
-		partnerSvc:       partnerSvc,
-		employeeSvc:      employeeSvc,
-		locationProvider: locationProvider,
+		repo:                 repo,
+		partnerSvc:           partnerSvc,
+		employeeSvc:          employeeSvc,
+		locationProvider:     locationProvider,
+		notificationProvider: notificationProvider,
 	}
 }
 
@@ -145,7 +152,12 @@ func (s *appService) Approve(ctx context.Context, id string) error {
 		return err
 	}
 
-	// TODO: send email with credentials
+	err = s.notificationProvider.SendPartnerApprovalNotification(ctx, app.ContactEmail, app.ContactName, password)
+	if err != nil {
+		// Log the error but do not fail the approval process
+		fmt.Printf("Failed to send approval notification: %s\n", err)
+	}
+
 	fmt.Printf("Partner approved. Contact: %s, Password: %s\n", app.ContactEmail, password)
 
 	return s.repo.UpdateStatus(ctx, id, domain.ApplicationStatusApproved, "")
