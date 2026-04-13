@@ -3,6 +3,7 @@ import { observer } from 'mobx-react-lite'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
+import { getErrorMessage } from '@/lib/utils'
 import PartnerLayout from '@/components/partner/layout/PartnerLayout'
 import BoxForm from '@/components/partner/boxes/BoxForm'
 import Spinner from '@/components/ui/feedback/Spinner'
@@ -17,6 +18,11 @@ function CreateBoxPageBase() {
     locationsStore.loadProfile()
   }, [locationsStore])
 
+  // TODO: убрать профиль из locationsStore и юзать только для загрузки локаций, а статус партнера брать из отдельного store
+
+  const partnerStatus = locationsStore.profile?.partner?.status || locationsStore.profile?.status || null
+  const canActivateBoxes = partnerStatus !== 'pending_documents'
+
   const handleSubmit = async (formData) => {
     const payload = {
       location_id: formData.location_id,
@@ -28,15 +34,15 @@ function CreateBoxPageBase() {
       pickup_time_start: formData.pickup_time_start,
       pickup_time_end: formData.pickup_time_end,
       image_url: formData.image_url || '',
-      status: formData.status,
+      status: !canActivateBoxes && formData.status === 'active' ? 'inactive' : formData.status,
     }
 
     try {
       await boxesStore.create(payload)
       toast.success('Бокс создан')
       navigate('/partner/boxes')
-    } catch {
-      toast.error('Не удалось создать бокс')
+    } catch (error) {
+      toast.error(getErrorMessage(error))
     }
   }
 
@@ -62,6 +68,7 @@ function CreateBoxPageBase() {
               locations={locationsStore.locations}
               onSubmit={handleSubmit}
               isLoading={boxesStore.submitting}
+              canActivateBoxes={canActivateBoxes}
             />
           )}
         </div>

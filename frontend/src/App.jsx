@@ -18,6 +18,7 @@ import OrdersPage from '@/pages/partner/OrdersPage'
 import EmployeesPage from '@/pages/partner/EmployeesPage'
 import StatsPage from '@/pages/partner/StatsPage'
 import ProfilePage from '@/pages/partner/ProfilePage'
+import PartnerLegalInfoPage from '@/pages/partner/PartnerLegalInfoPage'
 
 export default function App() {
   return (
@@ -55,6 +56,7 @@ export default function App() {
 
               {/* Profile */}
               <Route path="/partner/profile" element={<ProfilePage />} />
+              <Route path="/partner/legal-info" element={<PartnerLegalInfoPage />} />
             </Route>
 
           <Route path="/partner" element={<Navigate to="/partner/dashboard" replace />} />
