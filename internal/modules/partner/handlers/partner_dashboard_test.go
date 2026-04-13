@@ -20,7 +20,7 @@ import (
 )
 
 type partnerSvcDashboardStub struct {
-	dashboardFn   func(ctx context.Context, userID string) (domain.PartnerDashboard, error)
+	dashboardFn    func(ctx context.Context, userID string) (domain.PartnerDashboard, error)
 	addLegalInfoFn func(ctx context.Context, input service.AddLegalInfoInput) error
 }
 

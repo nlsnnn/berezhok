@@ -5,6 +5,7 @@ import (
 	"unicode"
 
 	"github.com/google/uuid"
+
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/errors"
 	"github.com/nlsnnn/berezhok/internal/shared/auth"
@@ -102,6 +103,7 @@ func (s *partService) Dashboard(ctx context.Context, userID string) (domain.Part
 }
 
 func (s *partService) AddLegalInfo(ctx context.Context, input AddLegalInfoInput) error {
+	// TODO: move validation to handler (?)
 	if !isDigitsOnly(input.Inn) || (len(input.Inn) != 10 && len(input.Inn) != 12) {
 		return errors.ErrInvalidINN
 	}

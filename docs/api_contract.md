@@ -1,8 +1,8 @@
 # Бережок — REST API Contract
 
-> **Версия API:** v1  
-> **Base URL:** `https://api.berezhok.ru/v1`  
-> **Формат:** JSON  
+> **Версия API:** v1
+> **Base URL:** `https://api.berezhok.ru/v1`
+> **Формат:** JSON
 > **Аутентификация:** Bearer Token (JWT)
 
 ---
@@ -622,7 +622,6 @@ GET /customer/locations?lat=55.7558&lng=37.6173&radius=2000&category=bakery&limi
   "data": {
     "partner": {
       "id": "750e8400-e29b-41d4-a716-446655440002",
-      "legal_name": "ООО Вкусная пекарня",
       "brand_name": "Мама печёт",
       "status": "active",
       "commission_rate": 0.10,
@@ -646,41 +645,6 @@ GET /customer/locations?lat=55.7558&lng=37.6173&radius=2000&category=bakery&limi
 ---
 
 ### 3.2 Список сюрприз-боксов
-
-### 3.2 Заполнить юридическую информацию
-
-**Endpoint:** `POST /partner/legal-info`
-
-**Request:**
-```json
-{
-  "inn": "1234567890",
-  "ogrn": "1234567890123",
-  "kpp": "123456789",
-  "legal_address": "г. Москва, ул. Ленина, 1",
-  "legal_name": "ООО Вкусная пекарня"
-}
-```
-
-**Response:** `200 OK`
-```json
-{
-  "success": true,
-  "data": {
-    "message": "legal info saved successfully"
-  }
-}
-```
-
-**Errors:**
-- `400` — невалидные данные (`inn`, `ogrn`, `kpp`, `legal_address`, `legal_name`)
-- `400` — статус партнёра не позволяет обновлять юридическую информацию
-
-После успешного сохранения юридической информации статус партнёра автоматически меняется на `active`.
-
----
-
-### 3.3 Список сюрприз-боксов
 
 **Endpoint:** `GET /partner/boxes`
 
@@ -711,7 +675,7 @@ GET /customer/locations?lat=55.7558&lng=37.6173&radius=2000&category=bakery&limi
 
 ---
 
-### 3.4 Создать сюрприз-бокс
+### 3.3 Создать сюрприз-бокс
 
 **Endpoint:** `POST /partner/boxes`
 
@@ -744,11 +708,10 @@ GET /customer/locations?lat=55.7558&lng=37.6173&radius=2000&category=bakery&limi
 
 **Errors:**
 - `400` — у партнёра уже 5 активных боксов (лимит)
-- Если партнёр в статусе `pending_documents` и в запросе передан `status=active`, бокс будет создан со статусом `inactive`
 
 ---
 
-### 3.5 Обновить сюрприз-бокс
+### 3.4 Обновить сюрприз-бокс
 
 **Endpoint:** `PATCH /partner/boxes/{box_id}`
 
@@ -773,12 +736,9 @@ GET /customer/locations?lat=55.7558&lng=37.6173&radius=2000&category=bakery&limi
 }
 ```
 
-**Errors:**
-- `403` — партнёр не может активировать боксы, пока не заполнит юридическую информацию
-
 ---
 
-### 3.6 Заказы требующие подтверждения
+### 3.5 Заказы требующие подтверждения
 
 **Endpoint:** `GET /partner/orders/pending-confirmation`
 
@@ -806,7 +766,7 @@ GET /customer/locations?lat=55.7558&lng=37.6173&radius=2000&category=bakery&limi
 
 ---
 
-### 3.7 Подтвердить заказ
+### 3.6 Подтвердить заказ
 
 **Endpoint:** `POST /partner/orders/{order_id}/confirm`
 
@@ -828,7 +788,7 @@ GET /customer/locations?lat=55.7558&lng=37.6173&radius=2000&category=bakery&limi
 
 ---
 
-### 3.8 Поиск заказа по коду
+### 3.7 Поиск заказа по коду
 
 **Endpoint:** `GET /partner/orders/by-code/{pickup_code}`
 
@@ -840,8 +800,14 @@ GET /customer/locations?lat=55.7558&lng=37.6173&radius=2000&category=bakery&limi
     "id": "b60e8400-e29b-41d4-a716-446655440006",
     "pickup_code": "AB12CD34",
     "status": "confirmed",
-    "box_name": "Вечерний сюрприз",
-    "customer_phone": "+7900***4567",
+    "box": {
+      "name": "Вечерний сюрприз",
+      "image_url": "https://example.com",
+    },
+    "customer": {
+      "phone": "+7900***4567",
+      "name": "Egor", // optional
+    },
     "pickup_time": {
       "start": "2025-01-20T18:00:00Z",
       "end": "2025-01-20T19:00:00Z"
@@ -855,7 +821,7 @@ GET /customer/locations?lat=55.7558&lng=37.6173&radius=2000&category=bakery&limi
 
 ---
 
-### 3.9 Выдать заказ
+### 3.8 Выдать заказ
 
 **Endpoint:** `POST /partner/orders/{order_id}/pickup`
 
@@ -873,7 +839,7 @@ GET /customer/locations?lat=55.7558&lng=37.6173&radius=2000&category=bakery&limi
 
 ---
 
-### 3.10 Статистика
+### 3.9 Статистика
 
 **Endpoint:** `GET /partner/stats`
 
@@ -910,7 +876,7 @@ GET /customer/locations?lat=55.7558&lng=37.6173&radius=2000&category=bakery&limi
 
 ---
 
-### 3.11 История выплат
+### 3.10 История выплат
 
 **Endpoint:** `GET /partner/payouts`
 
@@ -941,9 +907,127 @@ GET /customer/locations?lat=55.7558&lng=37.6173&radius=2000&category=bakery&limi
 
 ---
 
+### 3.11 Получить главный экран партнера
+
+**Endpoint:** `GET /partner/dashboard`
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "partner": {
+      "id": "750e8400-e29b-41d4-a716-446655440002",
+      "brand_name": "Мама печёт",
+      "status": "active",
+      "commission_rate": 0.10,
+      "promo_until": "2025-04-15"
+    },
+    "employee": {
+      "id": "650e8400-e29b-41d4-a716-446655440001",
+      "name": "Иван Иванов",
+      "email": "owner@bakery.ru",
+      "role": "owner"
+    },
+    "locations": [
+      {
+        "id": "...",
+        "name": "Пекарня на Ленина",
+        "address": "ул. Ленина, 5",
+        "status": "active",
+        "active_boxes_count": 3
+      }
+    ],
+    "today": {
+      "pending_confirmation": 2,
+      "confirmed": 5,
+      "picked_up": 1,
+      "completed": 8
+    },
+    "week": {
+      "orders_completed": 42,
+      "gross_revenue": 8550,
+      "net_revenue": 7695,
+      "avg_rating": 4.5
+    },
+    "finance": {
+      "balance_pending": 7695,
+      "next_payout_date": "2025-01-27"
+    }
+  }
+}
+```
+
+### 3.12 Добавить сотрудника
+
+**Endpoint:** `POST /partner/employees`
+
+**Request:**
+```json
+{
+  "name": "Мария Сидорова",
+  "email": "maria@romashka.ru",
+  "role": "manager",
+  "permissions": ["orders.view", "boxes.manage"],
+  "location_ids": ["850e8400-e29b-41d4-a716-446655440003"],
+  "send_email_invite": true,
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "success": true,
+  "data": {
+    "employee_id": "f90e8400-e29b-41d4-a716-446655440011",
+    "message": "Сотрудник добавлен. На email отправлено приглашение."
+  }
+}
+```
+
+**Errors:**
+- `400` — некорректные данные
+- `409` — сотрудник с таким email уже существует
+
+---
+
+
+### 3.13 Заполнить юридическую информацию
+
+**Endpoint:** `POST /partner/legal-info`
+
+**Request:**
+```json
+{
+  "inn": "1234567890",
+  "ogrn": "1234567890123",
+  "kpp": "123456789",
+  "legal_address": "г. Москва, ул. Ленина, 1",
+  "legal_name": "ООО Вкусная пекарня"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "message": "legal info saved successfully"
+  }
+}
+```
+
+**Errors:**
+- `400` — невалидные данные (`inn`, `ogrn`, `kpp`, `legal_address`, `legal_name`)
+- `400` — статус партнёра не позволяет обновлять юридическую информацию
+
+После успешного сохранения юридической информации статус партнёра автоматически меняется на `active`.
+
+---
+
 ## 4. Admin API (админ-панель)
 
-**Заголовок:** `Authorization: Bearer {token}`  
+**Заголовок:** `Authorization: Bearer {token}`
 **Требуется:** роль `admin` или выше
 
 ### 4.1 Заявки на регистрацию
