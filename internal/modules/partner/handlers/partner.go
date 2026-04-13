@@ -193,3 +193,43 @@ func (h *partnerHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 
 	response.Success(w, res)
 }
+
+func (h *partnerHandler) AddLegalInfo(w http.ResponseWriter, r *http.Request) {
+	const op = "partner.handler.AddLegalInfo"
+	log := h.log.With(slog.String("op", op))
+
+	partnerID, err := contextx.PartnerID(r)
+	if err != nil {
+		log.Error("partner_id not found in context", sl.Err(err))
+		response.InternalError(w, nil)
+		return
+	}
+
+	var req dto.AddLegalInfoRequest
+
+	if errs := h.validator.DecodeAndValidate(r, &req); errs != nil {
+		log.Error("validation failed", sl.Errs(errs))
+		response.ValidationError(w, "validation failed", errs)
+		return
+	}
+
+	err = h.partService.AddLegalInfo(r.Context(), req.ToInput(partnerID.String()))
+	if err != nil {
+		switch {
+		case errors.Is(err, partnerErrors.ErrPartnerStatusInvalid):
+			log.Warn("partner status is invalid", sl.Err(err))
+			response.BadRequest(w, err.Error())
+		case errors.Is(err, partnerErrors.ErrInvalidINN),
+			errors.Is(err, partnerErrors.ErrInvalidOGRN),
+			errors.Is(err, partnerErrors.ErrInvalidKPP):
+			log.Warn("invalid legal info", sl.Err(err))
+			response.BadRequest(w, err.Error())
+		default:
+			log.Error("failed to save legal info", sl.Err(err))
+			response.InternalError(w, nil)
+		}
+		return
+	}
+
+	response.Success(w, map[string]string{"message": "legal info saved successfully"})
+}

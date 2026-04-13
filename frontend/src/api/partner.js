@@ -14,6 +14,9 @@ export const changePassword = (current_password, new_password) =>
     .post("/partner/change-password", { current_password, new_password })
     .then((r) => r.data.data);
 
+export const savePartnerLegalInfo = (data) =>
+  api.post("/partner/legal-info", data).then((r) => r.data.data);
+
 export const createLocation = (data) =>
   api.post("/partner/locations", data).then((r) => r.data.data);
 

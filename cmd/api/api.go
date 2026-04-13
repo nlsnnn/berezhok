@@ -99,7 +99,7 @@ func (app *application) mount() http.Handler {
 	boxRepo := catalogRepos.NewBoxRepo(queries)
 
 	// Catalog module — services
-	boxSvc := catalogServices.NewBoxService(boxRepo, locationSvc)
+	boxSvc := catalogServices.NewBoxService(boxRepo, locationSvc, partnerSvc)
 
 	// Catalog module — handlers
 	boxHandler := catalogHandlers.NewBoxHandler(boxSvc, app.log, v)
@@ -217,6 +217,7 @@ func (app *application) mount() http.Handler {
 			r.Post("/partner/change-password", partHandler.ChangePassword)
 			r.Get("/partner/profile", partHandler.Profile)
 			r.Get("/partner/dashboard", partHandler.Dashboard)
+			r.Post("/partner/legal-info", partHandler.AddLegalInfo)
 
 			// Location
 			r.Get("/partner/locations", locationHandler.List)

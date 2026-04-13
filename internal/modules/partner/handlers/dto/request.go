@@ -29,3 +29,11 @@ type CreateLocationRequest struct {
 	Longitude    float64 `json:"longitude" validate:"required,min=-180,max=180"`
 	Phone        string  `json:"phone" validate:"omitempty,e164"`
 }
+
+type AddLegalInfoRequest struct {
+	Inn          string `json:"inn" validate:"required,numeric,min=10,max=12"`
+	Ogrn         string `json:"ogrn" validate:"omitempty,numeric,min=13,max=15"`
+	Kpp          string `json:"kpp" validate:"omitempty,numeric,len=9"`
+	LegalAddress string `json:"legal_address" validate:"required,min=5,max=500"`
+	LegalName    string `json:"legal_name" validate:"required,min=2,max=200"`
+}

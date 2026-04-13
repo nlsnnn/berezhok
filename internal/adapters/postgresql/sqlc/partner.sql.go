@@ -1006,3 +1006,67 @@ func (q *Queries) UpdatePartnerEmployeePassword(ctx context.Context, arg UpdateP
 	_, err := q.db.Exec(ctx, updatePartnerEmployeePassword, arg.PasswordHash, arg.MustChangePassword, arg.ID)
 	return err
 }
+
+const updatePartnerStatusByID = `-- name: UpdatePartnerStatusByID :exec
+UPDATE partners
+SET status = $2, updated_at = NOW()
+WHERE id = $1
+`
+
+type UpdatePartnerStatusByIDParams struct {
+	ID     uuid.UUID `json:"id"`
+	Status string    `json:"status"`
+}
+
+func (q *Queries) UpdatePartnerStatusByID(ctx context.Context, arg UpdatePartnerStatusByIDParams) error {
+	_, err := q.db.Exec(ctx, updatePartnerStatusByID, arg.ID, arg.Status)
+	return err
+}
+
+const upsertPartnerLegalInfo = `-- name: UpsertPartnerLegalInfo :one
+INSERT INTO partner_legal_info (
+    partner_id, inn, ogrn, kpp, legal_address, legal_name
+)
+VALUES ($1, $2, $3, $4, $5, $6)
+ON CONFLICT (partner_id)
+DO UPDATE SET
+    inn = EXCLUDED.inn,
+    ogrn = EXCLUDED.ogrn,
+    kpp = EXCLUDED.kpp,
+    legal_address = EXCLUDED.legal_address,
+    legal_name = EXCLUDED.legal_name,
+    updated_at = NOW()
+RETURNING partner_id, inn, ogrn, kpp, legal_address, created_at, updated_at, legal_name
+`
+
+type UpsertPartnerLegalInfoParams struct {
+	PartnerID    uuid.UUID   `json:"partner_id"`
+	Inn          string      `json:"inn"`
+	Ogrn         pgtype.Text `json:"ogrn"`
+	Kpp          pgtype.Text `json:"kpp"`
+	LegalAddress string      `json:"legal_address"`
+	LegalName    string      `json:"legal_name"`
+}
+
+func (q *Queries) UpsertPartnerLegalInfo(ctx context.Context, arg UpsertPartnerLegalInfoParams) (PartnerLegalInfo, error) {
+	row := q.db.QueryRow(ctx, upsertPartnerLegalInfo,
+		arg.PartnerID,
+		arg.Inn,
+		arg.Ogrn,
+		arg.Kpp,
+		arg.LegalAddress,
+		arg.LegalName,
+	)
+	var i PartnerLegalInfo
+	err := row.Scan(
+		&i.PartnerID,
+		&i.Inn,
+		&i.Ogrn,
+		&i.Kpp,
+		&i.LegalAddress,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LegalName,
+	)
+	return i, err
+}

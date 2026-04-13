@@ -7,7 +7,7 @@ import TimeInput from '@/components/partner/forms/TimeInput'
 import ImageUpload from '@/components/partner/forms/ImageUpload'
 import LocationSelect from '@/components/partner/forms/LocationSelect'
 
-export default function BoxForm({ initialData, locations, onSubmit, isLoading }) {
+export default function BoxForm({ initialData, locations, onSubmit, isLoading, canActivateBoxes = true }) {
   const [formData, setFormData] = useState({
     location_id: initialData?.location_id || '',
     name: initialData?.name || '',
@@ -154,9 +154,14 @@ export default function BoxForm({ initialData, locations, onSubmit, isLoading })
         <Label htmlFor="status">Статус *</Label>
         <Select id="status" value={formData.status} onChange={(e) => handleChange('status', e.target.value)}>
           <option value="inactive">Неактивен</option>
-          <option value="active">Активен</option>
+          <option value="active" disabled={!canActivateBoxes}>Активен</option>
           <option value="draft">Черновик</option>
         </Select>
+        {!canActivateBoxes && (
+          <p className="mt-1 text-xs text-amber-700">
+            Активация недоступна, пока не заполнены юридические данные партнера.
+          </p>
+        )}
       </div>
 
       <Button type="submit" disabled={isLoading} className="w-full">
