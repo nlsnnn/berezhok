@@ -3,6 +3,7 @@ import { observer } from 'mobx-react-lite'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
+import { getErrorMessage } from '@/lib/utils'
 import PartnerLayout from '@/components/partner/layout/PartnerLayout'
 import BoxForm from '@/components/partner/boxes/BoxForm'
 import Spinner from '@/components/ui/feedback/Spinner'
@@ -19,6 +20,9 @@ function EditBoxPageBase() {
     boxesStore.loadById(id)
   }, [boxesStore, id, locationsStore])
 
+  const partnerStatus = locationsStore.profile?.partner?.status || locationsStore.profile?.status || null
+  const canActivateBoxes = partnerStatus !== 'pending_documents'
+
   const handleSubmit = async (formData) => {
     const payload = {
       name: formData.name,
@@ -29,15 +33,15 @@ function EditBoxPageBase() {
       pickup_time_start: formData.pickup_time_start,
       pickup_time_end: formData.pickup_time_end,
       image_url: formData.image_url || '',
-      status: formData.status,
+      status: !canActivateBoxes && formData.status === 'active' ? 'inactive' : formData.status,
     }
 
     try {
       await boxesStore.update(id, payload)
       toast.success('Бокс обновлен')
       navigate('/partner/boxes')
-    } catch {
-      toast.error('Не удалось обновить бокс')
+    } catch (error) {
+      toast.error(getErrorMessage(error))
     }
   }
 
@@ -66,6 +70,7 @@ function EditBoxPageBase() {
               locations={locationsStore.locations}
               onSubmit={handleSubmit}
               isLoading={boxesStore.submitting}
+              canActivateBoxes={canActivateBoxes}
             />
           ) : (
             <div className="py-14 text-center text-red-600">Бокс не найден</div>

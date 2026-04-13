@@ -191,6 +191,28 @@ func (r *PartnerRepo) UpdateEmployeePassword(ctx context.Context, employeeID, ne
 	})
 }
 
+func (r *PartnerRepo) UpsertLegalInfo(ctx context.Context, info domain.LegalInfo) error {
+	partnerID := uuid.MustParse(info.PartnerID)
+
+	_, err := r.q.UpsertPartnerLegalInfo(ctx, sqlc.UpsertPartnerLegalInfoParams{
+		PartnerID:    partnerID,
+		Inn:          info.Inn,
+		Ogrn:         pgtype.Text{String: info.Ogrn, Valid: info.Ogrn != ""},
+		Kpp:          pgtype.Text{String: info.Kpp, Valid: info.Kpp != ""},
+		LegalAddress: info.LegalAddress,
+		LegalName:    info.LegalName,
+	})
+	return err
+}
+
+func (r *PartnerRepo) UpdateStatus(ctx context.Context, partnerID string, status domain.PartnerStatus) error {
+	uid := uuid.MustParse(partnerID)
+	return r.q.UpdatePartnerStatusByID(ctx, sqlc.UpdatePartnerStatusByIDParams{
+		ID:     uid,
+		Status: string(status),
+	})
+}
+
 func partnerToDomain(p sqlc.Partner) domain.Partner {
 	commission, err := getCommission(p)
 	if err != nil {

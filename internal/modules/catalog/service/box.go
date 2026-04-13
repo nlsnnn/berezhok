@@ -27,6 +27,7 @@ type CreateBoxInput struct {
 }
 
 type UpdateBoxInput struct {
+	PartnerID       uuid.UUID
 	ID              string
 	Name            string
 	Description     string
@@ -42,6 +43,7 @@ type UpdateBoxInput struct {
 type boxService struct {
 	boxRepo     BoxRepository
 	locationSvc locationFinder
+	partnerSvc  partnerChecker
 }
 
 type BoxRepository interface {
@@ -65,10 +67,15 @@ type locationFinder interface {
 	PartnerOwnsLocation(ctx context.Context, partnerID, locationID uuid.UUID) (bool, error)
 }
 
-func NewBoxService(boxRepo BoxRepository, locationSvc locationFinder) *boxService {
+type partnerChecker interface {
+	CanActivateBoxes(ctx context.Context, partnerID uuid.UUID) (bool, error)
+}
+
+func NewBoxService(boxRepo BoxRepository, locationSvc locationFinder, partnerSvc partnerChecker) *boxService {
 	return &boxService{
 		boxRepo:     boxRepo,
 		locationSvc: locationSvc,
+		partnerSvc:  partnerSvc,
 	}
 }
 
@@ -111,6 +118,15 @@ func (s *boxService) CreateBox(ctx context.Context, partnerID uuid.UUID, input C
 		Image:      input.Image,
 	}
 
+	canActivate, err := s.partnerSvc.CanActivateBoxes(ctx, partnerID)
+	if err != nil {
+		return domain.SurpriseBox{}, fmt.Errorf("checking partner legal info: %w", err)
+	}
+
+	if !canActivate && box.Status == domain.BoxStatusActive {
+		box.Status = domain.BoxStatusInactive
+	}
+
 	err = s.boxRepo.CreateBox(ctx, &box)
 	if err != nil {
 		return domain.SurpriseBox{}, err
@@ -140,6 +156,17 @@ func (s *boxService) UpdateBox(ctx context.Context, input UpdateBoxInput) (domai
 	box, err := s.boxRepo.GetBoxByID(ctx, input.ID)
 	if err != nil {
 		return domain.SurpriseBox{}, err
+	}
+
+	if domain.BoxStatus(input.Status) == domain.BoxStatusActive {
+		canActivate, err := s.partnerSvc.CanActivateBoxes(ctx, input.PartnerID)
+		if err != nil {
+			return domain.SurpriseBox{}, fmt.Errorf("checking partner legal info: %w", err)
+		}
+
+		if !canActivate {
+			return domain.SurpriseBox{}, catalogErrors.ErrPartnerDocumentsRequired
+		}
 	}
 
 	box.Name = input.Name

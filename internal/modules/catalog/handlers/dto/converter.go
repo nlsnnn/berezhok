@@ -1,6 +1,8 @@
 package dto
 
 import (
+	"github.com/google/uuid"
+
 	"github.com/nlsnnn/berezhok/internal/modules/catalog/domain"
 	"github.com/nlsnnn/berezhok/internal/modules/catalog/service"
 )
@@ -20,8 +22,9 @@ func (r CreateBoxRequest) ToInput() service.CreateBoxInput {
 	}
 }
 
-func (r UpdateBoxRequest) ToInput(boxID string) service.UpdateBoxInput {
+func (r UpdateBoxRequest) ToInput(partnerID uuid.UUID, boxID string) service.UpdateBoxInput {
 	return service.UpdateBoxInput{
+		PartnerID:       partnerID,
 		ID:              boxID,
 		Name:            r.Name,
 		Description:     r.Description,

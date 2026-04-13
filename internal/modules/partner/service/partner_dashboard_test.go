@@ -44,6 +44,14 @@ func (r *dashboardRepoStub) UpdateEmployeePassword(ctx context.Context, employee
 	return nil
 }
 
+func (r *dashboardRepoStub) UpsertLegalInfo(ctx context.Context, info domain.LegalInfo) error {
+	return nil
+}
+
+func (r *dashboardRepoStub) UpdateStatus(ctx context.Context, partnerID string, status domain.PartnerStatus) error {
+	return nil
+}
+
 type dashboardEmployeeRepoStub struct{}
 
 func (r *dashboardEmployeeRepoStub) FindByID(ctx context.Context, id string) (domain.Employee, error) {
