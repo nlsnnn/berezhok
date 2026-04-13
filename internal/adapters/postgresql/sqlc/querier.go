@@ -108,7 +108,9 @@ type Querier interface {
 	UpdatePartner(ctx context.Context, arg UpdatePartnerParams) error
 	UpdatePartnerEmployee(ctx context.Context, arg UpdatePartnerEmployeeParams) error
 	UpdatePartnerEmployeePassword(ctx context.Context, arg UpdatePartnerEmployeePasswordParams) error
+	UpdatePartnerStatusByID(ctx context.Context, arg UpdatePartnerStatusByIDParams) error
 	UpdatePaymentStatus(ctx context.Context, arg UpdatePaymentStatusParams) (Payment, error)
+	UpsertPartnerLegalInfo(ctx context.Context, arg UpsertPartnerLegalInfoParams) (PartnerLegalInfo, error)
 }
 
 var _ Querier = (*Queries)(nil)

@@ -28,6 +28,26 @@ SELECT * FROM partners;
 -- name: FindPartnerByID :one
 SELECT * FROM partners WHERE id = $1;
 
+-- name: UpdatePartnerStatusByID :exec
+UPDATE partners
+SET status = $2, updated_at = NOW()
+WHERE id = $1;
+
+-- name: UpsertPartnerLegalInfo :one
+INSERT INTO partner_legal_info (
+    partner_id, inn, ogrn, kpp, legal_address, legal_name
+)
+VALUES ($1, $2, $3, $4, $5, $6)
+ON CONFLICT (partner_id)
+DO UPDATE SET
+    inn = EXCLUDED.inn,
+    ogrn = EXCLUDED.ogrn,
+    kpp = EXCLUDED.kpp,
+    legal_address = EXCLUDED.legal_address,
+    legal_name = EXCLUDED.legal_name,
+    updated_at = NOW()
+RETURNING *;
+
 -- name: CheckEmailExists :one
 SELECT EXISTS (
     SELECT 1 FROM partner_employees WHERE email = $1

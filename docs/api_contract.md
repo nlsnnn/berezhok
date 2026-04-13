@@ -647,6 +647,41 @@ GET /customer/locations?lat=55.7558&lng=37.6173&radius=2000&category=bakery&limi
 
 ### 3.2 Список сюрприз-боксов
 
+### 3.2 Заполнить юридическую информацию
+
+**Endpoint:** `POST /partner/legal-info`
+
+**Request:**
+```json
+{
+  "inn": "1234567890",
+  "ogrn": "1234567890123",
+  "kpp": "123456789",
+  "legal_address": "г. Москва, ул. Ленина, 1",
+  "legal_name": "ООО Вкусная пекарня"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "message": "legal info saved successfully"
+  }
+}
+```
+
+**Errors:**
+- `400` — невалидные данные (`inn`, `ogrn`, `kpp`, `legal_address`, `legal_name`)
+- `400` — статус партнёра не позволяет обновлять юридическую информацию
+
+После успешного сохранения юридической информации статус партнёра автоматически меняется на `active`.
+
+---
+
+### 3.3 Список сюрприз-боксов
+
 **Endpoint:** `GET /partner/boxes`
 
 **Response:** `200 OK`
@@ -676,7 +711,7 @@ GET /customer/locations?lat=55.7558&lng=37.6173&radius=2000&category=bakery&limi
 
 ---
 
-### 3.3 Создать сюрприз-бокс
+### 3.4 Создать сюрприз-бокс
 
 **Endpoint:** `POST /partner/boxes`
 
@@ -709,10 +744,11 @@ GET /customer/locations?lat=55.7558&lng=37.6173&radius=2000&category=bakery&limi
 
 **Errors:**
 - `400` — у партнёра уже 5 активных боксов (лимит)
+- Если партнёр в статусе `pending_documents` и в запросе передан `status=active`, бокс будет создан со статусом `inactive`
 
 ---
 
-### 3.4 Обновить сюрприз-бокс
+### 3.5 Обновить сюрприз-бокс
 
 **Endpoint:** `PATCH /partner/boxes/{box_id}`
 
@@ -737,9 +773,12 @@ GET /customer/locations?lat=55.7558&lng=37.6173&radius=2000&category=bakery&limi
 }
 ```
 
+**Errors:**
+- `403` — партнёр не может активировать боксы, пока не заполнит юридическую информацию
+
 ---
 
-### 3.5 Заказы требующие подтверждения
+### 3.6 Заказы требующие подтверждения
 
 **Endpoint:** `GET /partner/orders/pending-confirmation`
 
@@ -767,7 +806,7 @@ GET /customer/locations?lat=55.7558&lng=37.6173&radius=2000&category=bakery&limi
 
 ---
 
-### 3.6 Подтвердить заказ
+### 3.7 Подтвердить заказ
 
 **Endpoint:** `POST /partner/orders/{order_id}/confirm`
 
@@ -789,7 +828,7 @@ GET /customer/locations?lat=55.7558&lng=37.6173&radius=2000&category=bakery&limi
 
 ---
 
-### 3.7 Поиск заказа по коду
+### 3.8 Поиск заказа по коду
 
 **Endpoint:** `GET /partner/orders/by-code/{pickup_code}`
 
@@ -816,7 +855,7 @@ GET /customer/locations?lat=55.7558&lng=37.6173&radius=2000&category=bakery&limi
 
 ---
 
-### 3.8 Выдать заказ
+### 3.9 Выдать заказ
 
 **Endpoint:** `POST /partner/orders/{order_id}/pickup`
 
@@ -834,7 +873,7 @@ GET /customer/locations?lat=55.7558&lng=37.6173&radius=2000&category=bakery&limi
 
 ---
 
-### 3.9 Статистика
+### 3.10 Статистика
 
 **Endpoint:** `GET /partner/stats`
 
@@ -871,7 +910,7 @@ GET /customer/locations?lat=55.7558&lng=37.6173&radius=2000&category=bakery&limi
 
 ---
 
-### 3.10 История выплат
+### 3.11 История выплат
 
 **Endpoint:** `GET /partner/payouts`
 

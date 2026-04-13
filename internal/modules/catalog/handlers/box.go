@@ -139,6 +139,12 @@ func (h *boxHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 func (h *boxHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	partnerID, err := contextx.PartnerID(r)
+	if err != nil {
+		h.log.Error("partner_id not found in context", sl.Err(err))
+		response.InternalError(w, nil)
+		return
+	}
 
 	var req dto.UpdateBoxRequest
 	if errs := h.validator.DecodeAndValidate(r, &req); errs != nil {
@@ -147,7 +153,7 @@ func (h *boxHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	box, err := h.boxService.UpdateBox(r.Context(), req.ToInput(id))
+	box, err := h.boxService.UpdateBox(r.Context(), req.ToInput(partnerID, id))
 	if err != nil {
 		switch {
 		case errors.Is(err, catalogErrors.ErrInvalidBoxID):
@@ -158,6 +164,8 @@ func (h *boxHandler) Update(w http.ResponseWriter, r *http.Request) {
 			response.BadRequest(w, "invalid pickup time format, expected HH:MM")
 		case errors.Is(err, catalogErrors.ErrInvalidPickupTimeRange):
 			response.BadRequest(w, "pickup_time_end must be after pickup_time_start")
+		case errors.Is(err, catalogErrors.ErrPartnerDocumentsRequired):
+			response.Forbidden(w, "partner legal info is required to activate boxes")
 		default:
 			h.log.Error("failed to update box", sl.Err(err))
 			response.InternalError(w, nil)

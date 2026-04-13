@@ -3,6 +3,8 @@ package handlers
 import (
 	"context"
 
+	"github.com/google/uuid"
+
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/service"
 )
@@ -20,6 +22,8 @@ type partnerSvc interface {
 	ChangePassword(ctx context.Context, input service.ChangePasswordInput) error
 	Profile(ctx context.Context, userID string) (domain.PartnerProfile, error)
 	Dashboard(ctx context.Context, userID string) (domain.PartnerDashboard, error)
+	AddLegalInfo(ctx context.Context, input service.AddLegalInfoInput) error
+	CanActivateBoxes(ctx context.Context, partnerID uuid.UUID) (bool, error)
 }
 
 type locationSvc interface {

@@ -10,4 +10,5 @@ var (
 	ErrInvalidLocationID       = errors.New("invalid location id")
 	ErrLocationNotFound        = errors.New("location not found")
 	ErrUnauthorizedLocation    = errors.New("partner does not own the specified location")
+	ErrPartnerDocumentsRequired = errors.New("partner legal info is required to activate boxes")
 )

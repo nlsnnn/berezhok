@@ -30,6 +30,17 @@ func (r CreateLocationRequest) ToInput(partnerID string) service.CreateLocationI
 	}
 }
 
+func (r AddLegalInfoRequest) ToInput(partnerID string) service.AddLegalInfoInput {
+	return service.AddLegalInfoInput{
+		PartnerID:    partnerID,
+		Inn:          r.Inn,
+		Ogrn:         r.Ogrn,
+		Kpp:          r.Kpp,
+		LegalAddress: r.LegalAddress,
+		LegalName:    r.LegalName,
+	}
+}
+
 func FromApplication(a domain.Application) ApplicationResponse {
 	return ApplicationResponse{
 		ID:              a.ID,

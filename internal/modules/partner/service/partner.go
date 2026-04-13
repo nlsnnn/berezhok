@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"unicode"
 
+	"github.com/google/uuid"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/errors"
 	"github.com/nlsnnn/berezhok/internal/shared/auth"
@@ -12,6 +14,15 @@ type ChangePasswordInput struct {
 	UserID          string
 	CurrentPassword string
 	NewPassword     string
+}
+
+type AddLegalInfoInput struct {
+	PartnerID    string
+	Inn          string
+	Ogrn         string
+	Kpp          string
+	LegalAddress string
+	LegalName    string
 }
 
 type partService struct {
@@ -27,6 +38,8 @@ type partnerRepo interface {
 	GetProfile(ctx context.Context, employeeID string) (domain.PartnerProfile, error)
 	GetDashboard(ctx context.Context, employeeID string) (domain.PartnerDashboard, error)
 	UpdateEmployeePassword(ctx context.Context, employeeID, newHash string) error
+	UpsertLegalInfo(ctx context.Context, info domain.LegalInfo) error
+	UpdateStatus(ctx context.Context, partnerID string, status domain.PartnerStatus) error
 }
 
 type employeeRepoForPartner interface {
@@ -86,4 +99,60 @@ func (s *partService) Profile(ctx context.Context, userID string) (domain.Partne
 
 func (s *partService) Dashboard(ctx context.Context, userID string) (domain.PartnerDashboard, error) {
 	return s.repo.GetDashboard(ctx, userID)
+}
+
+func (s *partService) AddLegalInfo(ctx context.Context, input AddLegalInfoInput) error {
+	if !isDigitsOnly(input.Inn) || (len(input.Inn) != 10 && len(input.Inn) != 12) {
+		return errors.ErrInvalidINN
+	}
+
+	if input.Ogrn != "" && (!isDigitsOnly(input.Ogrn) || (len(input.Ogrn) != 13 && len(input.Ogrn) != 15)) {
+		return errors.ErrInvalidOGRN
+	}
+
+	if input.Kpp != "" && (!isDigitsOnly(input.Kpp) || len(input.Kpp) != 9) {
+		return errors.ErrInvalidKPP
+	}
+
+	partner, err := s.repo.FindByID(ctx, input.PartnerID)
+	if err != nil {
+		return err
+	}
+
+	if partner.Status != domain.PartnerStatusPendingDocuments && partner.Status != domain.PartnerStatusActive {
+		return errors.ErrPartnerStatusInvalid
+	}
+
+	err = s.repo.UpsertLegalInfo(ctx, domain.LegalInfo{
+		PartnerID:    input.PartnerID,
+		Inn:          input.Inn,
+		Ogrn:         input.Ogrn,
+		Kpp:          input.Kpp,
+		LegalAddress: input.LegalAddress,
+		LegalName:    input.LegalName,
+	})
+	if err != nil {
+		return err
+	}
+
+	return s.repo.UpdateStatus(ctx, input.PartnerID, domain.PartnerStatusActive)
+}
+
+func (s *partService) CanActivateBoxes(ctx context.Context, partnerID uuid.UUID) (bool, error) {
+	partner, err := s.repo.FindByID(ctx, partnerID.String())
+	if err != nil {
+		return false, err
+	}
+
+	return partner.Status != domain.PartnerStatusPendingDocuments, nil
+}
+
+func isDigitsOnly(value string) bool {
+	for _, r := range value {
+		if !unicode.IsDigit(r) {
+			return false
+		}
+	}
+
+	return true
 }

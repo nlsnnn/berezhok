@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -19,7 +20,8 @@ import (
 )
 
 type partnerSvcDashboardStub struct {
-	dashboardFn func(ctx context.Context, userID string) (domain.PartnerDashboard, error)
+	dashboardFn   func(ctx context.Context, userID string) (domain.PartnerDashboard, error)
+	addLegalInfoFn func(ctx context.Context, input service.AddLegalInfoInput) error
 }
 
 func (s *partnerSvcDashboardStub) ChangePassword(ctx context.Context, input service.ChangePasswordInput) error {
@@ -36,6 +38,18 @@ func (s *partnerSvcDashboardStub) Dashboard(ctx context.Context, userID string) 
 	}
 
 	return domain.PartnerDashboard{}, nil
+}
+
+func (s *partnerSvcDashboardStub) AddLegalInfo(ctx context.Context, input service.AddLegalInfoInput) error {
+	if s.addLegalInfoFn != nil {
+		return s.addLegalInfoFn(ctx, input)
+	}
+
+	return nil
+}
+
+func (s *partnerSvcDashboardStub) CanActivateBoxes(ctx context.Context, partnerID uuid.UUID) (bool, error) {
+	return true, nil
 }
 
 func TestPartnerDashboardSuccess(t *testing.T) {
@@ -152,5 +166,54 @@ func TestPartnerDashboardInternalError(t *testing.T) {
 
 	if rr.Code != http.StatusInternalServerError {
 		t.Fatalf("expected status 500, got %d", rr.Code)
+	}
+}
+
+func TestPartnerAddLegalInfoSuccess(t *testing.T) {
+	t.Parallel()
+
+	partnerID := uuid.New()
+
+	h := NewPartnerHandler(&partnerSvcDashboardStub{
+		addLegalInfoFn: func(ctx context.Context, input service.AddLegalInfoInput) error {
+			if input.PartnerID != partnerID.String() {
+				t.Fatalf("expected partner id %s, got %s", partnerID, input.PartnerID)
+			}
+
+			if input.Inn != "1234567890" {
+				t.Fatalf("expected inn 1234567890, got %s", input.Inn)
+			}
+
+			return nil
+		},
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+
+	body := []byte(`{"inn":"1234567890","ogrn":"1234567890123","kpp":"123456789","legal_address":"Moscow, Lenina 1","legal_name":"OOO Berezhok"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/partner/legal-info", bytes.NewReader(body))
+	req = req.WithContext(context.WithValue(req.Context(), contextx.PartnerIDKey, partnerID))
+	rr := httptest.NewRecorder()
+
+	h.AddLegalInfo(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rr.Code)
+	}
+}
+
+func TestPartnerAddLegalInfoValidationError(t *testing.T) {
+	t.Parallel()
+
+	partnerID := uuid.New()
+	h := NewPartnerHandler(&partnerSvcDashboardStub{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+
+	body := []byte(`{"inn":"abc","legal_address":"x","legal_name":"x"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/partner/legal-info", bytes.NewReader(body))
+	req = req.WithContext(context.WithValue(req.Context(), contextx.PartnerIDKey, partnerID))
+	rr := httptest.NewRecorder()
+
+	h.AddLegalInfo(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", rr.Code)
 	}
 }
