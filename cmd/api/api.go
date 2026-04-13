@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -251,10 +253,10 @@ func (app *application) mount() http.Handler {
 	return r
 }
 
-func (app *application) run(log *slog.Logger, h http.Handler) error {
-	log.Info("starting server", slog.String("address", app.cfg.Address))
+func (app *application) run(h http.Handler) error {
+	app.log.Info("starting server", slog.String("address", app.cfg.Address))
 
-	srv := &http.Server{
+	app.srv = &http.Server{
 		Addr:         app.cfg.Address,
 		Handler:      h,
 		ReadTimeout:  app.cfg.Timeout,
@@ -262,9 +264,23 @@ func (app *application) run(log *slog.Logger, h http.Handler) error {
 		IdleTimeout:  app.cfg.IdleTimeout,
 	}
 
-	log.Info("server has started", slog.String("address", app.cfg.Address))
+	app.log.Info("server has started", slog.String("address", app.cfg.Address))
 
-	return srv.ListenAndServe()
+	return app.srv.ListenAndServe()
+}
+
+func (app *application) shutdown(ctx context.Context) error {
+	if app.srv == nil {
+		app.log.Warn("shutdown called before server initialization")
+		return nil
+	}
+
+	if err := app.srv.Shutdown(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+
+	app.log.Info("server has stopped gracefully")
+	return nil
 }
 
 type application struct {
@@ -274,4 +290,5 @@ type application struct {
 	s3       *yandex.Storage
 	redis    *redis.Client
 	rabbitmq *rabbitmq.Client
+	srv      *http.Server
 }

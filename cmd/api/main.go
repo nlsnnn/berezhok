@@ -2,13 +2,19 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql"
 	"github.com/nlsnnn/berezhok/internal/adapters/rabbitmq"
 	"github.com/nlsnnn/berezhok/internal/adapters/redis"
 	"github.com/nlsnnn/berezhok/internal/adapters/s3/yandex"
+	"github.com/nlsnnn/berezhok/internal/lib/closer"
 	"github.com/nlsnnn/berezhok/internal/lib/logger/sl"
 	"github.com/nlsnnn/berezhok/internal/shared/config"
 )
@@ -20,9 +26,12 @@ const (
 )
 
 func main() {
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
 	cfg := config.MustLoad()
 	log := setupLogger(cfg.Env)
+	closer.SetLogger(log)
 
 	log.Info("start app", slog.String("env", cfg.Env))
 
@@ -32,7 +41,10 @@ func main() {
 		log.Error("failed to init storage", sl.Err(err))
 		os.Exit(1)
 	}
-	defer db.Close()
+	closer.Add("database", func(_ context.Context) error {
+		db.Close()
+		return nil
+	})
 
 	// S3 Storage
 	s3Storage, err := yandex.NewStorage(cfg.S3)
@@ -47,7 +59,9 @@ func main() {
 		log.Error("failed to initialize Redis", "error", err)
 		os.Exit(1)
 	}
-	defer func() { _ = redisClient.Close() }()
+	closer.Add("redis", func(_ context.Context) error {
+		return redisClient.Close()
+	})
 
 	// RabbitMQ
 	rabbitClient, err := rabbitmq.New(cfg.URL, log)
@@ -55,7 +69,9 @@ func main() {
 		log.Error("failed to initialize RabbitMQ", "error", err)
 		os.Exit(1)
 	}
-	defer func() { _ = rabbitClient.Close() }()
+	closer.Add("rabbitmq", func(_ context.Context) error {
+		return rabbitClient.Close()
+	})
 
 	api := application{
 		cfg:      cfg,
@@ -66,10 +82,45 @@ func main() {
 		rabbitmq: rabbitClient,
 	}
 
-	if err := api.run(log, api.mount()); err != nil {
-		log.Error("failed to start server", sl.Err(err))
-		os.Exit(1)
+	serverErrCh := make(chan error, 1)
+
+	go func() {
+		if err := api.run(api.mount()); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			serverErrCh <- err
+		}
+		close(serverErrCh)
+	}()
+
+	select {
+	case <-ctx.Done():
+		log.Info("shutting down gracefully")
+	case err := <-serverErrCh:
+		if err != nil {
+			log.Error("failed to start server", sl.Err(err))
+			os.Exit(1)
+		}
+		log.Info("server stopped")
+		return
 	}
+
+	stop()
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer shutdownCancel()
+
+	if err := api.shutdown(shutdownCtx); err != nil {
+		log.Error("failed to shutdown server gracefully", sl.Err(err))
+	}
+
+	// Закрытие всех ресурсов через глобальный closer
+	closerCtx, closerCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer closerCancel()
+
+	if err := closer.CloseAll(closerCtx); err != nil {
+		slog.Error("failed to close all resources", "err", err)
+	}
+
+	log.Info("app stopped")
 }
 
 func setupLogger(env string) *slog.Logger {
