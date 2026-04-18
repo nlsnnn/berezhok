@@ -33,9 +33,9 @@ type Redis struct {
 }
 
 type HTTPServer struct {
-	Address     string        `yaml:"address" env-default:"localhost:8080"`
-	Timeout     time.Duration `yaml:"timeout" env-default:"4s"`
-	IdleTimeout time.Duration `yaml:"idle_timeout" env-default:"60s"`
+	Address     string        `yaml:"address" env:"HTTP_SERVER_ADDRESS" env-default:"0.0.0.0:8080"`
+	Timeout     time.Duration `yaml:"timeout" env:"HTTP_SERVER_TIMEOUT" env-default:"4s"`
+	IdleTimeout time.Duration `yaml:"idle_timeout" env:"HTTP_SERVER_IDLE_TIMEOUT" env-default:"60s"`
 }
 
 type S3 struct {
@@ -58,19 +58,23 @@ type RabbitMQ struct {
 
 func MustLoad() *Config {
 	configPath := os.Getenv("CONFIG_PATH")
-	if configPath == "" {
-		configPath = ".env"
-		log.Println("CONFIG_PATH is not set")
-	}
-
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		log.Fatalf("config file does not exist: %s", configPath)
-	}
-
 	var cfg Config
 
-	if err := cleanenv.ReadConfig(configPath, &cfg); err != nil {
-		log.Fatalf("cannot read config: %s", err)
+	if configPath == "" {
+		configPath = ".env"
+		log.Println("CONFIG_PATH is not set, falling back to environment variables")
+	}
+
+	if _, err := os.Stat(configPath); err == nil {
+		if err := cleanenv.ReadConfig(configPath, &cfg); err != nil {
+			log.Fatalf("cannot read config: %s", err)
+		}
+	} else if !os.IsNotExist(err) {
+		log.Fatalf("cannot stat config file: %s", err)
+	}
+
+	if err := cleanenv.ReadEnv(&cfg); err != nil {
+		log.Fatalf("cannot read environment: %s", err)
 	}
 
 	return &cfg
