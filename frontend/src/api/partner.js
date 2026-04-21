@@ -46,6 +46,13 @@ export const listLocationBoxes = (locationId) =>
   api.get(`/locations/${locationId}/boxes`).then((r) => r.data.data);
 
 // Orders
+export const listPartnerOrders = ({ status = "", limit = 20, offset = 0 } = {}) =>
+  api
+    .get("/partner/orders", {
+      params: { status, limit, offset },
+    })
+    .then((r) => r.data.data);
+
 export const getOrderByPickupCode = (pickupCode) =>
   api
     .get(`/partner/orders/by-code/${encodeURIComponent(pickupCode)}`)

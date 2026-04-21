@@ -21,6 +21,7 @@ type Querier interface {
 	CountActiveLocations(ctx context.Context, categoryCode pgtype.Text) (int64, error)
 	CountLocationReviews(ctx context.Context, locationID uuid.UUID) (int64, error)
 	CountOrdersByCustomerID(ctx context.Context, arg CountOrdersByCustomerIDParams) (int64, error)
+	CountOrdersByPartnerID(ctx context.Context, arg CountOrdersByPartnerIDParams) (int64, error)
 	CreateApplication(ctx context.Context, arg CreateApplicationParams) (PartnerApplication, error)
 	// Create a new box
 	CreateBox(ctx context.Context, arg CreateBoxParams) (SurpriseBox, error)
@@ -87,6 +88,7 @@ type Querier interface {
 	ListMediaFiles(ctx context.Context, arg ListMediaFilesParams) ([]MediaFile, error)
 	ListOrdersByCustomerID(ctx context.Context, userID uuid.UUID) ([]Order, error)
 	ListOrdersByCustomerIDFiltered(ctx context.Context, arg ListOrdersByCustomerIDFilteredParams) ([]ListOrdersByCustomerIDFilteredRow, error)
+	ListOrdersByPartnerIDFiltered(ctx context.Context, arg ListOrdersByPartnerIDFilteredParams) ([]ListOrdersByPartnerIDFilteredRow, error)
 	// Сотрудники партнёров
 	ListPartnerEmployees(ctx context.Context) ([]PartnerEmployee, error)
 	// Партнёры (юридические лица)

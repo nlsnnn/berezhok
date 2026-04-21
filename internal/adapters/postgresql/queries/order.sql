@@ -140,3 +140,39 @@ WHERE o.user_id = $1
     $2 = ''
     OR o.status::text = $2
   );
+
+-- name: ListOrdersByPartnerIDFiltered :many
+SELECT o.id,
+  o.status,
+  o.pickup_code,
+  o.created_at,
+  sb.name AS box_name,
+  COALESCE(sb.image_url, '') AS box_image_url,
+  COALESCE(u.phone, '') AS customer_phone,
+  COALESCE(u.name, '') AS customer_name,
+  l.id AS location_id,
+  l.name AS location_name,
+  l.address AS location_address,
+  o.pickup_time_start,
+  o.pickup_time_end
+FROM orders o
+  JOIN surprise_boxes sb ON o.box_id = sb.id
+  JOIN users u ON o.user_id = u.id
+  JOIN locations l ON o.location_id = l.id
+WHERE l.partner_id = $1
+  AND (
+    $2 = ''
+    OR o.status::text = $2
+  )
+ORDER BY o.created_at DESC
+LIMIT $3 OFFSET $4;
+
+-- name: CountOrdersByPartnerID :one
+SELECT COUNT(*)
+FROM orders o
+  JOIN locations l ON o.location_id = l.id
+WHERE l.partner_id = $1
+  AND (
+    $2 = ''
+    OR o.status::text = $2
+  );

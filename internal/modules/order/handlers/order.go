@@ -27,6 +27,7 @@ type orderServiceInterface interface {
 	GetOrderByID(ctx context.Context, orderID uuid.UUID) (*domain.Order, error)
 	GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) (*domain.OrderDetails, error)
 	GetPartnerOrderByPickupCode(ctx context.Context, partnerID uuid.UUID, pickupCode string) (*domain.PartnerOrderByCode, error)
+	ListOrdersByPartnerID(ctx context.Context, partnerID uuid.UUID, status string, limit, offset int) (*orderService.ListPartnerOrdersResult, error)
 	MarkOrderPickedUp(ctx context.Context, orderID, partnerID, employeeID uuid.UUID) error
 	ListOrdersByCustomerID(ctx context.Context, customerID uuid.UUID, status string, limit, offset int) (*orderService.ListOrdersResult, error)
 }
@@ -256,6 +257,49 @@ func (h *orderHandler) GetPartnerOrderByPickupCode(w http.ResponseWriter, r *htt
 	}
 
 	response.Success(w, dto.ToPartnerOrderByCodeResponse(order))
+}
+
+// ListPartnerOrders handles GET /partner/orders
+func (h *orderHandler) ListPartnerOrders(w http.ResponseWriter, r *http.Request) {
+	const op = "order.handler.ListPartnerOrders"
+	log := h.log.With(slog.String("op", op))
+
+	partnerID, err := contextx.PartnerID(r)
+	if err != nil {
+		log.Error("failed to get partner_id from context", sl.Err(err))
+		response.Unauthorized(w, "authentication required")
+		return
+	}
+
+	status := r.URL.Query().Get("status")
+
+	limit := 20
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+	}
+
+	offset := 0
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
+			offset = o
+		}
+	}
+
+	result, err := h.service.ListOrdersByPartnerID(r.Context(), partnerID, status, limit, offset)
+	if err != nil {
+		log.Error("failed to list partner orders", sl.Err(err))
+		response.InternalError(w, nil)
+		return
+	}
+
+	items := make([]dto.PartnerOrderListItemResponse, len(result.Items))
+	for i, item := range result.Items {
+		items[i] = dto.ToPartnerOrderListItem(item)
+	}
+
+	response.Success(w, dto.ToPartnerOrderListResponse(items, result.Total, result.Limit, result.Offset))
 }
 
 // PartnerPickupOrder handles POST /partner/orders/{order_id}/pickup

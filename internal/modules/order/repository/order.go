@@ -131,6 +131,50 @@ func (r *OrderRepo) GetPartnerOrderByPickupCode(ctx context.Context, pickupCode 
 	}, nil
 }
 
+// ListOrdersByPartnerID returns paginated, optionally filtered orders for a partner.
+func (r *OrderRepo) ListOrdersByPartnerID(ctx context.Context, partnerID uuid.UUID, status string, limit, offset int) ([]domain.PartnerOrderListItem, int, error) {
+	sqlItems, err := r.q.ListOrdersByPartnerIDFiltered(ctx, sqlc.ListOrdersByPartnerIDFilteredParams{
+		PartnerID: partnerID,
+		Column2:   status,
+		Limit:     int32(limit),
+		Offset:    int32(offset),
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+
+	items := make([]domain.PartnerOrderListItem, len(sqlItems))
+	for i, row := range sqlItems {
+		statusValue := domain.OrderStatus(row.Status)
+		items[i] = domain.PartnerOrderListItem{
+			ID:              row.ID,
+			Status:          statusValue,
+			PickupCode:      row.PickupCode,
+			BoxName:         row.BoxName,
+			BoxImageURL:     row.BoxImageUrl,
+			CustomerPhone:   row.CustomerPhone,
+			CustomerName:    row.CustomerName,
+			LocationID:      row.LocationID,
+			LocationName:    row.LocationName,
+			LocationAddress: row.LocationAddress,
+			PickupTimeStart: row.PickupTimeStart,
+			PickupTimeEnd:   row.PickupTimeEnd,
+			CreatedAt:       row.CreatedAt,
+			CanPickup:       statusValue == domain.OrderStatusConfirmed,
+		}
+	}
+
+	total, err := r.q.CountOrdersByPartnerID(ctx, sqlc.CountOrdersByPartnerIDParams{
+		PartnerID: partnerID,
+		Column2:   status,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return items, int(total), nil
+}
+
 // MarkOrderPickedUp marks partner-owned order as picked up by employee.
 func (r *OrderRepo) MarkOrderPickedUp(ctx context.Context, orderID, partnerID, employeeID uuid.UUID) error {
 	partnerOrder, err := r.q.GetPartnerOrderByID(ctx, sqlc.GetPartnerOrderByIDParams{

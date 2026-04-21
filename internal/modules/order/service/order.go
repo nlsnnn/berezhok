@@ -20,6 +20,7 @@ type orderRepository interface {
 	GetOrderByID(ctx context.Context, orderID uuid.UUID) (*domain.Order, error)
 	GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) (*domain.OrderDetails, error)
 	GetPartnerOrderByPickupCode(ctx context.Context, pickupCode string, partnerID uuid.UUID) (*domain.PartnerOrderByCode, error)
+	ListOrdersByPartnerID(ctx context.Context, partnerID uuid.UUID, status string, limit, offset int) ([]domain.PartnerOrderListItem, int, error)
 	MarkOrderPickedUp(ctx context.Context, orderID, partnerID, employeeID uuid.UUID) error
 	ListOrdersFiltered(ctx context.Context, customerID uuid.UUID, status string, limit, offset int) ([]domain.OrderListItem, int, error)
 	UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, status domain.OrderStatus) error
@@ -144,6 +145,23 @@ func (s *orderService) GetPartnerOrderByPickupCode(ctx context.Context, partnerI
 	}
 
 	return order, nil
+}
+
+// ListOrdersByPartnerID retrieves filtered, paginated orders for a partner.
+func (s *orderService) ListOrdersByPartnerID(ctx context.Context, partnerID uuid.UUID, status string, limit, offset int) (*ListPartnerOrdersResult, error) {
+	const op = "order.service.ListOrdersByPartnerID"
+
+	items, total, err := s.repo.ListOrdersByPartnerID(ctx, partnerID, status, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return &ListPartnerOrdersResult{
+		Items:  items,
+		Total:  total,
+		Limit:  limit,
+		Offset: offset,
+	}, nil
 }
 
 // MarkOrderPickedUp marks a partner's order as picked up.

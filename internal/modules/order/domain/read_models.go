@@ -41,6 +41,24 @@ type PartnerOrderByCode struct {
 	CreatedAt       time.Time
 }
 
+// PartnerOrderListItem represents enriched order data for partner order list view.
+type PartnerOrderListItem struct {
+	ID              uuid.UUID
+	Status          OrderStatus
+	PickupCode      string
+	BoxName         string
+	BoxImageURL     string
+	CustomerPhone   string
+	CustomerName    string
+	LocationID      uuid.UUID
+	LocationName    string
+	LocationAddress string
+	PickupTimeStart time.Time
+	PickupTimeEnd   time.Time
+	CreatedAt       time.Time
+	CanPickup       bool
+}
+
 // OrderListItem represents enriched order data for list view.
 type OrderListItem struct {
 	ID              uuid.UUID
