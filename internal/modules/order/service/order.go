@@ -20,11 +20,21 @@ type orderRepository interface {
 	GetOrderByID(ctx context.Context, orderID uuid.UUID) (*domain.Order, error)
 	GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) (*domain.OrderDetails, error)
 	GetPartnerOrderByPickupCode(ctx context.Context, pickupCode string, partnerID uuid.UUID) (*domain.PartnerOrderByCode, error)
+	GetLocationOrderByPickupCode(ctx context.Context, pickupCode string, locationID uuid.UUID) (*domain.PartnerOrderByCode, error)
 	ListOrdersByPartnerID(ctx context.Context, partnerID uuid.UUID, status string, limit, offset int) ([]domain.PartnerOrderListItem, int, error)
+	ListActiveOrdersByLocationID(ctx context.Context, locationID uuid.UUID, limit, offset int) ([]domain.PartnerOrderListItem, int, error)
 	MarkOrderPickedUp(ctx context.Context, orderID, partnerID, employeeID uuid.UUID) error
+	MarkLocationOrderPickedUp(ctx context.Context, orderID, locationID, employeeID uuid.UUID) error
 	ListOrdersFiltered(ctx context.Context, customerID uuid.UUID, status string, limit, offset int) ([]domain.OrderListItem, int, error)
 	UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, status domain.OrderStatus) error
 	ReserveBox(ctx context.Context, boxID uuid.UUID) (bool, error)
+}
+
+type PartnerActor struct {
+	PartnerID  uuid.UUID
+	EmployeeID uuid.UUID
+	Role       string
+	LocationID *uuid.UUID
 }
 
 type paymentProvider interface {
@@ -136,10 +146,19 @@ func (s *orderService) GetOrderDetailsByID(ctx context.Context, orderID uuid.UUI
 }
 
 // GetPartnerOrderByPickupCode retrieves partner-scoped order details by pickup code.
-func (s *orderService) GetPartnerOrderByPickupCode(ctx context.Context, partnerID uuid.UUID, pickupCode string) (*domain.PartnerOrderByCode, error) {
+func (s *orderService) GetPartnerOrderByPickupCode(ctx context.Context, actor PartnerActor, pickupCode string) (*domain.PartnerOrderByCode, error) {
 	const op = "order.service.GetPartnerOrderByPickupCode"
 
-	order, err := s.repo.GetPartnerOrderByPickupCode(ctx, pickupCode, partnerID)
+	var (
+		order *domain.PartnerOrderByCode
+		err   error
+	)
+
+	if actor.Role == "employee" && actor.LocationID != nil {
+		order, err = s.repo.GetLocationOrderByPickupCode(ctx, pickupCode, *actor.LocationID)
+	} else {
+		order, err = s.repo.GetPartnerOrderByPickupCode(ctx, pickupCode, actor.PartnerID)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
@@ -148,10 +167,20 @@ func (s *orderService) GetPartnerOrderByPickupCode(ctx context.Context, partnerI
 }
 
 // ListOrdersByPartnerID retrieves filtered, paginated orders for a partner.
-func (s *orderService) ListOrdersByPartnerID(ctx context.Context, partnerID uuid.UUID, status string, limit, offset int) (*ListPartnerOrdersResult, error) {
+func (s *orderService) ListOrdersByPartnerID(ctx context.Context, actor PartnerActor, status string, limit, offset int) (*ListPartnerOrdersResult, error) {
 	const op = "order.service.ListOrdersByPartnerID"
 
-	items, total, err := s.repo.ListOrdersByPartnerID(ctx, partnerID, status, limit, offset)
+	var (
+		items []domain.PartnerOrderListItem
+		total int
+		err   error
+	)
+
+	if actor.Role == "employee" && actor.LocationID != nil {
+		items, total, err = s.repo.ListActiveOrdersByLocationID(ctx, *actor.LocationID, limit, offset)
+	} else {
+		items, total, err = s.repo.ListOrdersByPartnerID(ctx, actor.PartnerID, status, limit, offset)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
@@ -165,10 +194,15 @@ func (s *orderService) ListOrdersByPartnerID(ctx context.Context, partnerID uuid
 }
 
 // MarkOrderPickedUp marks a partner's order as picked up.
-func (s *orderService) MarkOrderPickedUp(ctx context.Context, orderID, partnerID, employeeID uuid.UUID) error {
+func (s *orderService) MarkOrderPickedUp(ctx context.Context, actor PartnerActor, orderID uuid.UUID) error {
 	const op = "order.service.MarkOrderPickedUp"
 
-	err := s.repo.MarkOrderPickedUp(ctx, orderID, partnerID, employeeID)
+	var err error
+	if actor.Role == "employee" && actor.LocationID != nil {
+		err = s.repo.MarkLocationOrderPickedUp(ctx, orderID, *actor.LocationID, actor.EmployeeID)
+	} else {
+		err = s.repo.MarkOrderPickedUp(ctx, orderID, actor.PartnerID, actor.EmployeeID)
+	}
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}

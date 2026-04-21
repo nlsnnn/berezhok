@@ -2,12 +2,15 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
+	partnerErrors "github.com/nlsnnn/berezhok/internal/modules/partner/errors"
 )
 
 type EmployeeRepo struct {
@@ -22,6 +25,9 @@ func (r *EmployeeRepo) FindByID(ctx context.Context, id string) (domain.Employee
 	uid := uuid.MustParse(id)
 	e, err := r.q.FindPartnerEmployeeByID(ctx, uid)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Employee{}, partnerErrors.ErrEmployeeNotFound
+		}
 		return domain.Employee{}, err
 	}
 	return employeeToDomain(e), nil
@@ -60,10 +66,18 @@ func (r *EmployeeRepo) ListByPartnerID(ctx context.Context, partnerID string) ([
 	return result, nil
 }
 
-func (r *EmployeeRepo) Create(ctx context.Context, partnerID, email, passwordHash, name string, role domain.EmployeeRole) (domain.Employee, error) {
+func (r *EmployeeRepo) Create(ctx context.Context, partnerID, locationID, email, passwordHash, name string, role domain.EmployeeRole) (domain.Employee, error) {
 	uid := uuid.MustParse(partnerID)
+	location := pgtype.UUID{Valid: false}
+	if locationID != "" {
+		location = pgtype.UUID{
+			Bytes: uuid.MustParse(locationID),
+			Valid: true,
+		}
+	}
 	e, err := r.q.CreatePartnerEmployee(ctx, sqlc.CreatePartnerEmployeeParams{
 		PartnerID:    uid,
+		LocationID:   location,
 		Email:        email,
 		PasswordHash: passwordHash,
 		Role:         string(role),

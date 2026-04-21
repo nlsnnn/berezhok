@@ -27,3 +27,9 @@ type locationSvc interface {
 	Create(ctx context.Context, input service.CreateLocationInput) (domain.Location, error)
 	ListByPartner(ctx context.Context, partnerID string) ([]domain.Location, error)
 }
+
+type employeeSvc interface {
+	ListManagedByPartnerID(ctx context.Context, partnerID string) ([]domain.ManagedEmployee, error)
+	CreateManaged(ctx context.Context, input service.CreateManagedEmployeeInput) (domain.ManagedEmployee, error)
+	DeleteManaged(ctx context.Context, input service.DeleteManagedEmployeeInput) error
+}

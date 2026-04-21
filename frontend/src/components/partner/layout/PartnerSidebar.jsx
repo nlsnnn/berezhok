@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, LayoutDashboard, LogOut, MapPin, Menu, Package, QrCode, X, Users, ClipboardList, BarChart3, UserCircle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ClipboardList, KeyRound, LayoutDashboard, LogOut, MapPin, Menu, Package, QrCode, X, Users, BarChart3, UserCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { cn } from '@/lib/utils'
@@ -7,19 +7,21 @@ import { cn } from '@/lib/utils'
 const SIDEBAR_KEY = 'partner_sidebar_collapsed'
 
 const links = [
-  { to: '/partner/dashboard', label: 'Дашборд', icon: LayoutDashboard },
-  { to: '/partner/locations', label: 'Локации', icon: MapPin },
-  { to: '/partner/boxes', label: 'Боксы', icon: Package },
-  { to: '/partner/orders', label: 'Заказы', icon: ClipboardList },
-  { to: '/partner/orders/pickup', label: 'Выдача', icon: QrCode },
-  { to: '/partner/employees', label: 'Сотрудники', icon: Users },
-  { to: '/partner/stats', label: 'Статистика', icon: BarChart3 },
-  { to: '/partner/profile', label: 'Профиль', icon: UserCircle },
+  { to: '/partner/dashboard', label: 'Дашборд', icon: LayoutDashboard, roles: ['owner'] },
+  { to: '/partner/locations', label: 'Локации', icon: MapPin, roles: ['owner'] },
+  { to: '/partner/boxes', label: 'Боксы', icon: Package, roles: ['owner'] },
+  { to: '/partner/orders', label: 'Заказы', icon: ClipboardList, roles: ['owner', 'employee'] },
+  { to: '/partner/orders/pickup', label: 'Выдача', icon: QrCode, roles: ['owner', 'employee'] },
+  { to: '/partner/employees', label: 'Сотрудники', icon: Users, roles: ['owner'] },
+  { to: '/partner/stats', label: 'Статистика', icon: BarChart3, roles: ['owner'] },
+  { to: '/partner/profile', label: 'Профиль', icon: UserCircle, roles: ['owner'] },
+  { to: '/partner/change-password', label: 'Пароль', icon: KeyRound, roles: ['owner', 'employee'] },
 ]
 
 function SidebarContent({ onClose, collapsed, onToggle }) {
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
   const navigate = useNavigate()
+  const allowedLinks = links.filter((link) => link.roles.includes(user?.role || 'owner'))
 
   const handleLogout = () => {
     logout()
@@ -46,7 +48,7 @@ function SidebarContent({ onClose, collapsed, onToggle }) {
       </div>
 
       <div className="flex-1 py-4 px-3 space-y-1">
-        {links.map(({ to, label, icon: Icon }) => (
+        {allowedLinks.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}

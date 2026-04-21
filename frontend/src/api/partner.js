@@ -23,6 +23,15 @@ export const createLocation = (data) =>
 export const listLocations = () =>
   api.get("/partner/locations").then((r) => r.data.data);
 
+export const listEmployees = () =>
+  api.get("/partner/employees").then((r) => r.data.data);
+
+export const createEmployee = (data) =>
+  api.post("/partner/employees", data).then((r) => r.data.data);
+
+export const deleteEmployee = (id) =>
+  api.delete(`/partner/employees/${id}`).then((r) => r.data.data);
+
 // Boxes
 export const createBox = (data) =>
   api.post("/partner/boxes", data).then((r) => r.data.data);

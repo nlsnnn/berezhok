@@ -19,7 +19,7 @@ import (
 )
 
 type orderServiceStub struct {
-	listPartnerOrdersByIDFn func(ctx context.Context, partnerID uuid.UUID, status string, limit, offset int) (*service.ListPartnerOrdersResult, error)
+	listPartnerOrdersByIDFn func(ctx context.Context, actor service.PartnerActor, status string, limit, offset int) (*service.ListPartnerOrdersResult, error)
 }
 
 func (s *orderServiceStub) CreateOrder(ctx context.Context, boxID, customerID uuid.UUID) (*service.CreateOrderResult, error) {
@@ -34,19 +34,19 @@ func (s *orderServiceStub) GetOrderDetailsByID(ctx context.Context, orderID uuid
 	return nil, nil
 }
 
-func (s *orderServiceStub) GetPartnerOrderByPickupCode(ctx context.Context, partnerID uuid.UUID, pickupCode string) (*domain.PartnerOrderByCode, error) {
+func (s *orderServiceStub) GetPartnerOrderByPickupCode(ctx context.Context, actor service.PartnerActor, pickupCode string) (*domain.PartnerOrderByCode, error) {
 	return nil, nil
 }
 
-func (s *orderServiceStub) ListOrdersByPartnerID(ctx context.Context, partnerID uuid.UUID, status string, limit, offset int) (*service.ListPartnerOrdersResult, error) {
+func (s *orderServiceStub) ListOrdersByPartnerID(ctx context.Context, actor service.PartnerActor, status string, limit, offset int) (*service.ListPartnerOrdersResult, error) {
 	if s.listPartnerOrdersByIDFn != nil {
-		return s.listPartnerOrdersByIDFn(ctx, partnerID, status, limit, offset)
+		return s.listPartnerOrdersByIDFn(ctx, actor, status, limit, offset)
 	}
 
 	return &service.ListPartnerOrdersResult{}, nil
 }
 
-func (s *orderServiceStub) MarkOrderPickedUp(ctx context.Context, orderID, partnerID, employeeID uuid.UUID) error {
+func (s *orderServiceStub) MarkOrderPickedUp(ctx context.Context, actor service.PartnerActor, orderID uuid.UUID) error {
 	return nil
 }
 
@@ -63,9 +63,12 @@ func TestListPartnerOrdersSuccess(t *testing.T) {
 	createdAt := pickupStart.Add(-4 * time.Hour)
 
 	h := NewOrderHandler(&orderServiceStub{
-		listPartnerOrdersByIDFn: func(ctx context.Context, gotPartnerID uuid.UUID, status string, limit, offset int) (*service.ListPartnerOrdersResult, error) {
-			if gotPartnerID != partnerID {
-				t.Fatalf("expected partner id %s, got %s", partnerID, gotPartnerID)
+		listPartnerOrdersByIDFn: func(ctx context.Context, actor service.PartnerActor, status string, limit, offset int) (*service.ListPartnerOrdersResult, error) {
+			if actor.PartnerID != partnerID {
+				t.Fatalf("expected partner id %s, got %s", partnerID, actor.PartnerID)
+			}
+			if actor.Role != "owner" {
+				t.Fatalf("expected role owner, got %s", actor.Role)
 			}
 			if status != "confirmed" {
 				t.Fatalf("expected status confirmed, got %s", status)
@@ -102,7 +105,10 @@ func TestListPartnerOrdersSuccess(t *testing.T) {
 	}, slog.New(slog.NewTextHandler(io.Discard, nil)), validator.New())
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/partner/orders?status=confirmed&limit=10&offset=20", nil)
-	req = req.WithContext(context.WithValue(req.Context(), contextx.PartnerIDKey, partnerID))
+	ctx := context.WithValue(req.Context(), contextx.PartnerIDKey, partnerID)
+	ctx = context.WithValue(ctx, contextx.EmployeeIDKey, uuid.New())
+	ctx = context.WithValue(ctx, contextx.UserRoleKey, "owner")
+	req = req.WithContext(ctx)
 	rr := httptest.NewRecorder()
 
 	h.ListPartnerOrders(rr, req)

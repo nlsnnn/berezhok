@@ -70,6 +70,26 @@ WHERE o.pickup_code = $1
 ORDER BY o.created_at DESC
 LIMIT 1;
 
+-- name: GetLocationOrderByPickupCode :one
+SELECT o.id,
+  o.pickup_code,
+  o.status,
+  sb.name AS box_name,
+  COALESCE(sb.image_url, '') AS box_image_url,
+  u.phone AS customer_phone,
+  COALESCE(u.name, '') AS customer_name,
+  o.pickup_time_start,
+  o.pickup_time_end,
+  o.created_at
+FROM orders o
+  JOIN surprise_boxes sb ON sb.id = o.box_id
+  JOIN users u ON u.id = o.user_id
+WHERE o.pickup_code = $1
+  AND o.location_id = $2
+  AND o.status IN ('paid', 'confirmed')
+ORDER BY o.created_at DESC
+LIMIT 1;
+
 -- name: GetPartnerOrderByID :one
 SELECT o.id,
   o.status
@@ -77,6 +97,13 @@ FROM orders o
   JOIN locations l ON l.id = o.location_id
 WHERE o.id = $1
   AND l.partner_id = $2;
+
+-- name: GetLocationOrderByID :one
+SELECT o.id,
+  o.status
+FROM orders o
+WHERE o.id = $1
+  AND o.location_id = $2;
 
 -- name: MarkOrderPickedUp :execrows
 UPDATE orders
@@ -167,6 +194,29 @@ WHERE l.partner_id = $1
 ORDER BY o.created_at DESC
 LIMIT $3 OFFSET $4;
 
+-- name: ListActiveOrdersByLocationID :many
+SELECT o.id,
+  o.status,
+  o.pickup_code,
+  o.created_at,
+  sb.name AS box_name,
+  COALESCE(sb.image_url, '') AS box_image_url,
+  COALESCE(u.phone, '') AS customer_phone,
+  COALESCE(u.name, '') AS customer_name,
+  l.id AS location_id,
+  l.name AS location_name,
+  l.address AS location_address,
+  o.pickup_time_start,
+  o.pickup_time_end
+FROM orders o
+  JOIN surprise_boxes sb ON o.box_id = sb.id
+  JOIN users u ON o.user_id = u.id
+  JOIN locations l ON o.location_id = l.id
+WHERE l.id = $1
+  AND o.status IN ('paid', 'confirmed')
+ORDER BY o.created_at DESC
+LIMIT $2 OFFSET $3;
+
 -- name: CountOrdersByPartnerID :one
 SELECT COUNT(*)
 FROM orders o
@@ -176,3 +226,9 @@ WHERE l.partner_id = $1
     $2 = ''
     OR o.status::text = $2
   );
+
+-- name: CountActiveOrdersByLocationID :one
+SELECT COUNT(*)
+FROM orders o
+WHERE o.location_id = $1
+  AND o.status IN ('paid', 'confirmed');

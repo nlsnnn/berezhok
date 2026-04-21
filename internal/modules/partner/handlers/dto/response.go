@@ -42,6 +42,17 @@ type EmployeeResponse struct {
 	CreatedAt          time.Time `json:"created_at"`
 }
 
+type ManagedEmployeeResponse struct {
+	ID                 string    `json:"id"`
+	Email              string    `json:"email"`
+	Name               string    `json:"name"`
+	Role               string    `json:"role"`
+	LocationID         string    `json:"location_id"`
+	LocationName       string    `json:"location_name"`
+	MustChangePassword bool      `json:"must_change_password"`
+	CreatedAt          time.Time `json:"created_at"`
+}
+
 type LocationResponse struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`

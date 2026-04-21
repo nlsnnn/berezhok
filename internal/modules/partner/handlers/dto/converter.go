@@ -41,6 +41,15 @@ func (r AddLegalInfoRequest) ToInput(partnerID string) service.AddLegalInfoInput
 	}
 }
 
+func (r CreateEmployeeRequest) ToInput(partnerID string) service.CreateManagedEmployeeInput {
+	return service.CreateManagedEmployeeInput{
+		PartnerID:  partnerID,
+		LocationID: r.LocationID,
+		Email:      r.Email,
+		Name:       r.Name,
+	}
+}
+
 func FromApplication(a domain.Application) ApplicationResponse {
 	return ApplicationResponse{
 		ID:              a.ID,
@@ -63,5 +72,18 @@ func FromLocation(l domain.Location) LocationResponse {
 		ID:      l.ID,
 		Name:    l.Name,
 		Address: l.Address,
+	}
+}
+
+func FromManagedEmployee(employee domain.ManagedEmployee) ManagedEmployeeResponse {
+	return ManagedEmployeeResponse{
+		ID:                 employee.ID,
+		Email:              employee.Email,
+		Name:               employee.Name,
+		Role:               string(employee.Role),
+		LocationID:         employee.LocationID,
+		LocationName:       employee.LocationName,
+		MustChangePassword: employee.MustChangePassword,
+		CreatedAt:          employee.CreatedAt,
 	}
 }

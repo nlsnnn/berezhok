@@ -86,13 +86,14 @@ func (app *application) mount() http.Handler {
 
 	// Partner module — services
 	partnerSvc := partnerServices.NewPartnerService(partnerRepo, employeeRepo)
-	employeeSvc := partnerServices.NewEmployeeService(employeeRepo)
+	employeeSvc := partnerServices.NewEmployeeService(employeeRepo, partnerRepo, locationRepo, notificationAdapter)
 	locationSvc := partnerServices.NewLocationService(locationRepo)
 	appSvc := partnerServices.NewApplicationService(appRepo, partnerSvc, employeeSvc, locationSvc, notificationAdapter)
 
 	// Partner module — handlers
 	partHandler := partnerHandlers.NewPartnerHandler(partnerSvc, app.log)
 	appHandler := partnerHandlers.NewApplicationHandler(app.log, appSvc)
+	employeeHandler := partnerHandlers.NewEmployeeHandler(app.log, employeeSvc)
 	locationHandler := partnerHandlers.NewLocationHandler(app.log, v, locationSvc, partnerSvc)
 
 	// Catalog module — repositories
@@ -214,30 +215,44 @@ func (app *application) mount() http.Handler {
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequireAuth("partner"))
 
-			r.Post("/partner/change-password", partHandler.ChangePassword)
-			r.Get("/partner/profile", partHandler.Profile)
-			r.Get("/partner/dashboard", partHandler.Dashboard)
-			r.Post("/partner/legal-info", partHandler.AddLegalInfo)
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePartnerRoles("owner", "employee"))
 
-			// Location
-			r.Get("/partner/locations", locationHandler.List)
-			r.Post("/partner/locations", locationHandler.Create)
+				r.Post("/partner/change-password", partHandler.ChangePassword)
 
-			// Surprise Box
-			r.Post("/partner/boxes", boxHandler.Create)
-			r.Get("/partner/boxes/{id}", boxHandler.GetByID)
-			r.Put("/partner/boxes/{id}", boxHandler.Update)
-			r.Delete("/partner/boxes/{id}", boxHandler.Delete)
-			r.Get("/partner/boxes", boxHandler.GetAllByPartnerID)
-			r.Get("/locations/{location_id}/boxes", boxHandler.GetAllByLocationID)
+				// Orders
+				r.Get("/partner/orders", orderHandler.ListPartnerOrders)
+				r.Get("/partner/orders/by-code/{pickup_code}", orderHandler.GetPartnerOrderByPickupCode)
+				r.Post("/partner/orders/{order_id}/pickup", orderHandler.PartnerPickupOrder)
+			})
 
-			// Media
-			r.Post("/media/upload", mediaHandler.Upload)
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePartnerRoles("owner"))
 
-			// Orders
-			r.Get("/partner/orders", orderHandler.ListPartnerOrders)
-			r.Get("/partner/orders/by-code/{pickup_code}", orderHandler.GetPartnerOrderByPickupCode)
-			r.Post("/partner/orders/{order_id}/pickup", orderHandler.PartnerPickupOrder)
+				r.Get("/partner/profile", partHandler.Profile)
+				r.Get("/partner/dashboard", partHandler.Dashboard)
+				r.Post("/partner/legal-info", partHandler.AddLegalInfo)
+
+				// Employees
+				r.Get("/partner/employees", employeeHandler.List)
+				r.Post("/partner/employees", employeeHandler.Create)
+				r.Delete("/partner/employees/{id}", employeeHandler.Delete)
+
+				// Location
+				r.Get("/partner/locations", locationHandler.List)
+				r.Post("/partner/locations", locationHandler.Create)
+
+				// Surprise Box
+				r.Post("/partner/boxes", boxHandler.Create)
+				r.Get("/partner/boxes/{id}", boxHandler.GetByID)
+				r.Put("/partner/boxes/{id}", boxHandler.Update)
+				r.Delete("/partner/boxes/{id}", boxHandler.Delete)
+				r.Get("/partner/boxes", boxHandler.GetAllByPartnerID)
+				r.Get("/locations/{location_id}/boxes", boxHandler.GetAllByLocationID)
+
+				// Media
+				r.Post("/media/upload", mediaHandler.Upload)
+			})
 		})
 
 		// == Admin Routes ==

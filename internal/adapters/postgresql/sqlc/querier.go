@@ -19,6 +19,7 @@ type Querier interface {
 	CountActiveBoxesByLocationID(ctx context.Context, locationID uuid.UUID) (int64, error)
 	// Count active locations for pagination
 	CountActiveLocations(ctx context.Context, categoryCode pgtype.Text) (int64, error)
+	CountActiveOrdersByLocationID(ctx context.Context, locationID uuid.UUID) (int64, error)
 	CountLocationReviews(ctx context.Context, locationID uuid.UUID) (int64, error)
 	CountOrdersByCustomerID(ctx context.Context, arg CountOrdersByCustomerIDParams) (int64, error)
 	CountOrdersByPartnerID(ctx context.Context, arg CountOrdersByPartnerIDParams) (int64, error)
@@ -62,6 +63,8 @@ type Querier interface {
 	FindPartnerEmployeeByID(ctx context.Context, id uuid.UUID) (PartnerEmployee, error)
 	// Get location details by ID with category info
 	GetLocationDetailsByID(ctx context.Context, id uuid.UUID) (GetLocationDetailsByIDRow, error)
+	GetLocationOrderByID(ctx context.Context, arg GetLocationOrderByIDParams) (GetLocationOrderByIDRow, error)
+	GetLocationOrderByPickupCode(ctx context.Context, arg GetLocationOrderByPickupCodeParams) (GetLocationOrderByPickupCodeRow, error)
 	GetOrderByID(ctx context.Context, id uuid.UUID) (Order, error)
 	GetOrderDetailsByID(ctx context.Context, id uuid.UUID) (GetOrderDetailsByIDRow, error)
 	GetPartnerDashboardFinance(ctx context.Context, partnerID uuid.UUID) (GetPartnerDashboardFinanceRow, error)
@@ -74,6 +77,7 @@ type Querier interface {
 	GetPaymentByOrderID(ctx context.Context, orderID uuid.UUID) (Payment, error)
 	// List active boxes by location ID
 	ListActiveBoxesByLocationID(ctx context.Context, locationID uuid.UUID) ([]SurpriseBox, error)
+	ListActiveOrdersByLocationID(ctx context.Context, arg ListActiveOrdersByLocationIDParams) ([]ListActiveOrdersByLocationIDRow, error)
 	// Заявки на партнёрство
 	ListApplications(ctx context.Context) ([]PartnerApplication, error)
 	// List boxes by location ID

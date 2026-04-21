@@ -6,12 +6,15 @@ import { toast } from 'sonner'
 import PartnerLayout from '@/components/partner/layout/PartnerLayout'
 import Button from '@/components/ui/actions/Button'
 import Spinner from '@/components/ui/feedback/Spinner'
+import { useAuth } from '@/context/AuthContext'
 import { useStores } from '@/context/StoresContext'
 import { getOrderStatusMeta, PARTNER_ORDER_FILTERS } from '@/lib/orderStatus'
 import { formatDateTime, getErrorMessage } from '@/lib/utils'
 
 function OrdersPageBase() {
   const { ordersStore } = useStores()
+  const { user } = useAuth()
+  const isEmployee = user?.role === 'employee'
 
   useEffect(() => {
     ordersStore.loadList().catch(() => {})
@@ -70,28 +73,34 @@ function OrdersPageBase() {
     >
       <div className="space-y-6">
         <section className="card space-y-4">
-          <div className="flex flex-wrap gap-2">
-            {PARTNER_ORDER_FILTERS.map((filter) => {
-              const isActive = ordersStore.statusFilter === filter.value
+          {isEmployee ? (
+            <p className="text-sm text-brand-600">
+              Показаны только активные заказы вашей локации в статусах «Оплачен» и «Подтвержден».
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {PARTNER_ORDER_FILTERS.map((filter) => {
+                const isActive = ordersStore.statusFilter === filter.value
 
-              return (
-                <button
-                  key={filter.value}
-                  type="button"
-                  onClick={() => handleFilterChange(filter.value)}
-                  disabled={ordersStore.loading && isActive}
-                  className={[
-                    'rounded-full border px-4 py-2 text-sm font-medium transition-colors',
-                    isActive
-                      ? 'border-brand-500 bg-brand-500 text-white shadow-sm'
-                      : 'border-cream-300 bg-white text-brand-700 hover:border-brand-300 hover:text-brand-900',
-                  ].join(' ')}
-                >
-                  {filter.label}
-                </button>
-              )
-            })}
-          </div>
+                return (
+                  <button
+                    key={filter.value}
+                    type="button"
+                    onClick={() => handleFilterChange(filter.value)}
+                    disabled={ordersStore.loading && isActive}
+                    className={[
+                      'rounded-full border px-4 py-2 text-sm font-medium transition-colors',
+                      isActive
+                        ? 'border-brand-500 bg-brand-500 text-white shadow-sm'
+                        : 'border-cream-300 bg-white text-brand-700 hover:border-brand-300 hover:text-brand-900',
+                    ].join(' ')}
+                  >
+                    {filter.label}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </section>
 
         {ordersStore.loading && ordersStore.items.length === 0 && (

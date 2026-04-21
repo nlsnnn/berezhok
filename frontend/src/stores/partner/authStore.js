@@ -28,11 +28,12 @@ class AuthStore {
     try {
       const data = await partnerLogin(email, password)
       const payloadUser = {
-        id: data?.user?.id || data?.user_id || null,
+        id: data?.employee_id || data?.user?.id || data?.user_id || null,
+        employee_id: data?.employee_id || data?.user_id || null,
         email: data?.user?.email || email,
-        role: data?.user?.role || null,
-        partner_id: data?.user?.partner_id || null,
-        location_id: data?.user?.location_id || null,
+        role: data?.role || data?.user?.role || null,
+        partner_id: data?.partner_id || data?.user?.partner_id || null,
+        location_id: data?.location_id || data?.user?.location_id || null,
         must_change_password: Boolean(data?.must_change_password),
       }
 
