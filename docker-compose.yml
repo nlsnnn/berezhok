@@ -74,8 +74,16 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-
-
-volumes:
-  pgdata:
-  redis-data:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api/v1}
+    container_name: berezhok-frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      api:
+        condition: service_started
+    restart: unless-stopped
