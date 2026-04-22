@@ -1,9 +1,11 @@
 import PartnerSidebar from '@/components/partner/layout/PartnerSidebar'
+import PartnerOfferModal from '@/components/partner/legal/PartnerOfferModal'
 
 export default function PartnerLayout({ title, subtitle, actions, children }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-cream-50 via-white to-brand-50/60 md:flex">
       <PartnerSidebar />
+      <PartnerOfferModal />
 
       <div className="flex-1 min-w-0">
         <header className="px-4 pt-6 pb-5 md:px-8 md:pt-8 md:pb-6 border-b border-cream-200/80 bg-white/70 backdrop-blur-sm">

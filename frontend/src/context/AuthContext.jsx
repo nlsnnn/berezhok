@@ -15,6 +15,7 @@ const AuthProviderBase = ({ children }) => {
         logout: authStore.logout,
         isAuthenticated: authStore.isAuthenticated,
         markPasswordChanged: authStore.markPasswordChanged,
+        markOfferAccepted: authStore.markOfferAccepted,
       }}
     >
       {children}

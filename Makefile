@@ -3,6 +3,9 @@ include .env
 run:
 	go run ./cmd/api
 
+seed:
+	go run ./cmd/seed
+
 sql-gen:
 	sqlc generate
 

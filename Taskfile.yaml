@@ -45,6 +45,11 @@ tasks:
     cmds:
       - go test ./internal/... -v
 
+  seed:
+    desc: "Заполняет БД тестовыми данными"
+    cmds:
+      - go run ./cmd/seed
+
   e2e_tests:
     desc: "Запускает E2E тесты API"
     cmds:
