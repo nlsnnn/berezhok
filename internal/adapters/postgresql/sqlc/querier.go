@@ -23,6 +23,7 @@ type Querier interface {
 	CountLocationReviews(ctx context.Context, locationID uuid.UUID) (int64, error)
 	CountOrdersByCustomerID(ctx context.Context, arg CountOrdersByCustomerIDParams) (int64, error)
 	CountOrdersByPartnerID(ctx context.Context, arg CountOrdersByPartnerIDParams) (int64, error)
+	CountPartnerStatsOrders(ctx context.Context, arg CountPartnerStatsOrdersParams) (int64, error)
 	CreateApplication(ctx context.Context, arg CreateApplicationParams) (PartnerApplication, error)
 	// Create a new box
 	CreateBox(ctx context.Context, arg CreateBoxParams) (SurpriseBox, error)
@@ -75,6 +76,11 @@ type Querier interface {
 	GetPartnerOrderByID(ctx context.Context, arg GetPartnerOrderByIDParams) (GetPartnerOrderByIDRow, error)
 	GetPartnerOrderByPickupCode(ctx context.Context, arg GetPartnerOrderByPickupCodeParams) (GetPartnerOrderByPickupCodeRow, error)
 	GetPartnerProfile(ctx context.Context, id uuid.UUID) (GetPartnerProfileRow, error)
+	GetPartnerStatsStatusBreakdown(ctx context.Context, arg GetPartnerStatsStatusBreakdownParams) ([]GetPartnerStatsStatusBreakdownRow, error)
+	GetPartnerStatsSummary(ctx context.Context, arg GetPartnerStatsSummaryParams) (GetPartnerStatsSummaryRow, error)
+	GetPartnerStatsTimeline(ctx context.Context, arg GetPartnerStatsTimelineParams) ([]GetPartnerStatsTimelineRow, error)
+	GetPartnerStatsTopBoxes(ctx context.Context, arg GetPartnerStatsTopBoxesParams) ([]GetPartnerStatsTopBoxesRow, error)
+	GetPartnerStatsTopLocations(ctx context.Context, arg GetPartnerStatsTopLocationsParams) ([]GetPartnerStatsTopLocationsRow, error)
 	GetPaymentByID(ctx context.Context, id uuid.UUID) (Payment, error)
 	GetPaymentByOrderID(ctx context.Context, orderID uuid.UUID) (Payment, error)
 	// List active boxes by location ID
@@ -97,6 +103,7 @@ type Querier interface {
 	ListOrdersByPartnerIDFiltered(ctx context.Context, arg ListOrdersByPartnerIDFilteredParams) ([]ListOrdersByPartnerIDFilteredRow, error)
 	// Сотрудники партнёров
 	ListPartnerEmployees(ctx context.Context) ([]PartnerEmployee, error)
+	ListPartnerStatsOrders(ctx context.Context, arg ListPartnerStatsOrdersParams) ([]ListPartnerStatsOrdersRow, error)
 	// Партнёры (юридические лица)
 	ListPartners(ctx context.Context) ([]Partner, error)
 	MarkOrderPickedUp(ctx context.Context, arg MarkOrderPickedUpParams) (int64, error)

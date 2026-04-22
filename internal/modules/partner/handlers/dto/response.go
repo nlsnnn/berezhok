@@ -110,3 +110,98 @@ type DashboardFinanceResponse struct {
 	BalancePending int        `json:"balance_pending"`
 	NextPayoutDate *time.Time `json:"next_payout_date"`
 }
+
+type PartnerStatsResponse struct {
+	Summary         PartnerStatsSummaryResponse               `json:"summary"`
+	Timeline        []PartnerStatsTimelinePointResponse       `json:"timeline"`
+	StatusBreakdown []PartnerStatsStatusBreakdownItemResponse `json:"status_breakdown"`
+	TopLocations    []PartnerStatsLocationResponse            `json:"top_locations"`
+	TopBoxes        []PartnerStatsBoxResponse                 `json:"top_boxes"`
+	Orders          []PartnerStatsOrderResponse               `json:"orders"`
+	Meta            PartnerStatsMetaResponse                  `json:"meta"`
+}
+
+type PartnerStatsSummaryResponse struct {
+	OrdersTotal               int     `json:"orders_total"`
+	OrdersCompleted           int     `json:"orders_completed"`
+	OrdersCancelled           int     `json:"orders_cancelled"`
+	OrdersPendingConfirmation int     `json:"orders_pending_confirmation"`
+	GrossRevenue              int     `json:"gross_revenue"`
+	NetRevenue                int     `json:"net_revenue"`
+	AvgOrderValue             float64 `json:"avg_order_value"`
+	AvgRating                 float64 `json:"avg_rating"`
+	ReviewsCount              int     `json:"reviews_count"`
+}
+
+type PartnerStatsTimelinePointResponse struct {
+	Date            time.Time `json:"date"`
+	OrdersTotal     int       `json:"orders_total"`
+	OrdersCompleted int       `json:"orders_completed"`
+	GrossRevenue    int       `json:"gross_revenue"`
+	NetRevenue      int       `json:"net_revenue"`
+}
+
+type PartnerStatsStatusBreakdownItemResponse struct {
+	Status string  `json:"status"`
+	Count  int     `json:"count"`
+	Share  float64 `json:"share"`
+}
+
+type PartnerStatsLocationResponse struct {
+	LocationID      string  `json:"location_id"`
+	Name            string  `json:"name"`
+	Address         string  `json:"address"`
+	OrdersTotal     int     `json:"orders_total"`
+	OrdersCompleted int     `json:"orders_completed"`
+	GrossRevenue    int     `json:"gross_revenue"`
+	NetRevenue      int     `json:"net_revenue"`
+	AvgRating       float64 `json:"avg_rating"`
+}
+
+type PartnerStatsBoxResponse struct {
+	BoxID           string `json:"box_id"`
+	Name            string `json:"name"`
+	ImageURL        string `json:"image_url"`
+	LocationName    string `json:"location_name"`
+	OrdersTotal     int    `json:"orders_total"`
+	OrdersCompleted int    `json:"orders_completed"`
+	GrossRevenue    int    `json:"gross_revenue"`
+	NetRevenue      int    `json:"net_revenue"`
+}
+
+type PartnerStatsOrderResponse struct {
+	ID              string    `json:"id"`
+	Status          string    `json:"status"`
+	PickupCode      string    `json:"pickup_code"`
+	Amount          float64   `json:"amount"`
+	BoxName         string    `json:"box_name"`
+	BoxImageURL     string    `json:"box_image_url"`
+	CustomerPhone   string    `json:"customer_phone"`
+	CustomerName    string    `json:"customer_name"`
+	LocationID      string    `json:"location_id"`
+	LocationName    string    `json:"location_name"`
+	LocationAddress string    `json:"location_address"`
+	PickupTimeStart time.Time `json:"pickup_time_start"`
+	PickupTimeEnd   time.Time `json:"pickup_time_end"`
+	CreatedAt       time.Time `json:"created_at"`
+	CanPickup       bool      `json:"can_pickup"`
+}
+
+type PartnerStatsMetaResponse struct {
+	Period           string                         `json:"period"`
+	DateFrom         time.Time                      `json:"date_from"`
+	DateTo           time.Time                      `json:"date_to"`
+	LocationID       string                         `json:"location_id,omitempty"`
+	Status           string                         `json:"status,omitempty"`
+	TopLocationsSort string                         `json:"top_locations_sort"`
+	TopBoxesSort     string                         `json:"top_boxes_sort"`
+	OrdersSort       string                         `json:"orders_sort"`
+	Pagination       PartnerStatsPaginationResponse `json:"pagination"`
+}
+
+type PartnerStatsPaginationResponse struct {
+	Total   int  `json:"total"`
+	Limit   int  `json:"limit"`
+	Offset  int  `json:"offset"`
+	HasMore bool `json:"has_more"`
+}

@@ -20,4 +20,7 @@ var (
 	ErrEmployeeNotFound          = errors.New("employee not found")
 	ErrCannotDeleteOwner         = errors.New("owner account cannot be deleted")
 	ErrCannotDeleteSelf          = errors.New("cannot delete your own account")
+	ErrInvalidStatsPeriod        = errors.New("invalid stats period")
+	ErrInvalidStatsDateRange     = errors.New("invalid stats date range")
+	ErrInvalidStatsSort          = errors.New("invalid stats sort")
 )

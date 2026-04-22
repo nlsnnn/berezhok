@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 )
 
 type dashboardRepoStub struct {
 	dashboardFn func(ctx context.Context, employeeID string) (domain.PartnerDashboard, error)
+	statsFn     func(ctx context.Context, employeeID string, filter domain.StatsFilter) (domain.PartnerStats, error)
 }
 
 func (r *dashboardRepoStub) FindByID(ctx context.Context, id string) (domain.Partner, error) {
@@ -38,6 +40,14 @@ func (r *dashboardRepoStub) GetDashboard(ctx context.Context, employeeID string)
 	}
 
 	return domain.PartnerDashboard{}, nil
+}
+
+func (r *dashboardRepoStub) GetStats(ctx context.Context, employeeID string, filter domain.StatsFilter) (domain.PartnerStats, error) {
+	if r.statsFn != nil {
+		return r.statsFn(ctx, employeeID, filter)
+	}
+
+	return domain.PartnerStats{}, nil
 }
 
 func (r *dashboardRepoStub) UpdateEmployeePassword(ctx context.Context, employeeID, newHash string) error {
@@ -103,5 +113,43 @@ func TestPartnerServiceDashboardError(t *testing.T) {
 	_, err := svc.Dashboard(context.Background(), "employee-id")
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected %v, got %v", expectedErr, err)
+	}
+}
+
+func TestNormalizeStatsFilterPreset(t *testing.T) {
+	t.Parallel()
+
+	filter, err := NormalizeStatsFilter(domain.StatsFilter{Period: "last_7_days"})
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+
+	if filter.Period != "last_7_days" {
+		t.Fatalf("expected period last_7_days, got %s", filter.Period)
+	}
+	if filter.DateFrom.After(filter.DateTo) {
+		t.Fatalf("expected valid range, got %v > %v", filter.DateFrom, filter.DateTo)
+	}
+}
+
+func TestNormalizeStatsFilterCustomRange(t *testing.T) {
+	t.Parallel()
+
+	from := time.Date(2026, 4, 1, 12, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 4, 10, 18, 0, 0, 0, time.UTC)
+
+	filter, err := NormalizeStatsFilter(domain.StatsFilter{
+		DateFrom: from,
+		DateTo:   to,
+	})
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+
+	if filter.Period != "custom" {
+		t.Fatalf("expected custom period, got %s", filter.Period)
+	}
+	if filter.DateFrom.Hour() != 0 || filter.DateTo.Hour() != 0 {
+		t.Fatalf("expected normalized dates, got %v and %v", filter.DateFrom, filter.DateTo)
 	}
 }

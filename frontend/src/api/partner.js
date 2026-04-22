@@ -9,6 +9,9 @@ export const getPartnerProfile = () =>
 export const getPartnerDashboard = () =>
   api.get("/partner/dashboard").then((r) => r.data.data);
 
+export const getPartnerStats = (params = {}) =>
+  api.get("/partner/stats", { params }).then((r) => r.data.data);
+
 export const changePassword = (current_password, new_password) =>
   api
     .post("/partner/change-password", { current_password, new_password })

@@ -20,6 +20,7 @@ type partnerSvc interface {
 	ChangePassword(ctx context.Context, input service.ChangePasswordInput) error
 	Profile(ctx context.Context, userID string) (domain.PartnerProfile, error)
 	Dashboard(ctx context.Context, userID string) (domain.PartnerDashboard, error)
+	Stats(ctx context.Context, userID string, filter domain.StatsFilter) (domain.PartnerStats, error)
 	AddLegalInfo(ctx context.Context, input service.AddLegalInfoInput) error
 }
 

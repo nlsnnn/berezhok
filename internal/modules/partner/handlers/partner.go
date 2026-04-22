@@ -4,9 +4,12 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/nlsnnn/berezhok/internal/lib/logger/sl"
 	"github.com/nlsnnn/berezhok/internal/lib/validator"
+	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 	partnerErrors "github.com/nlsnnn/berezhok/internal/modules/partner/errors"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/handlers/dto"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/service"
@@ -194,6 +197,40 @@ func (h *partnerHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	response.Success(w, res)
 }
 
+func (h *partnerHandler) Stats(w http.ResponseWriter, r *http.Request) {
+	const op = "partner.handler.Stats"
+	log := h.log.With(slog.String("op", op))
+
+	userID, err := contextx.UserID(r)
+	if err != nil {
+		log.Error("user_id not found in context", sl.Err(err))
+		response.InternalError(w, nil)
+		return
+	}
+
+	filter, err := statsFilterFromRequest(r)
+	if err != nil {
+		response.BadRequest(w, err.Error())
+		return
+	}
+
+	stats, err := h.partService.Stats(r.Context(), userID.String(), filter)
+	if err != nil {
+		switch {
+		case errors.Is(err, partnerErrors.ErrInvalidStatsPeriod),
+			errors.Is(err, partnerErrors.ErrInvalidStatsDateRange),
+			errors.Is(err, partnerErrors.ErrInvalidStatsSort):
+			response.BadRequest(w, err.Error())
+		default:
+			log.Error("failed to get stats", sl.Err(err))
+			response.InternalError(w, nil)
+		}
+		return
+	}
+
+	response.Success(w, toPartnerStatsResponse(stats))
+}
+
 func (h *partnerHandler) AddLegalInfo(w http.ResponseWriter, r *http.Request) {
 	const op = "partner.handler.AddLegalInfo"
 	log := h.log.With(slog.String("op", op))
@@ -232,4 +269,157 @@ func (h *partnerHandler) AddLegalInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Success(w, map[string]string{"message": "legal info saved successfully"})
+}
+
+func statsFilterFromRequest(r *http.Request) (domain.StatsFilter, error) {
+	query := r.URL.Query()
+	filter := domain.StatsFilter{
+		Period:           query.Get("period"),
+		LocationID:       query.Get("location_id"),
+		Status:           query.Get("status"),
+		TopLocationsSort: query.Get("top_locations_sort"),
+		TopBoxesSort:     query.Get("top_boxes_sort"),
+		OrdersSort:       query.Get("orders_sort"),
+		Limit:            20,
+	}
+
+	if value := query.Get("limit"); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil {
+			return domain.StatsFilter{}, partnerErrors.ErrInvalidStatsDateRange
+		}
+		filter.Limit = parsed
+	}
+
+	if value := query.Get("offset"); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil {
+			return domain.StatsFilter{}, partnerErrors.ErrInvalidStatsDateRange
+		}
+		filter.Offset = parsed
+	}
+
+	if value := query.Get("date_from"); value != "" {
+		parsed, err := time.Parse("2006-01-02", value)
+		if err != nil {
+			return domain.StatsFilter{}, partnerErrors.ErrInvalidStatsDateRange
+		}
+		filter.DateFrom = parsed
+	}
+
+	if value := query.Get("date_to"); value != "" {
+		parsed, err := time.Parse("2006-01-02", value)
+		if err != nil {
+			return domain.StatsFilter{}, partnerErrors.ErrInvalidStatsDateRange
+		}
+		filter.DateTo = parsed
+	}
+
+	return filter, nil
+}
+
+func toPartnerStatsResponse(stats domain.PartnerStats) dto.PartnerStatsResponse {
+	timeline := make([]dto.PartnerStatsTimelinePointResponse, len(stats.Timeline))
+	for i, item := range stats.Timeline {
+		timeline[i] = dto.PartnerStatsTimelinePointResponse{
+			Date:            item.Date,
+			OrdersTotal:     item.OrdersTotal,
+			OrdersCompleted: item.OrdersCompleted,
+			GrossRevenue:    item.GrossRevenue,
+			NetRevenue:      item.NetRevenue,
+		}
+	}
+
+	statusBreakdown := make([]dto.PartnerStatsStatusBreakdownItemResponse, len(stats.StatusBreakdown))
+	for i, item := range stats.StatusBreakdown {
+		statusBreakdown[i] = dto.PartnerStatsStatusBreakdownItemResponse{
+			Status: item.Status,
+			Count:  item.Count,
+			Share:  item.Share,
+		}
+	}
+
+	topLocations := make([]dto.PartnerStatsLocationResponse, len(stats.TopLocations))
+	for i, item := range stats.TopLocations {
+		topLocations[i] = dto.PartnerStatsLocationResponse{
+			LocationID:      item.LocationID,
+			Name:            item.Name,
+			Address:         item.Address,
+			OrdersTotal:     item.OrdersTotal,
+			OrdersCompleted: item.OrdersCompleted,
+			GrossRevenue:    item.GrossRevenue,
+			NetRevenue:      item.NetRevenue,
+			AvgRating:       item.AvgRating,
+		}
+	}
+
+	topBoxes := make([]dto.PartnerStatsBoxResponse, len(stats.TopBoxes))
+	for i, item := range stats.TopBoxes {
+		topBoxes[i] = dto.PartnerStatsBoxResponse{
+			BoxID:           item.BoxID,
+			Name:            item.Name,
+			ImageURL:        item.ImageURL,
+			LocationName:    item.LocationName,
+			OrdersTotal:     item.OrdersTotal,
+			OrdersCompleted: item.OrdersCompleted,
+			GrossRevenue:    item.GrossRevenue,
+			NetRevenue:      item.NetRevenue,
+		}
+	}
+
+	orders := make([]dto.PartnerStatsOrderResponse, len(stats.Orders))
+	for i, item := range stats.Orders {
+		orders[i] = dto.PartnerStatsOrderResponse{
+			ID:              item.ID,
+			Status:          item.Status,
+			PickupCode:      item.PickupCode,
+			Amount:          item.Amount,
+			BoxName:         item.BoxName,
+			BoxImageURL:     item.BoxImageURL,
+			CustomerPhone:   item.CustomerPhone,
+			CustomerName:    item.CustomerName,
+			LocationID:      item.LocationID,
+			LocationName:    item.LocationName,
+			LocationAddress: item.LocationAddress,
+			PickupTimeStart: item.PickupTimeStart,
+			PickupTimeEnd:   item.PickupTimeEnd,
+			CreatedAt:       item.CreatedAt,
+			CanPickup:       item.CanPickup,
+		}
+	}
+
+	return dto.PartnerStatsResponse{
+		Summary: dto.PartnerStatsSummaryResponse{
+			OrdersTotal:               stats.Summary.OrdersTotal,
+			OrdersCompleted:           stats.Summary.OrdersCompleted,
+			OrdersCancelled:           stats.Summary.OrdersCancelled,
+			OrdersPendingConfirmation: stats.Summary.OrdersPendingConfirmation,
+			GrossRevenue:              stats.Summary.GrossRevenue,
+			NetRevenue:                stats.Summary.NetRevenue,
+			AvgOrderValue:             stats.Summary.AvgOrderValue,
+			AvgRating:                 stats.Summary.AvgRating,
+			ReviewsCount:              stats.Summary.ReviewsCount,
+		},
+		Timeline:        timeline,
+		StatusBreakdown: statusBreakdown,
+		TopLocations:    topLocations,
+		TopBoxes:        topBoxes,
+		Orders:          orders,
+		Meta: dto.PartnerStatsMetaResponse{
+			Period:           stats.Meta.Period,
+			DateFrom:         stats.Meta.DateFrom,
+			DateTo:           stats.Meta.DateTo,
+			LocationID:       stats.Meta.LocationID,
+			Status:           stats.Meta.Status,
+			TopLocationsSort: stats.Meta.TopLocationsSort,
+			TopBoxesSort:     stats.Meta.TopBoxesSort,
+			OrdersSort:       stats.Meta.OrdersSort,
+			Pagination: dto.PartnerStatsPaginationResponse{
+				Total:   stats.Meta.Pagination.Total,
+				Limit:   stats.Meta.Pagination.Limit,
+				Offset:  stats.Meta.Pagination.Offset,
+				HasMore: stats.Meta.Pagination.HasMore,
+			},
+		},
+	}
 }

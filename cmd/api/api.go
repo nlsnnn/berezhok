@@ -231,6 +231,7 @@ func (app *application) mount() http.Handler {
 
 				r.Get("/partner/profile", partHandler.Profile)
 				r.Get("/partner/dashboard", partHandler.Dashboard)
+				r.Get("/partner/stats", partHandler.Stats)
 				r.Post("/partner/legal-info", partHandler.AddLegalInfo)
 
 				// Employees
