@@ -7,6 +7,7 @@ package sqlc
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -58,6 +59,70 @@ func (q *Queries) FindCustomerByPhone(ctx context.Context, phone string) (User, 
 		&i.Name,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getCustomerProfile = `-- name: GetCustomerProfile :one
+SELECT
+    u.id,
+    u.phone,
+    u.name,
+    u.created_at,
+    u.updated_at,
+    COALESCE(order_stats.orders_count, 0) AS orders_count,
+    COALESCE(review_stats.reviews_count, 0) AS reviews_count,
+    COALESCE(order_stats.saved_amount, 0)::numeric AS saved_amount
+FROM users u
+LEFT JOIN (
+    SELECT
+        o.user_id,
+        COUNT(*) AS orders_count,
+        COALESCE(SUM(
+            CASE
+                WHEN o.status IN ('paid', 'confirmed', 'completed', 'picked_up')
+                    THEN COALESCE(sb.original_price, o.amount) - o.amount
+                ELSE 0
+            END
+        ), 0) AS saved_amount
+    FROM orders o
+    JOIN surprise_boxes sb ON sb.id = o.box_id
+    GROUP BY o.user_id
+) AS order_stats ON order_stats.user_id = u.id
+LEFT JOIN (
+    SELECT
+        r.user_id,
+        COUNT(*) AS reviews_count
+    FROM reviews r
+    GROUP BY r.user_id
+) AS review_stats ON review_stats.user_id = u.id
+WHERE u.id = $1
+`
+
+type GetCustomerProfileRow struct {
+	ID           uuid.UUID      `json:"id"`
+	Phone        string         `json:"phone"`
+	Name         pgtype.Text    `json:"name"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
+	OrdersCount  int64          `json:"orders_count"`
+	ReviewsCount int64          `json:"reviews_count"`
+	SavedAmount  pgtype.Numeric `json:"saved_amount"`
+}
+
+// Get customer profile with stats
+func (q *Queries) GetCustomerProfile(ctx context.Context, id uuid.UUID) (GetCustomerProfileRow, error) {
+	row := q.db.QueryRow(ctx, getCustomerProfile, id)
+	var i GetCustomerProfileRow
+	err := row.Scan(
+		&i.ID,
+		&i.Phone,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.OrdersCount,
+		&i.ReviewsCount,
+		&i.SavedAmount,
 	)
 	return i, err
 }

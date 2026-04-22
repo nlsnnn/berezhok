@@ -22,7 +22,7 @@ type customerHandler struct {
 }
 
 type customerSvc interface {
-	GetProfile(ctx context.Context, userID uuid.UUID) (domain.User, error)
+	GetProfile(ctx context.Context, userID uuid.UUID) (domain.Profile, error)
 	UpdateProfile(ctx context.Context, userID uuid.UUID, name string) (domain.User, error)
 }
 
@@ -43,7 +43,7 @@ func (h *customerHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.service.GetProfile(r.Context(), userID)
+	profile, err := h.service.GetProfile(r.Context(), userID)
 	if err != nil {
 		h.log.Error("failed to get profile", sl.Err(err))
 		response.InternalError(w, nil)
@@ -51,11 +51,14 @@ func (h *customerHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := dto.ProfileResponse{
-		ID:        user.ID.String(),
-		Phone:     user.Phone.Number,
-		Name:      user.Name,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
+		ID:           profile.ID.String(),
+		Phone:        profile.Phone.Number,
+		Name:         profile.Name,
+		CreatedAt:    profile.CreatedAt,
+		UpdatedAt:    profile.UpdatedAt,
+		OrdersCount:  profile.OrdersCount,
+		ReviewsCount: profile.ReviewsCount,
+		SavedAmount:  profile.SavedAmount.InexactFloat64(),
 	}
 
 	response.Success(w, resp)
