@@ -14,9 +14,11 @@ type key string
 const (
 	UserIDKey     key = "user_id"
 	UserTypeKey   key = "user_type"
+	UserRoleKey   key = "user_role"
 	CustomerIDKey key = "customer_id"
 	PartnerIDKey  key = "partner_id"
 	EmployeeIDKey key = "employee_id"
+	LocationIDKey key = "location_id"
 )
 
 func UserID(r *http.Request) (uuid.UUID, error) {
@@ -29,6 +31,10 @@ func UserIDFromContext(ctx context.Context) (uuid.UUID, error) {
 
 func UserType(r *http.Request) (string, error) {
 	return getStringFromCtx(r.Context(), UserTypeKey)
+}
+
+func UserRole(r *http.Request) (string, error) {
+	return getStringFromCtx(r.Context(), UserRoleKey)
 }
 
 func CustomerID(r *http.Request) (uuid.UUID, error) {
@@ -53,6 +59,10 @@ func EmployeeID(r *http.Request) (uuid.UUID, error) {
 
 func EmployeeIDFromContext(ctx context.Context) (uuid.UUID, error) {
 	return getIDFromCtx(ctx, EmployeeIDKey)
+}
+
+func LocationID(r *http.Request) (uuid.UUID, error) {
+	return getIDFromCtx(r.Context(), LocationIDKey)
 }
 
 func getIDFromCtx(ctx context.Context, k key) (uuid.UUID, error) {

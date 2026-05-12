@@ -20,7 +20,11 @@ type LoginResponse struct {
 }
 
 type LoginPartnerResponse struct {
-	UserID     string `json:"user_id"`
-	Token      string `json:"token"`
-	MustChange bool   `json:"must_change_password"`
+	UserID     string  `json:"user_id"`
+	EmployeeID string  `json:"employee_id"`
+	PartnerID  string  `json:"partner_id"`
+	LocationID *string `json:"location_id,omitempty"`
+	Role       string  `json:"role"`
+	Token      string  `json:"token"`
+	MustChange bool    `json:"must_change_password"`
 }

@@ -20,10 +20,17 @@ type partnerSvc interface {
 	ChangePassword(ctx context.Context, input service.ChangePasswordInput) error
 	Profile(ctx context.Context, userID string) (domain.PartnerProfile, error)
 	Dashboard(ctx context.Context, userID string) (domain.PartnerDashboard, error)
+	Stats(ctx context.Context, userID string, filter domain.StatsFilter) (domain.PartnerStats, error)
 	AddLegalInfo(ctx context.Context, input service.AddLegalInfoInput) error
 }
 
 type locationSvc interface {
 	Create(ctx context.Context, input service.CreateLocationInput) (domain.Location, error)
 	ListByPartner(ctx context.Context, partnerID string) ([]domain.Location, error)
+}
+
+type employeeSvc interface {
+	ListManagedByPartnerID(ctx context.Context, partnerID string) ([]domain.ManagedEmployee, error)
+	CreateManaged(ctx context.Context, input service.CreateManagedEmployeeInput) (domain.ManagedEmployee, error)
+	DeleteManaged(ctx context.Context, input service.DeleteManagedEmployeeInput) error
 }

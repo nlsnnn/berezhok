@@ -2,11 +2,14 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
+	partnerErrors "github.com/nlsnnn/berezhok/internal/modules/partner/errors"
 	sharedDomain "github.com/nlsnnn/berezhok/internal/shared/domain"
 )
 
@@ -72,6 +75,9 @@ func (r *LocationRepo) FindCategoryByCode(ctx context.Context, code string) (dom
 func (r *LocationRepo) FindByID(ctx context.Context, id uuid.UUID) (domain.Location, error) {
 	row, err := r.q.FindLocationByID(ctx, id)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Location{}, partnerErrors.ErrLocationNotFound
+		}
 		return domain.Location{}, err
 	}
 	return locationToDomain(row), nil

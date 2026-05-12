@@ -63,9 +63,18 @@ func (a *authMiddleware) RequireAuth(allowedTypes ...string) func(http.Handler) 
 
 			ctx := context.WithValue(r.Context(), contextx.UserIDKey, claims.UserID)
 			ctx = context.WithValue(ctx, contextx.UserTypeKey, claims.UserType)
+			if claims.Role != "" {
+				ctx = context.WithValue(ctx, contextx.UserRoleKey, claims.Role)
+			}
 
 			if claims.UserType == "partner" {
-				if pid, ok := claims.UserData.(uuid.UUID); ok {
+				ctx = context.WithValue(ctx, contextx.EmployeeIDKey, claims.UserID)
+				if claims.LocationID != nil {
+					ctx = context.WithValue(ctx, contextx.LocationIDKey, *claims.LocationID)
+				}
+				if claims.PartnerID != nil {
+					ctx = context.WithValue(ctx, contextx.PartnerIDKey, *claims.PartnerID)
+				} else if pid, ok := claims.UserData.(uuid.UUID); ok {
 					ctx = context.WithValue(ctx, contextx.PartnerIDKey, pid)
 				} else if pidStr, ok := claims.UserData.(string); ok {
 					if pid, err := uuid.Parse(pidStr); err == nil {
@@ -79,6 +88,33 @@ func (a *authMiddleware) RequireAuth(allowedTypes ...string) func(http.Handler) 
 			}
 
 			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+func (a *authMiddleware) RequirePartnerRoles(allowedRoles ...string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			userType, err := contextx.UserType(r)
+			if err != nil || userType != "partner" {
+				response.Forbidden(w, "access denied for this user")
+				return
+			}
+
+			role, err := contextx.UserRole(r)
+			if err != nil {
+				response.Forbidden(w, "access denied for this user")
+				return
+			}
+
+			for _, allowedRole := range allowedRoles {
+				if role == allowedRole {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+
+			response.Forbidden(w, "access denied for this action")
 		})
 	}
 }

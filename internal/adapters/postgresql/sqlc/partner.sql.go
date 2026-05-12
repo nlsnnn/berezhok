@@ -46,6 +46,38 @@ func (q *Queries) CloseLocation(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const countPartnerStatsOrders = `-- name: CountPartnerStatsOrders :one
+SELECT COUNT(*)
+FROM orders o
+JOIN locations l ON o.location_id = l.id
+WHERE l.partner_id = $1
+  AND o.created_at >= $2
+  AND o.created_at < $3::timestamptz + interval '1 day'
+  AND ($4::uuid IS NULL OR o.location_id = $4::uuid)
+  AND ($5::text = '' OR o.status::text = $5::text)
+`
+
+type CountPartnerStatsOrdersParams struct {
+	PartnerID  uuid.UUID   `json:"partner_id"`
+	StartDate  time.Time   `json:"start_date"`
+	EndDate    time.Time   `json:"end_date"`
+	LocationID pgtype.UUID `json:"location_id"`
+	Status     string      `json:"status"`
+}
+
+func (q *Queries) CountPartnerStatsOrders(ctx context.Context, arg CountPartnerStatsOrdersParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countPartnerStatsOrders,
+		arg.PartnerID,
+		arg.StartDate,
+		arg.EndDate,
+		arg.LocationID,
+		arg.Status,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createApplication = `-- name: CreateApplication :one
 INSERT INTO partner_applications (
     contact_name, contact_email, contact_phone, business_name, category_code,
@@ -626,6 +658,458 @@ func (q *Queries) GetPartnerProfile(ctx context.Context, id uuid.UUID) (GetPartn
 	return i, err
 }
 
+const getPartnerStatsStatusBreakdown = `-- name: GetPartnerStatsStatusBreakdown :many
+WITH totals AS (
+    SELECT COUNT(*)::double precision AS total_count
+    FROM orders o
+    JOIN locations l ON l.id = o.location_id
+    WHERE l.partner_id = $1
+      AND o.created_at >= $2
+      AND o.created_at < $3::timestamptz + interval '1 day'
+      AND ($4::uuid IS NULL OR o.location_id = $4::uuid)
+      AND ($5::text = '' OR o.status::text = $5::text)
+)
+SELECT
+    o.status::text AS status,
+    COUNT(*)::bigint AS count,
+    CASE
+        WHEN totals.total_count = 0 THEN 0::double precision
+        ELSE COUNT(*)::double precision / totals.total_count
+    END::double precision AS share
+FROM orders o
+JOIN locations l ON l.id = o.location_id
+CROSS JOIN totals
+WHERE l.partner_id = $1
+  AND o.created_at >= $2
+  AND o.created_at < $3::timestamptz + interval '1 day'
+  AND ($4::uuid IS NULL OR o.location_id = $4::uuid)
+  AND ($5::text = '' OR o.status::text = $5::text)
+GROUP BY o.status, totals.total_count
+ORDER BY count DESC, o.status::text ASC
+`
+
+type GetPartnerStatsStatusBreakdownParams struct {
+	PartnerID  uuid.UUID   `json:"partner_id"`
+	StartDate  time.Time   `json:"start_date"`
+	EndDate    time.Time   `json:"end_date"`
+	LocationID pgtype.UUID `json:"location_id"`
+	Status     string      `json:"status"`
+}
+
+type GetPartnerStatsStatusBreakdownRow struct {
+	Status string  `json:"status"`
+	Count  int64   `json:"count"`
+	Share  float64 `json:"share"`
+}
+
+func (q *Queries) GetPartnerStatsStatusBreakdown(ctx context.Context, arg GetPartnerStatsStatusBreakdownParams) ([]GetPartnerStatsStatusBreakdownRow, error) {
+	rows, err := q.db.Query(ctx, getPartnerStatsStatusBreakdown,
+		arg.PartnerID,
+		arg.StartDate,
+		arg.EndDate,
+		arg.LocationID,
+		arg.Status,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPartnerStatsStatusBreakdownRow
+	for rows.Next() {
+		var i GetPartnerStatsStatusBreakdownRow
+		if err := rows.Scan(&i.Status, &i.Count, &i.Share); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getPartnerStatsSummary = `-- name: GetPartnerStatsSummary :one
+WITH commission AS (
+    SELECT
+        CASE
+            WHEN p.promo_commission_until >= NOW() THEN COALESCE(p.promo_commission_rate, p.commission_rate)
+            ELSE p.commission_rate
+        END AS rate
+    FROM partners p
+    WHERE p.id = $1
+),
+order_stats AS (
+    SELECT
+        COUNT(*)::bigint AS orders_total,
+        COUNT(*) FILTER (WHERE o.status = 'completed')::bigint AS orders_completed,
+        COUNT(*) FILTER (WHERE o.status = 'cancelled')::bigint AS orders_cancelled,
+        COUNT(*) FILTER (WHERE o.status = 'paid')::bigint AS orders_pending_confirmation,
+        COALESCE(SUM(o.amount) FILTER (WHERE o.status = 'completed'), 0)::bigint AS gross_revenue,
+        COALESCE(SUM(o.amount * (1 - c.rate)) FILTER (WHERE o.status = 'completed'), 0)::bigint AS net_revenue,
+        COALESCE(AVG(o.amount) FILTER (WHERE o.status = 'completed'), 0)::double precision AS avg_order_value
+    FROM orders o
+    JOIN locations l ON l.id = o.location_id
+    CROSS JOIN commission c
+    WHERE l.partner_id = $1
+      AND o.created_at >= $2
+      AND o.created_at < $3::timestamptz + interval '1 day'
+      AND ($4::uuid IS NULL OR o.location_id = $4::uuid)
+      AND ($5::text = '' OR o.status::text = $5::text)
+),
+review_stats AS (
+    SELECT
+        COALESCE(AVG(r.rating), 0)::double precision AS avg_rating,
+        COUNT(*)::bigint AS reviews_count
+    FROM reviews r
+    JOIN locations l ON l.id = r.location_id
+    WHERE l.partner_id = $1
+      AND r.created_at >= $2
+      AND r.created_at < $3::timestamptz + interval '1 day'
+      AND ($4::uuid IS NULL OR r.location_id = $4::uuid)
+)
+SELECT
+    order_stats.orders_total,
+    order_stats.orders_completed,
+    order_stats.orders_cancelled,
+    order_stats.orders_pending_confirmation,
+    order_stats.gross_revenue,
+    order_stats.net_revenue,
+    order_stats.avg_order_value,
+    review_stats.avg_rating,
+    review_stats.reviews_count
+FROM order_stats, review_stats
+`
+
+type GetPartnerStatsSummaryParams struct {
+	PartnerID  uuid.UUID   `json:"partner_id"`
+	StartDate  time.Time   `json:"start_date"`
+	EndDate    time.Time   `json:"end_date"`
+	LocationID pgtype.UUID `json:"location_id"`
+	Status     string      `json:"status"`
+}
+
+type GetPartnerStatsSummaryRow struct {
+	OrdersTotal               int64   `json:"orders_total"`
+	OrdersCompleted           int64   `json:"orders_completed"`
+	OrdersCancelled           int64   `json:"orders_cancelled"`
+	OrdersPendingConfirmation int64   `json:"orders_pending_confirmation"`
+	GrossRevenue              int64   `json:"gross_revenue"`
+	NetRevenue                int64   `json:"net_revenue"`
+	AvgOrderValue             float64 `json:"avg_order_value"`
+	AvgRating                 float64 `json:"avg_rating"`
+	ReviewsCount              int64   `json:"reviews_count"`
+}
+
+func (q *Queries) GetPartnerStatsSummary(ctx context.Context, arg GetPartnerStatsSummaryParams) (GetPartnerStatsSummaryRow, error) {
+	row := q.db.QueryRow(ctx, getPartnerStatsSummary,
+		arg.PartnerID,
+		arg.StartDate,
+		arg.EndDate,
+		arg.LocationID,
+		arg.Status,
+	)
+	var i GetPartnerStatsSummaryRow
+	err := row.Scan(
+		&i.OrdersTotal,
+		&i.OrdersCompleted,
+		&i.OrdersCancelled,
+		&i.OrdersPendingConfirmation,
+		&i.GrossRevenue,
+		&i.NetRevenue,
+		&i.AvgOrderValue,
+		&i.AvgRating,
+		&i.ReviewsCount,
+	)
+	return i, err
+}
+
+const getPartnerStatsTimeline = `-- name: GetPartnerStatsTimeline :many
+WITH commission AS (
+    SELECT
+        CASE
+            WHEN p.promo_commission_until >= NOW() THEN COALESCE(p.promo_commission_rate, p.commission_rate)
+            ELSE p.commission_rate
+        END AS rate
+    FROM partners p
+    WHERE p.id = $1
+),
+series AS (
+    SELECT generate_series($2::timestamptz, $3::timestamptz, interval '1 day') AS day
+),
+aggregated AS (
+    SELECT
+        date_trunc('day', o.created_at) AS day,
+        COUNT(*)::bigint AS orders_total,
+        COUNT(*) FILTER (WHERE o.status = 'completed')::bigint AS orders_completed,
+        COALESCE(SUM(o.amount) FILTER (WHERE o.status = 'completed'), 0)::bigint AS gross_revenue,
+        COALESCE(SUM(o.amount * (1 - c.rate)) FILTER (WHERE o.status = 'completed'), 0)::bigint AS net_revenue
+    FROM orders o
+    JOIN locations l ON l.id = o.location_id
+    CROSS JOIN commission c
+    WHERE l.partner_id = $1
+      AND o.created_at >= $2
+      AND o.created_at < $3::timestamptz + interval '1 day'
+      AND ($4::uuid IS NULL OR o.location_id = $4::uuid)
+      AND ($5::text = '' OR o.status::text = $5::text)
+    GROUP BY 1
+)
+SELECT
+    series.day::timestamptz AS date,
+    COALESCE(aggregated.orders_total, 0)::bigint AS orders_total,
+    COALESCE(aggregated.orders_completed, 0)::bigint AS orders_completed,
+    COALESCE(aggregated.gross_revenue, 0)::bigint AS gross_revenue,
+    COALESCE(aggregated.net_revenue, 0)::bigint AS net_revenue
+FROM series
+LEFT JOIN aggregated ON aggregated.day = series.day
+ORDER BY series.day ASC
+`
+
+type GetPartnerStatsTimelineParams struct {
+	PartnerID  uuid.UUID   `json:"partner_id"`
+	StartDate  time.Time   `json:"start_date"`
+	EndDate    time.Time   `json:"end_date"`
+	LocationID pgtype.UUID `json:"location_id"`
+	Status     string      `json:"status"`
+}
+
+type GetPartnerStatsTimelineRow struct {
+	Date            time.Time `json:"date"`
+	OrdersTotal     int64     `json:"orders_total"`
+	OrdersCompleted int64     `json:"orders_completed"`
+	GrossRevenue    int64     `json:"gross_revenue"`
+	NetRevenue      int64     `json:"net_revenue"`
+}
+
+func (q *Queries) GetPartnerStatsTimeline(ctx context.Context, arg GetPartnerStatsTimelineParams) ([]GetPartnerStatsTimelineRow, error) {
+	rows, err := q.db.Query(ctx, getPartnerStatsTimeline,
+		arg.PartnerID,
+		arg.StartDate,
+		arg.EndDate,
+		arg.LocationID,
+		arg.Status,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPartnerStatsTimelineRow
+	for rows.Next() {
+		var i GetPartnerStatsTimelineRow
+		if err := rows.Scan(
+			&i.Date,
+			&i.OrdersTotal,
+			&i.OrdersCompleted,
+			&i.GrossRevenue,
+			&i.NetRevenue,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getPartnerStatsTopBoxes = `-- name: GetPartnerStatsTopBoxes :many
+WITH commission AS (
+    SELECT
+        CASE
+            WHEN p.promo_commission_until >= NOW() THEN COALESCE(p.promo_commission_rate, p.commission_rate)
+            ELSE p.commission_rate
+        END AS rate
+    FROM partners p
+    WHERE p.id = $5
+)
+SELECT
+    sb.id AS box_id,
+    sb.name,
+    COALESCE(sb.image_url, '') AS image_url,
+    l.name AS location_name,
+    COUNT(o.id)::bigint AS orders_total,
+    COUNT(o.id) FILTER (WHERE o.status = 'completed')::bigint AS orders_completed,
+    COALESCE(SUM(o.amount) FILTER (WHERE o.status = 'completed'), 0)::bigint AS gross_revenue,
+    COALESCE(SUM(o.amount * (1 - c.rate)) FILTER (WHERE o.status = 'completed'), 0)::bigint AS net_revenue
+FROM surprise_boxes sb
+JOIN locations l ON l.id = sb.location_id
+LEFT JOIN orders o ON o.box_id = sb.id
+    AND o.created_at >= $1
+    AND o.created_at < $2::timestamptz + interval '1 day'
+    AND ($3::uuid IS NULL OR o.location_id = $3::uuid)
+    AND ($4::text = '' OR o.status::text = $4::text)
+CROSS JOIN commission c
+WHERE l.partner_id = $5
+  AND ($3::uuid IS NULL OR l.id = $3::uuid)
+GROUP BY sb.id, sb.name, sb.image_url, l.name
+ORDER BY
+    CASE WHEN $6::text = 'revenue_desc' THEN COALESCE(SUM(o.amount) FILTER (WHERE o.status = 'completed'), 0) END DESC,
+    CASE WHEN $6::text = 'orders_desc' THEN COUNT(o.id) END DESC,
+    CASE WHEN $6::text = 'name_asc' THEN sb.name END ASC,
+    sb.name ASC
+`
+
+type GetPartnerStatsTopBoxesParams struct {
+	StartDate  time.Time   `json:"start_date"`
+	EndDate    time.Time   `json:"end_date"`
+	LocationID pgtype.UUID `json:"location_id"`
+	Status     string      `json:"status"`
+	PartnerID  uuid.UUID   `json:"partner_id"`
+	Sort       string      `json:"sort"`
+}
+
+type GetPartnerStatsTopBoxesRow struct {
+	BoxID           uuid.UUID `json:"box_id"`
+	Name            string    `json:"name"`
+	ImageUrl        string    `json:"image_url"`
+	LocationName    string    `json:"location_name"`
+	OrdersTotal     int64     `json:"orders_total"`
+	OrdersCompleted int64     `json:"orders_completed"`
+	GrossRevenue    int64     `json:"gross_revenue"`
+	NetRevenue      int64     `json:"net_revenue"`
+}
+
+func (q *Queries) GetPartnerStatsTopBoxes(ctx context.Context, arg GetPartnerStatsTopBoxesParams) ([]GetPartnerStatsTopBoxesRow, error) {
+	rows, err := q.db.Query(ctx, getPartnerStatsTopBoxes,
+		arg.StartDate,
+		arg.EndDate,
+		arg.LocationID,
+		arg.Status,
+		arg.PartnerID,
+		arg.Sort,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPartnerStatsTopBoxesRow
+	for rows.Next() {
+		var i GetPartnerStatsTopBoxesRow
+		if err := rows.Scan(
+			&i.BoxID,
+			&i.Name,
+			&i.ImageUrl,
+			&i.LocationName,
+			&i.OrdersTotal,
+			&i.OrdersCompleted,
+			&i.GrossRevenue,
+			&i.NetRevenue,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getPartnerStatsTopLocations = `-- name: GetPartnerStatsTopLocations :many
+WITH commission AS (
+    SELECT
+        CASE
+            WHEN p.promo_commission_until >= NOW() THEN COALESCE(p.promo_commission_rate, p.commission_rate)
+            ELSE p.commission_rate
+        END AS rate
+    FROM partners p
+    WHERE p.id = $4
+),
+review_stats AS (
+    SELECT
+        r.location_id,
+        COALESCE(AVG(r.rating), 0)::double precision AS avg_rating
+    FROM reviews r
+    JOIN locations l ON l.id = r.location_id
+    WHERE l.partner_id = $4
+      AND r.created_at >= $1
+      AND r.created_at < $2::timestamptz + interval '1 day'
+      AND ($5::uuid IS NULL OR r.location_id = $5::uuid)
+    GROUP BY r.location_id
+)
+SELECT
+    l.id AS location_id,
+    l.name,
+    l.address,
+    COUNT(o.id)::bigint AS orders_total,
+    COUNT(o.id) FILTER (WHERE o.status = 'completed')::bigint AS orders_completed,
+    COALESCE(SUM(o.amount) FILTER (WHERE o.status = 'completed'), 0)::bigint AS gross_revenue,
+    COALESCE(SUM(o.amount * (1 - c.rate)) FILTER (WHERE o.status = 'completed'), 0)::bigint AS net_revenue,
+    COALESCE(review_stats.avg_rating, 0)::double precision AS avg_rating
+FROM locations l
+LEFT JOIN orders o ON o.location_id = l.id
+    AND o.created_at >= $1
+    AND o.created_at < $2::timestamptz + interval '1 day'
+    AND ($3::text = '' OR o.status::text = $3::text)
+CROSS JOIN commission c
+LEFT JOIN review_stats ON review_stats.location_id = l.id
+WHERE l.partner_id = $4
+  AND ($5::uuid IS NULL OR l.id = $5::uuid)
+GROUP BY l.id, l.name, l.address, review_stats.avg_rating
+ORDER BY
+    CASE WHEN $6::text = 'revenue_desc' THEN COALESCE(SUM(o.amount) FILTER (WHERE o.status = 'completed'), 0) END DESC,
+    CASE WHEN $6::text = 'orders_desc' THEN COUNT(o.id) END DESC,
+    CASE WHEN $6::text = 'rating_desc' THEN COALESCE(review_stats.avg_rating, 0) END DESC,
+    CASE WHEN $6::text = 'name_asc' THEN l.name END ASC,
+    l.name ASC
+`
+
+type GetPartnerStatsTopLocationsParams struct {
+	StartDate  time.Time   `json:"start_date"`
+	EndDate    time.Time   `json:"end_date"`
+	Status     string      `json:"status"`
+	PartnerID  uuid.UUID   `json:"partner_id"`
+	LocationID pgtype.UUID `json:"location_id"`
+	Sort       string      `json:"sort"`
+}
+
+type GetPartnerStatsTopLocationsRow struct {
+	LocationID      uuid.UUID `json:"location_id"`
+	Name            string    `json:"name"`
+	Address         string    `json:"address"`
+	OrdersTotal     int64     `json:"orders_total"`
+	OrdersCompleted int64     `json:"orders_completed"`
+	GrossRevenue    int64     `json:"gross_revenue"`
+	NetRevenue      int64     `json:"net_revenue"`
+	AvgRating       float64   `json:"avg_rating"`
+}
+
+func (q *Queries) GetPartnerStatsTopLocations(ctx context.Context, arg GetPartnerStatsTopLocationsParams) ([]GetPartnerStatsTopLocationsRow, error) {
+	rows, err := q.db.Query(ctx, getPartnerStatsTopLocations,
+		arg.StartDate,
+		arg.EndDate,
+		arg.Status,
+		arg.PartnerID,
+		arg.LocationID,
+		arg.Sort,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPartnerStatsTopLocationsRow
+	for rows.Next() {
+		var i GetPartnerStatsTopLocationsRow
+		if err := rows.Scan(
+			&i.LocationID,
+			&i.Name,
+			&i.Address,
+			&i.OrdersTotal,
+			&i.OrdersCompleted,
+			&i.GrossRevenue,
+			&i.NetRevenue,
+			&i.AvgRating,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listApplications = `-- name: ListApplications :many
 SELECT id, contact_name, contact_email, contact_phone, business_name, category_code, address, description, status, reviewed_at, rejection_reason, created_at, latitude, longitude FROM partner_applications
 `
@@ -768,6 +1252,114 @@ func (q *Queries) ListPartnerEmployees(ctx context.Context) ([]PartnerEmployee, 
 			&i.LastLoginAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPartnerStatsOrders = `-- name: ListPartnerStatsOrders :many
+SELECT
+  o.id,
+  o.status,
+  o.pickup_code,
+  o.amount,
+  o.created_at,
+  sb.name AS box_name,
+  COALESCE(sb.image_url, '') AS box_image_url,
+  COALESCE(u.phone, '') AS customer_phone,
+  COALESCE(u.name, '') AS customer_name,
+  l.id AS location_id,
+  l.name AS location_name,
+  l.address AS location_address,
+  o.pickup_time_start,
+  o.pickup_time_end
+FROM orders o
+JOIN surprise_boxes sb ON o.box_id = sb.id
+JOIN users u ON o.user_id = u.id
+JOIN locations l ON o.location_id = l.id
+WHERE l.partner_id = $1
+  AND o.created_at >= $2
+  AND o.created_at < $3::timestamptz + interval '1 day'
+  AND ($4::uuid IS NULL OR o.location_id = $4::uuid)
+  AND ($5::text = '' OR o.status::text = $5::text)
+ORDER BY
+  CASE WHEN $6::text = 'created_at_desc' THEN o.created_at END DESC,
+  CASE WHEN $6::text = 'created_at_asc' THEN o.created_at END ASC,
+  CASE WHEN $6::text = 'amount_desc' THEN o.amount END DESC,
+  CASE WHEN $6::text = 'amount_asc' THEN o.amount END ASC,
+  CASE WHEN $6::text = 'pickup_time_desc' THEN o.pickup_time_start END DESC,
+  CASE WHEN $6::text = 'pickup_time_asc' THEN o.pickup_time_start END ASC,
+  o.created_at DESC
+LIMIT $8 OFFSET $7
+`
+
+type ListPartnerStatsOrdersParams struct {
+	PartnerID  uuid.UUID   `json:"partner_id"`
+	StartDate  time.Time   `json:"start_date"`
+	EndDate    time.Time   `json:"end_date"`
+	LocationID pgtype.UUID `json:"location_id"`
+	Status     string      `json:"status"`
+	Sort       string      `json:"sort"`
+	PageOffset int32       `json:"page_offset"`
+	PageLimit  int32       `json:"page_limit"`
+}
+
+type ListPartnerStatsOrdersRow struct {
+	ID              uuid.UUID      `json:"id"`
+	Status          OrderStatus    `json:"status"`
+	PickupCode      string         `json:"pickup_code"`
+	Amount          pgtype.Numeric `json:"amount"`
+	CreatedAt       time.Time      `json:"created_at"`
+	BoxName         string         `json:"box_name"`
+	BoxImageUrl     string         `json:"box_image_url"`
+	CustomerPhone   string         `json:"customer_phone"`
+	CustomerName    string         `json:"customer_name"`
+	LocationID      uuid.UUID      `json:"location_id"`
+	LocationName    string         `json:"location_name"`
+	LocationAddress string         `json:"location_address"`
+	PickupTimeStart time.Time      `json:"pickup_time_start"`
+	PickupTimeEnd   time.Time      `json:"pickup_time_end"`
+}
+
+func (q *Queries) ListPartnerStatsOrders(ctx context.Context, arg ListPartnerStatsOrdersParams) ([]ListPartnerStatsOrdersRow, error) {
+	rows, err := q.db.Query(ctx, listPartnerStatsOrders,
+		arg.PartnerID,
+		arg.StartDate,
+		arg.EndDate,
+		arg.LocationID,
+		arg.Status,
+		arg.Sort,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListPartnerStatsOrdersRow
+	for rows.Next() {
+		var i ListPartnerStatsOrdersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Status,
+			&i.PickupCode,
+			&i.Amount,
+			&i.CreatedAt,
+			&i.BoxName,
+			&i.BoxImageUrl,
+			&i.CustomerPhone,
+			&i.CustomerName,
+			&i.LocationID,
+			&i.LocationName,
+			&i.LocationAddress,
+			&i.PickupTimeStart,
+			&i.PickupTimeEnd,
 		); err != nil {
 			return nil, err
 		}

@@ -9,7 +9,9 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
+	"github.com/nlsnnn/berezhok/internal/lib/pgconverter"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
+	partnerErrors "github.com/nlsnnn/berezhok/internal/modules/partner/errors"
 )
 
 type PartnerRepo struct {
@@ -124,8 +126,6 @@ func (r *PartnerRepo) GetDashboard(ctx context.Context, employeeID string) (doma
 		return domain.PartnerDashboard{}, err
 	}
 
-	partnerID := uuid.MustParse(profile.Partner.ID)
-
 	locations := make([]domain.DashboardLocation, len(profile.Locations))
 	for i, loc := range profile.Locations {
 		count, err := r.q.CountActiveBoxesByLocationID(ctx, uuid.MustParse(loc.ID))
@@ -142,42 +142,250 @@ func (r *PartnerRepo) GetDashboard(ctx context.Context, employeeID string) (doma
 		}
 	}
 
-	todayStats, err := r.q.GetPartnerDashboardTodayStats(ctx, partnerID)
+	todayStats, err := r.GetStats(ctx, employeeID, domain.StatsFilter{
+		Period:           "today",
+		TopLocationsSort: "revenue_desc",
+		TopBoxesSort:     "revenue_desc",
+		OrdersSort:       "created_at_desc",
+		Limit:            5,
+	})
 	if err != nil {
 		return domain.PartnerDashboard{}, err
 	}
 
-	weekStats, err := r.q.GetPartnerDashboardWeekStats(ctx, partnerID)
+	weekStats, err := r.GetStats(ctx, employeeID, domain.StatsFilter{
+		Period:           "last_7_days",
+		TopLocationsSort: "revenue_desc",
+		TopBoxesSort:     "revenue_desc",
+		OrdersSort:       "created_at_desc",
+		Limit:            5,
+	})
 	if err != nil {
 		return domain.PartnerDashboard{}, err
 	}
 
-	financeStats, err := r.q.GetPartnerDashboardFinance(ctx, partnerID)
-	if err != nil {
-		return domain.PartnerDashboard{}, err
-	}
-
-	nextPayoutDate := financeStats.NextPayoutDate
+	nextPayoutDate := nextPartnerPayoutDate()
 
 	return domain.PartnerDashboard{
 		Partner:   profile.Partner,
 		Employee:  profile.Employee,
 		Locations: locations,
 		Today: domain.DashboardTodayStats{
-			PendingConfirmation: int(todayStats.PendingConfirmation),
-			Confirmed:           int(todayStats.Confirmed),
-			PickedUp:            int(todayStats.PickedUp),
-			Completed:           int(todayStats.Completed),
+			PendingConfirmation: findStatusCount(todayStats.StatusBreakdown, "paid"),
+			Confirmed:           findStatusCount(todayStats.StatusBreakdown, "confirmed"),
+			PickedUp:            findStatusCount(todayStats.StatusBreakdown, "picked_up"),
+			Completed:           todayStats.Summary.OrdersCompleted,
 		},
 		Week: domain.DashboardWeekStats{
-			OrdersCompleted: int(weekStats.OrdersCompleted),
-			GrossRevenue:    int(weekStats.GrossRevenue),
-			NetRevenue:      int(weekStats.NetRevenue),
-			AvgRating:       weekStats.AvgRating,
+			OrdersCompleted: weekStats.Summary.OrdersCompleted,
+			GrossRevenue:    weekStats.Summary.GrossRevenue,
+			NetRevenue:      weekStats.Summary.NetRevenue,
+			AvgRating:       weekStats.Summary.AvgRating,
 		},
 		Finance: domain.DashboardFinance{
-			BalancePending: int(financeStats.BalancePending),
+			BalancePending: weekStats.Summary.NetRevenue,
 			NextPayoutDate: &nextPayoutDate,
+		},
+	}, nil
+}
+
+func (r *PartnerRepo) GetStats(ctx context.Context, employeeID string, filter domain.StatsFilter) (domain.PartnerStats, error) {
+	profile, err := r.GetProfile(ctx, employeeID)
+	if err != nil {
+		return domain.PartnerStats{}, err
+	}
+
+	partnerID := uuid.MustParse(profile.Partner.ID)
+	locationID, err := parseOptionalUUID(filter.LocationID)
+	if err != nil {
+		return domain.PartnerStats{}, partnerErrors.ErrInvalidStatsDateRange
+	}
+
+	summaryRow, err := r.q.GetPartnerStatsSummary(ctx, sqlc.GetPartnerStatsSummaryParams{
+		PartnerID:  partnerID,
+		StartDate:  filter.DateFrom,
+		EndDate:    filter.DateTo,
+		LocationID: locationID,
+		Status:     filter.Status,
+	})
+	if err != nil {
+		return domain.PartnerStats{}, err
+	}
+
+	timelineRows, err := r.q.GetPartnerStatsTimeline(ctx, sqlc.GetPartnerStatsTimelineParams{
+		PartnerID:  partnerID,
+		StartDate:  filter.DateFrom,
+		EndDate:    filter.DateTo,
+		LocationID: locationID,
+		Status:     filter.Status,
+	})
+	if err != nil {
+		return domain.PartnerStats{}, err
+	}
+
+	statusRows, err := r.q.GetPartnerStatsStatusBreakdown(ctx, sqlc.GetPartnerStatsStatusBreakdownParams{
+		PartnerID:  partnerID,
+		StartDate:  filter.DateFrom,
+		EndDate:    filter.DateTo,
+		LocationID: locationID,
+		Status:     filter.Status,
+	})
+	if err != nil {
+		return domain.PartnerStats{}, err
+	}
+
+	topLocationRows, err := r.q.GetPartnerStatsTopLocations(ctx, sqlc.GetPartnerStatsTopLocationsParams{
+		PartnerID:  partnerID,
+		StartDate:  filter.DateFrom,
+		EndDate:    filter.DateTo,
+		LocationID: locationID,
+		Status:     filter.Status,
+		Sort:       filter.TopLocationsSort,
+	})
+	if err != nil {
+		return domain.PartnerStats{}, err
+	}
+
+	topBoxRows, err := r.q.GetPartnerStatsTopBoxes(ctx, sqlc.GetPartnerStatsTopBoxesParams{
+		PartnerID:  partnerID,
+		StartDate:  filter.DateFrom,
+		EndDate:    filter.DateTo,
+		LocationID: locationID,
+		Status:     filter.Status,
+		Sort:       filter.TopBoxesSort,
+	})
+	if err != nil {
+		return domain.PartnerStats{}, err
+	}
+
+	orderRows, err := r.q.ListPartnerStatsOrders(ctx, sqlc.ListPartnerStatsOrdersParams{
+		PartnerID:  partnerID,
+		StartDate:  filter.DateFrom,
+		EndDate:    filter.DateTo,
+		LocationID: locationID,
+		Status:     filter.Status,
+		Sort:       filter.OrdersSort,
+		PageLimit:  int32(filter.Limit),
+		PageOffset: int32(filter.Offset),
+	})
+	if err != nil {
+		return domain.PartnerStats{}, err
+	}
+
+	totalOrders, err := r.q.CountPartnerStatsOrders(ctx, sqlc.CountPartnerStatsOrdersParams{
+		PartnerID:  partnerID,
+		StartDate:  filter.DateFrom,
+		EndDate:    filter.DateTo,
+		LocationID: locationID,
+		Status:     filter.Status,
+	})
+	if err != nil {
+		return domain.PartnerStats{}, err
+	}
+
+	timeline := make([]domain.PartnerStatsTimelinePoint, len(timelineRows))
+	for i, row := range timelineRows {
+		timeline[i] = domain.PartnerStatsTimelinePoint{
+			Date:            row.Date,
+			OrdersTotal:     int(row.OrdersTotal),
+			OrdersCompleted: int(row.OrdersCompleted),
+			GrossRevenue:    int(row.GrossRevenue),
+			NetRevenue:      int(row.NetRevenue),
+		}
+	}
+
+	statusBreakdown := make([]domain.PartnerStatsStatusBreakdownItem, len(statusRows))
+	for i, row := range statusRows {
+		statusBreakdown[i] = domain.PartnerStatsStatusBreakdownItem{
+			Status: row.Status,
+			Count:  int(row.Count),
+			Share:  row.Share,
+		}
+	}
+
+	topLocations := make([]domain.PartnerStatsLocation, len(topLocationRows))
+	for i, row := range topLocationRows {
+		topLocations[i] = domain.PartnerStatsLocation{
+			LocationID:      row.LocationID.String(),
+			Name:            row.Name,
+			Address:         row.Address,
+			OrdersTotal:     int(row.OrdersTotal),
+			OrdersCompleted: int(row.OrdersCompleted),
+			GrossRevenue:    int(row.GrossRevenue),
+			NetRevenue:      int(row.NetRevenue),
+			AvgRating:       row.AvgRating,
+		}
+	}
+
+	topBoxes := make([]domain.PartnerStatsBox, len(topBoxRows))
+	for i, row := range topBoxRows {
+		topBoxes[i] = domain.PartnerStatsBox{
+			BoxID:           row.BoxID.String(),
+			Name:            row.Name,
+			ImageURL:        row.ImageUrl,
+			LocationName:    row.LocationName,
+			OrdersTotal:     int(row.OrdersTotal),
+			OrdersCompleted: int(row.OrdersCompleted),
+			GrossRevenue:    int(row.GrossRevenue),
+			NetRevenue:      int(row.NetRevenue),
+		}
+	}
+
+	orders := make([]domain.PartnerStatsOrder, len(orderRows))
+	for i, row := range orderRows {
+		statusValue := string(row.Status)
+		orders[i] = domain.PartnerStatsOrder{
+			ID:              row.ID.String(),
+			Status:          statusValue,
+			PickupCode:      row.PickupCode,
+			Amount:          pgconverter.NumericToDecimalOrZero(row.Amount).InexactFloat64(),
+			BoxName:         row.BoxName,
+			BoxImageURL:     row.BoxImageUrl,
+			CustomerPhone:   row.CustomerPhone,
+			CustomerName:    row.CustomerName,
+			LocationID:      row.LocationID.String(),
+			LocationName:    row.LocationName,
+			LocationAddress: row.LocationAddress,
+			PickupTimeStart: row.PickupTimeStart,
+			PickupTimeEnd:   row.PickupTimeEnd,
+			CreatedAt:       row.CreatedAt,
+			CanPickup:       statusValue == "confirmed",
+		}
+	}
+
+	total := int(totalOrders)
+	return domain.PartnerStats{
+		Summary: domain.PartnerStatsSummary{
+			OrdersTotal:               int(summaryRow.OrdersTotal),
+			OrdersCompleted:           int(summaryRow.OrdersCompleted),
+			OrdersCancelled:           int(summaryRow.OrdersCancelled),
+			OrdersPendingConfirmation: int(summaryRow.OrdersPendingConfirmation),
+			GrossRevenue:              int(summaryRow.GrossRevenue),
+			NetRevenue:                int(summaryRow.NetRevenue),
+			AvgOrderValue:             summaryRow.AvgOrderValue,
+			AvgRating:                 summaryRow.AvgRating,
+			ReviewsCount:              int(summaryRow.ReviewsCount),
+		},
+		Timeline:        timeline,
+		StatusBreakdown: statusBreakdown,
+		TopLocations:    topLocations,
+		TopBoxes:        topBoxes,
+		Orders:          orders,
+		Meta: domain.PartnerStatsMeta{
+			Period:           filter.Period,
+			DateFrom:         filter.DateFrom,
+			DateTo:           filter.DateTo,
+			LocationID:       filter.LocationID,
+			Status:           filter.Status,
+			TopLocationsSort: filter.TopLocationsSort,
+			TopBoxesSort:     filter.TopBoxesSort,
+			OrdersSort:       filter.OrdersSort,
+			Pagination: domain.PartnerStatsPagination{
+				Total:   total,
+				Limit:   filter.Limit,
+				Offset:  filter.Offset,
+				HasMore: filter.Offset+len(orders) < total,
+			},
 		},
 	}, nil
 }
@@ -277,4 +485,39 @@ func numericToFloat64(n pgtype.Numeric) (float64, error) {
 
 	result, _ := f.Float64()
 	return result, nil
+}
+
+func parseOptionalUUID(value string) (pgtype.UUID, error) {
+	if value == "" {
+		return pgtype.UUID{}, nil
+	}
+
+	parsed, err := uuid.Parse(value)
+	if err != nil {
+		return pgtype.UUID{}, err
+	}
+
+	return pgtype.UUID{Bytes: parsed, Valid: true}, nil
+}
+
+func findStatusCount(items []domain.PartnerStatsStatusBreakdownItem, status string) int {
+	for _, item := range items {
+		if item.Status == status {
+			return item.Count
+		}
+	}
+
+	return 0
+}
+
+func nextPartnerPayoutDate() time.Time {
+	now := time.Now()
+	weekday := int(now.Weekday())
+	if weekday == 0 {
+		weekday = 7
+	}
+
+	daysUntilNextMonday := 8 - weekday
+	nextMonday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, daysUntilNextMonday)
+	return nextMonday
 }

@@ -26,8 +26,9 @@ type orderServiceInterface interface {
 	CreateOrder(ctx context.Context, boxID, customerID uuid.UUID) (*orderService.CreateOrderResult, error)
 	GetOrderByID(ctx context.Context, orderID uuid.UUID) (*domain.Order, error)
 	GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) (*domain.OrderDetails, error)
-	GetPartnerOrderByPickupCode(ctx context.Context, partnerID uuid.UUID, pickupCode string) (*domain.PartnerOrderByCode, error)
-	MarkOrderPickedUp(ctx context.Context, orderID, partnerID, employeeID uuid.UUID) error
+	GetPartnerOrderByPickupCode(ctx context.Context, actor orderService.PartnerActor, pickupCode string) (*domain.PartnerOrderByCode, error)
+	ListOrdersByPartnerID(ctx context.Context, actor orderService.PartnerActor, status string, limit, offset int) (*orderService.ListPartnerOrdersResult, error)
+	MarkOrderPickedUp(ctx context.Context, actor orderService.PartnerActor, orderID uuid.UUID) error
 	ListOrdersByCustomerID(ctx context.Context, customerID uuid.UUID, status string, limit, offset int) (*orderService.ListOrdersResult, error)
 }
 
@@ -243,7 +244,14 @@ func (h *orderHandler) GetPartnerOrderByPickupCode(w http.ResponseWriter, r *htt
 		return
 	}
 
-	order, err := h.service.GetPartnerOrderByPickupCode(r.Context(), partnerID, pickupCode)
+	actor, err := partnerActorFromRequest(r, partnerID)
+	if err != nil {
+		log.Error("failed to build partner actor", sl.Err(err))
+		response.Unauthorized(w, "authentication required")
+		return
+	}
+
+	order, err := h.service.GetPartnerOrderByPickupCode(r.Context(), actor, pickupCode)
 	if err != nil {
 		if errors.Is(err, orderErrors.ErrOrderNotFound) {
 			response.NotFound(w, "order not found")
@@ -256,6 +264,56 @@ func (h *orderHandler) GetPartnerOrderByPickupCode(w http.ResponseWriter, r *htt
 	}
 
 	response.Success(w, dto.ToPartnerOrderByCodeResponse(order))
+}
+
+// ListPartnerOrders handles GET /partner/orders
+func (h *orderHandler) ListPartnerOrders(w http.ResponseWriter, r *http.Request) {
+	const op = "order.handler.ListPartnerOrders"
+	log := h.log.With(slog.String("op", op))
+
+	partnerID, err := contextx.PartnerID(r)
+	if err != nil {
+		log.Error("failed to get partner_id from context", sl.Err(err))
+		response.Unauthorized(w, "authentication required")
+		return
+	}
+
+	actor, err := partnerActorFromRequest(r, partnerID)
+	if err != nil {
+		log.Error("failed to build partner actor", sl.Err(err))
+		response.Unauthorized(w, "authentication required")
+		return
+	}
+
+	status := r.URL.Query().Get("status")
+
+	limit := 20
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+	}
+
+	offset := 0
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
+			offset = o
+		}
+	}
+
+	result, err := h.service.ListOrdersByPartnerID(r.Context(), actor, status, limit, offset)
+	if err != nil {
+		log.Error("failed to list partner orders", sl.Err(err))
+		response.InternalError(w, nil)
+		return
+	}
+
+	items := make([]dto.PartnerOrderListItemResponse, len(result.Items))
+	for i, item := range result.Items {
+		items[i] = dto.ToPartnerOrderListItem(item)
+	}
+
+	response.Success(w, dto.ToPartnerOrderListResponse(items, result.Total, result.Limit, result.Offset))
 }
 
 // PartnerPickupOrder handles POST /partner/orders/{order_id}/pickup
@@ -284,7 +342,15 @@ func (h *orderHandler) PartnerPickupOrder(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	err = h.service.MarkOrderPickedUp(r.Context(), orderID, partnerID, employeeID)
+	actor, err := partnerActorFromRequest(r, partnerID)
+	if err != nil {
+		log.Error("failed to build partner actor", sl.Err(err))
+		response.Unauthorized(w, "authentication required")
+		return
+	}
+	actor.EmployeeID = employeeID
+
+	err = h.service.MarkOrderPickedUp(r.Context(), actor, orderID)
 	if err != nil {
 		switch {
 		case errors.Is(err, orderErrors.ErrOrderNotFound):
@@ -301,7 +367,35 @@ func (h *orderHandler) PartnerPickupOrder(w http.ResponseWriter, r *http.Request
 
 	response.Success(w, dto.ToPartnerPickupResponse(
 		orderID.String(),
-		string(domain.OrderStatusPickedUp),
+		string(domain.OrderStatusCompleted),
 		"order marked as picked up successfully",
 	))
+}
+
+func partnerActorFromRequest(r *http.Request, partnerID uuid.UUID) (orderService.PartnerActor, error) {
+	employeeID, err := contextx.EmployeeID(r)
+	if err != nil {
+		return orderService.PartnerActor{}, err
+	}
+
+	role, err := contextx.UserRole(r)
+	if err != nil {
+		return orderService.PartnerActor{}, err
+	}
+
+	actor := orderService.PartnerActor{
+		PartnerID:  partnerID,
+		EmployeeID: employeeID,
+		Role:       role,
+	}
+
+	if role == "employee" {
+		locationID, err := contextx.LocationID(r)
+		if err != nil {
+			return orderService.PartnerActor{}, err
+		}
+		actor.LocationID = &locationID
+	}
+
+	return actor, nil
 }

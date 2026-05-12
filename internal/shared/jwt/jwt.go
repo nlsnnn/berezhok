@@ -24,12 +24,20 @@ func (s *jwtTokenService) Generate(claims auth.TokenClaims) (string, error) {
 	jwtClaims := jwt.MapClaims{
 		"user_id":   claims.UserID,
 		"user_type": claims.UserType,
-		"user_data": claims.UserData,
 		"exp":       time.Now().Add(24 * time.Hour).Unix(),
 	}
 
 	if claims.Role != "" {
 		jwtClaims["role"] = claims.Role
+	}
+	if claims.PartnerID != nil {
+		jwtClaims["partner_id"] = claims.PartnerID.String()
+	}
+	if claims.LocationID != nil {
+		jwtClaims["location_id"] = claims.LocationID.String()
+	}
+	if claims.UserData != nil {
+		jwtClaims["user_data"] = claims.UserData
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtClaims)
@@ -62,6 +70,20 @@ func (s *jwtTokenService) Validate(tokenString string) (*auth.TokenClaims, error
 
 	if role, ok := claims["role"].(string); ok {
 		result.Role = role
+	}
+	if partnerIDValue, ok := claims["partner_id"].(string); ok && partnerIDValue != "" {
+		partnerID, err := uuid.Parse(partnerIDValue)
+		if err != nil {
+			return nil, err
+		}
+		result.PartnerID = &partnerID
+	}
+	if locationIDValue, ok := claims["location_id"].(string); ok && locationIDValue != "" {
+		locationID, err := uuid.Parse(locationIDValue)
+		if err != nil {
+			return nil, err
+		}
+		result.LocationID = &locationID
 	}
 	if userData, ok := claims["user_data"]; ok {
 		result.UserData = userData

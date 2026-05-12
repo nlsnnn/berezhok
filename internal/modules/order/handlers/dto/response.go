@@ -76,6 +76,29 @@ type PartnerPickupResponse struct {
 	Message string `json:"message"`
 }
 
+type PartnerOrderListItemResponse struct {
+	ID         string                             `json:"id"`
+	Status     string                             `json:"status"`
+	PickupCode string                             `json:"pickup_code"`
+	Box        PartnerOrderByCodeBoxResponse      `json:"box"`
+	Customer   PartnerOrderByCodeCustomerResponse `json:"customer"`
+	Location   PartnerOrderListLocationResponse   `json:"location"`
+	PickupTime OrderPickupTimeResponse            `json:"pickup_time"`
+	CreatedAt  time.Time                          `json:"created_at"`
+	CanPickup  bool                               `json:"can_pickup"`
+}
+
+type PartnerOrderListLocationResponse struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Address string `json:"address"`
+}
+
+type PartnerOrderListResponse struct {
+	Items      []PartnerOrderListItemResponse `json:"items"`
+	Pagination PaginationResponse             `json:"pagination"`
+}
+
 // PaginationResponse represents pagination metadata
 type PaginationResponse struct {
 	Total   int  `json:"total"`
@@ -137,6 +160,45 @@ func ToPartnerOrderByCodeResponse(order *domain.PartnerOrderByCode) PartnerOrder
 		PickupTime: OrderPickupTimeResponse{
 			Start: order.PickupTimeStart,
 			End:   order.PickupTimeEnd,
+		},
+	}
+}
+
+func ToPartnerOrderListItem(order domain.PartnerOrderListItem) PartnerOrderListItemResponse {
+	return PartnerOrderListItemResponse{
+		ID:         order.ID.String(),
+		Status:     string(order.Status),
+		PickupCode: order.PickupCode,
+		Box: PartnerOrderByCodeBoxResponse{
+			Name:     order.BoxName,
+			ImageURL: order.BoxImageURL,
+		},
+		Customer: PartnerOrderByCodeCustomerResponse{
+			Phone: order.CustomerPhone,
+			Name:  order.CustomerName,
+		},
+		Location: PartnerOrderListLocationResponse{
+			ID:      order.LocationID.String(),
+			Name:    order.LocationName,
+			Address: order.LocationAddress,
+		},
+		PickupTime: OrderPickupTimeResponse{
+			Start: order.PickupTimeStart,
+			End:   order.PickupTimeEnd,
+		},
+		CreatedAt: order.CreatedAt,
+		CanPickup: order.CanPickup,
+	}
+}
+
+func ToPartnerOrderListResponse(items []PartnerOrderListItemResponse, total, limit, offset int) PartnerOrderListResponse {
+	return PartnerOrderListResponse{
+		Items: items,
+		Pagination: PaginationResponse{
+			Total:   total,
+			Limit:   limit,
+			Offset:  offset,
+			HasMore: offset+limit < total,
 		},
 	}
 }

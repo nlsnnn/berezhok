@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
+	"github.com/nlsnnn/berezhok/internal/lib/pgconverter"
 	"github.com/nlsnnn/berezhok/internal/modules/customer/domain"
 	sharedDomain "github.com/nlsnnn/berezhok/internal/shared/domain"
 )
@@ -45,6 +46,24 @@ func (r *UserRepo) FindByID(ctx context.Context, id string) (domain.User, error)
 		return domain.User{}, err
 	}
 	return userToDomain(user), nil
+}
+
+func (r *UserRepo) GetProfile(ctx context.Context, id uuid.UUID) (domain.Profile, error) {
+	profile, err := r.q.GetCustomerProfile(ctx, id)
+	if err != nil {
+		return domain.Profile{}, err
+	}
+
+	return domain.Profile{
+		ID:           profile.ID,
+		Phone:        sharedDomain.Phone{Number: profile.Phone},
+		Name:         profile.Name.String,
+		CreatedAt:    profile.CreatedAt,
+		UpdatedAt:    profile.UpdatedAt,
+		OrdersCount:  int(profile.OrdersCount),
+		ReviewsCount: int(profile.ReviewsCount),
+		SavedAmount:  pgconverter.NumericToDecimalOrZero(profile.SavedAmount),
+	}, nil
 }
 
 func (r *UserRepo) UpdateProfile(ctx context.Context, id uuid.UUID, name string) (domain.User, error) {

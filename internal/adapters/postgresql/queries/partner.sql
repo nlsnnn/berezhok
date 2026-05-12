@@ -137,6 +137,255 @@ JOIN locations l ON l.id = o.location_id
 CROSS JOIN commission c
 WHERE l.partner_id = $1;
 
+-- name: GetPartnerStatsSummary :one
+WITH commission AS (
+    SELECT
+        CASE
+            WHEN p.promo_commission_until >= NOW() THEN COALESCE(p.promo_commission_rate, p.commission_rate)
+            ELSE p.commission_rate
+        END AS rate
+    FROM partners p
+    WHERE p.id = sqlc.arg(partner_id)
+),
+order_stats AS (
+    SELECT
+        COUNT(*)::bigint AS orders_total,
+        COUNT(*) FILTER (WHERE o.status = 'completed')::bigint AS orders_completed,
+        COUNT(*) FILTER (WHERE o.status = 'cancelled')::bigint AS orders_cancelled,
+        COUNT(*) FILTER (WHERE o.status = 'paid')::bigint AS orders_pending_confirmation,
+        COALESCE(SUM(o.amount) FILTER (WHERE o.status = 'completed'), 0)::bigint AS gross_revenue,
+        COALESCE(SUM(o.amount * (1 - c.rate)) FILTER (WHERE o.status = 'completed'), 0)::bigint AS net_revenue,
+        COALESCE(AVG(o.amount) FILTER (WHERE o.status = 'completed'), 0)::double precision AS avg_order_value
+    FROM orders o
+    JOIN locations l ON l.id = o.location_id
+    CROSS JOIN commission c
+    WHERE l.partner_id = sqlc.arg(partner_id)
+      AND o.created_at >= sqlc.arg(start_date)
+      AND o.created_at < sqlc.arg(end_date)::timestamptz + interval '1 day'
+      AND (sqlc.narg(location_id)::uuid IS NULL OR o.location_id = sqlc.narg(location_id)::uuid)
+      AND (sqlc.arg(status)::text = '' OR o.status::text = sqlc.arg(status)::text)
+),
+review_stats AS (
+    SELECT
+        COALESCE(AVG(r.rating), 0)::double precision AS avg_rating,
+        COUNT(*)::bigint AS reviews_count
+    FROM reviews r
+    JOIN locations l ON l.id = r.location_id
+    WHERE l.partner_id = sqlc.arg(partner_id)
+      AND r.created_at >= sqlc.arg(start_date)
+      AND r.created_at < sqlc.arg(end_date)::timestamptz + interval '1 day'
+      AND (sqlc.narg(location_id)::uuid IS NULL OR r.location_id = sqlc.narg(location_id)::uuid)
+)
+SELECT
+    order_stats.orders_total,
+    order_stats.orders_completed,
+    order_stats.orders_cancelled,
+    order_stats.orders_pending_confirmation,
+    order_stats.gross_revenue,
+    order_stats.net_revenue,
+    order_stats.avg_order_value,
+    review_stats.avg_rating,
+    review_stats.reviews_count
+FROM order_stats, review_stats;
+
+-- name: GetPartnerStatsTimeline :many
+WITH commission AS (
+    SELECT
+        CASE
+            WHEN p.promo_commission_until >= NOW() THEN COALESCE(p.promo_commission_rate, p.commission_rate)
+            ELSE p.commission_rate
+        END AS rate
+    FROM partners p
+    WHERE p.id = sqlc.arg(partner_id)
+),
+series AS (
+    SELECT generate_series(sqlc.arg(start_date)::timestamptz, sqlc.arg(end_date)::timestamptz, interval '1 day') AS day
+),
+aggregated AS (
+    SELECT
+        date_trunc('day', o.created_at) AS day,
+        COUNT(*)::bigint AS orders_total,
+        COUNT(*) FILTER (WHERE o.status = 'completed')::bigint AS orders_completed,
+        COALESCE(SUM(o.amount) FILTER (WHERE o.status = 'completed'), 0)::bigint AS gross_revenue,
+        COALESCE(SUM(o.amount * (1 - c.rate)) FILTER (WHERE o.status = 'completed'), 0)::bigint AS net_revenue
+    FROM orders o
+    JOIN locations l ON l.id = o.location_id
+    CROSS JOIN commission c
+    WHERE l.partner_id = sqlc.arg(partner_id)
+      AND o.created_at >= sqlc.arg(start_date)
+      AND o.created_at < sqlc.arg(end_date)::timestamptz + interval '1 day'
+      AND (sqlc.narg(location_id)::uuid IS NULL OR o.location_id = sqlc.narg(location_id)::uuid)
+      AND (sqlc.arg(status)::text = '' OR o.status::text = sqlc.arg(status)::text)
+    GROUP BY 1
+)
+SELECT
+    series.day::timestamptz AS date,
+    COALESCE(aggregated.orders_total, 0)::bigint AS orders_total,
+    COALESCE(aggregated.orders_completed, 0)::bigint AS orders_completed,
+    COALESCE(aggregated.gross_revenue, 0)::bigint AS gross_revenue,
+    COALESCE(aggregated.net_revenue, 0)::bigint AS net_revenue
+FROM series
+LEFT JOIN aggregated ON aggregated.day = series.day
+ORDER BY series.day ASC;
+
+-- name: GetPartnerStatsStatusBreakdown :many
+WITH totals AS (
+    SELECT COUNT(*)::double precision AS total_count
+    FROM orders o
+    JOIN locations l ON l.id = o.location_id
+    WHERE l.partner_id = sqlc.arg(partner_id)
+      AND o.created_at >= sqlc.arg(start_date)
+      AND o.created_at < sqlc.arg(end_date)::timestamptz + interval '1 day'
+      AND (sqlc.narg(location_id)::uuid IS NULL OR o.location_id = sqlc.narg(location_id)::uuid)
+      AND (sqlc.arg(status)::text = '' OR o.status::text = sqlc.arg(status)::text)
+)
+SELECT
+    o.status::text AS status,
+    COUNT(*)::bigint AS count,
+    CASE
+        WHEN totals.total_count = 0 THEN 0::double precision
+        ELSE COUNT(*)::double precision / totals.total_count
+    END::double precision AS share
+FROM orders o
+JOIN locations l ON l.id = o.location_id
+CROSS JOIN totals
+WHERE l.partner_id = sqlc.arg(partner_id)
+  AND o.created_at >= sqlc.arg(start_date)
+  AND o.created_at < sqlc.arg(end_date)::timestamptz + interval '1 day'
+  AND (sqlc.narg(location_id)::uuid IS NULL OR o.location_id = sqlc.narg(location_id)::uuid)
+  AND (sqlc.arg(status)::text = '' OR o.status::text = sqlc.arg(status)::text)
+GROUP BY o.status, totals.total_count
+ORDER BY count DESC, o.status::text ASC;
+
+-- name: GetPartnerStatsTopLocations :many
+WITH commission AS (
+    SELECT
+        CASE
+            WHEN p.promo_commission_until >= NOW() THEN COALESCE(p.promo_commission_rate, p.commission_rate)
+            ELSE p.commission_rate
+        END AS rate
+    FROM partners p
+    WHERE p.id = sqlc.arg(partner_id)
+),
+review_stats AS (
+    SELECT
+        r.location_id,
+        COALESCE(AVG(r.rating), 0)::double precision AS avg_rating
+    FROM reviews r
+    JOIN locations l ON l.id = r.location_id
+    WHERE l.partner_id = sqlc.arg(partner_id)
+      AND r.created_at >= sqlc.arg(start_date)
+      AND r.created_at < sqlc.arg(end_date)::timestamptz + interval '1 day'
+      AND (sqlc.narg(location_id)::uuid IS NULL OR r.location_id = sqlc.narg(location_id)::uuid)
+    GROUP BY r.location_id
+)
+SELECT
+    l.id AS location_id,
+    l.name,
+    l.address,
+    COUNT(o.id)::bigint AS orders_total,
+    COUNT(o.id) FILTER (WHERE o.status = 'completed')::bigint AS orders_completed,
+    COALESCE(SUM(o.amount) FILTER (WHERE o.status = 'completed'), 0)::bigint AS gross_revenue,
+    COALESCE(SUM(o.amount * (1 - c.rate)) FILTER (WHERE o.status = 'completed'), 0)::bigint AS net_revenue,
+    COALESCE(review_stats.avg_rating, 0)::double precision AS avg_rating
+FROM locations l
+LEFT JOIN orders o ON o.location_id = l.id
+    AND o.created_at >= sqlc.arg(start_date)
+    AND o.created_at < sqlc.arg(end_date)::timestamptz + interval '1 day'
+    AND (sqlc.arg(status)::text = '' OR o.status::text = sqlc.arg(status)::text)
+CROSS JOIN commission c
+LEFT JOIN review_stats ON review_stats.location_id = l.id
+WHERE l.partner_id = sqlc.arg(partner_id)
+  AND (sqlc.narg(location_id)::uuid IS NULL OR l.id = sqlc.narg(location_id)::uuid)
+GROUP BY l.id, l.name, l.address, review_stats.avg_rating
+ORDER BY
+    CASE WHEN sqlc.arg(sort)::text = 'revenue_desc' THEN COALESCE(SUM(o.amount) FILTER (WHERE o.status = 'completed'), 0) END DESC,
+    CASE WHEN sqlc.arg(sort)::text = 'orders_desc' THEN COUNT(o.id) END DESC,
+    CASE WHEN sqlc.arg(sort)::text = 'rating_desc' THEN COALESCE(review_stats.avg_rating, 0) END DESC,
+    CASE WHEN sqlc.arg(sort)::text = 'name_asc' THEN l.name END ASC,
+    l.name ASC;
+
+-- name: GetPartnerStatsTopBoxes :many
+WITH commission AS (
+    SELECT
+        CASE
+            WHEN p.promo_commission_until >= NOW() THEN COALESCE(p.promo_commission_rate, p.commission_rate)
+            ELSE p.commission_rate
+        END AS rate
+    FROM partners p
+    WHERE p.id = sqlc.arg(partner_id)
+)
+SELECT
+    sb.id AS box_id,
+    sb.name,
+    COALESCE(sb.image_url, '') AS image_url,
+    l.name AS location_name,
+    COUNT(o.id)::bigint AS orders_total,
+    COUNT(o.id) FILTER (WHERE o.status = 'completed')::bigint AS orders_completed,
+    COALESCE(SUM(o.amount) FILTER (WHERE o.status = 'completed'), 0)::bigint AS gross_revenue,
+    COALESCE(SUM(o.amount * (1 - c.rate)) FILTER (WHERE o.status = 'completed'), 0)::bigint AS net_revenue
+FROM surprise_boxes sb
+JOIN locations l ON l.id = sb.location_id
+LEFT JOIN orders o ON o.box_id = sb.id
+    AND o.created_at >= sqlc.arg(start_date)
+    AND o.created_at < sqlc.arg(end_date)::timestamptz + interval '1 day'
+    AND (sqlc.narg(location_id)::uuid IS NULL OR o.location_id = sqlc.narg(location_id)::uuid)
+    AND (sqlc.arg(status)::text = '' OR o.status::text = sqlc.arg(status)::text)
+CROSS JOIN commission c
+WHERE l.partner_id = sqlc.arg(partner_id)
+  AND (sqlc.narg(location_id)::uuid IS NULL OR l.id = sqlc.narg(location_id)::uuid)
+GROUP BY sb.id, sb.name, sb.image_url, l.name
+ORDER BY
+    CASE WHEN sqlc.arg(sort)::text = 'revenue_desc' THEN COALESCE(SUM(o.amount) FILTER (WHERE o.status = 'completed'), 0) END DESC,
+    CASE WHEN sqlc.arg(sort)::text = 'orders_desc' THEN COUNT(o.id) END DESC,
+    CASE WHEN sqlc.arg(sort)::text = 'name_asc' THEN sb.name END ASC,
+    sb.name ASC;
+
+-- name: ListPartnerStatsOrders :many
+SELECT
+  o.id,
+  o.status,
+  o.pickup_code,
+  o.amount,
+  o.created_at,
+  sb.name AS box_name,
+  COALESCE(sb.image_url, '') AS box_image_url,
+  COALESCE(u.phone, '') AS customer_phone,
+  COALESCE(u.name, '') AS customer_name,
+  l.id AS location_id,
+  l.name AS location_name,
+  l.address AS location_address,
+  o.pickup_time_start,
+  o.pickup_time_end
+FROM orders o
+JOIN surprise_boxes sb ON o.box_id = sb.id
+JOIN users u ON o.user_id = u.id
+JOIN locations l ON o.location_id = l.id
+WHERE l.partner_id = sqlc.arg(partner_id)
+  AND o.created_at >= sqlc.arg(start_date)
+  AND o.created_at < sqlc.arg(end_date)::timestamptz + interval '1 day'
+  AND (sqlc.narg(location_id)::uuid IS NULL OR o.location_id = sqlc.narg(location_id)::uuid)
+  AND (sqlc.arg(status)::text = '' OR o.status::text = sqlc.arg(status)::text)
+ORDER BY
+  CASE WHEN sqlc.arg(sort)::text = 'created_at_desc' THEN o.created_at END DESC,
+  CASE WHEN sqlc.arg(sort)::text = 'created_at_asc' THEN o.created_at END ASC,
+  CASE WHEN sqlc.arg(sort)::text = 'amount_desc' THEN o.amount END DESC,
+  CASE WHEN sqlc.arg(sort)::text = 'amount_asc' THEN o.amount END ASC,
+  CASE WHEN sqlc.arg(sort)::text = 'pickup_time_desc' THEN o.pickup_time_start END DESC,
+  CASE WHEN sqlc.arg(sort)::text = 'pickup_time_asc' THEN o.pickup_time_start END ASC,
+  o.created_at DESC
+LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
+
+-- name: CountPartnerStatsOrders :one
+SELECT COUNT(*)
+FROM orders o
+JOIN locations l ON o.location_id = l.id
+WHERE l.partner_id = sqlc.arg(partner_id)
+  AND o.created_at >= sqlc.arg(start_date)
+  AND o.created_at < sqlc.arg(end_date)::timestamptz + interval '1 day'
+  AND (sqlc.narg(location_id)::uuid IS NULL OR o.location_id = sqlc.narg(location_id)::uuid)
+  AND (sqlc.arg(status)::text = '' OR o.status::text = sqlc.arg(status)::text);
+
 -- name: CreatePartner :one
 INSERT INTO partners (
     brand_name, logo_url, parent_partner_id, account_type,

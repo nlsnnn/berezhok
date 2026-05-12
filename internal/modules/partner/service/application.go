@@ -45,7 +45,7 @@ type partnerProvider interface {
 }
 
 type employeeCreator interface {
-	Create(ctx context.Context, partnerID, email, passwordHash, name string, role domain.EmployeeRole) (domain.Employee, error)
+	Create(ctx context.Context, partnerID, locationID, email, passwordHash, name string, role domain.EmployeeRole) (domain.Employee, error)
 }
 
 type locationProvider interface {
@@ -136,7 +136,7 @@ func (s *appService) Approve(ctx context.Context, id string) error {
 		return err
 	}
 
-	if _, err := s.employeeSvc.Create(ctx, partner.ID, app.ContactEmail, passwordHash, app.ContactName, domain.EmployeeRoleOwner); err != nil {
+	if _, err := s.employeeSvc.Create(ctx, partner.ID, "", app.ContactEmail, passwordHash, app.ContactName, domain.EmployeeRoleOwner); err != nil {
 		return err
 	}
 
