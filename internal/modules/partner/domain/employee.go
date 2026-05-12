@@ -21,3 +21,15 @@ type Employee struct {
 	MustChangePassword bool
 	CreatedAt          time.Time
 }
+
+type ManagedEmployee struct {
+	ID                 string
+	PartnerID          string
+	LocationID         string
+	LocationName       string
+	Email              string
+	Role               EmployeeRole
+	Name               string
+	MustChangePassword bool
+	CreatedAt          time.Time
+}

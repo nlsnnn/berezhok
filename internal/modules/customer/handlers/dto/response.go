@@ -4,11 +4,14 @@ import "time"
 
 // ProfileResponse represents customer profile
 type ProfileResponse struct {
-	ID        string    `json:"id"`
-	Phone     string    `json:"phone"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	ID           string    `json:"id"`
+	Phone        string    `json:"phone"`
+	Name         string    `json:"name"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at,omitempty"`
+	OrdersCount  int       `json:"orders_count"`
+	ReviewsCount int       `json:"reviews_count"`
+	SavedAmount  float64   `json:"saved_amount"`
 }
 
 // LocationSearchResponse represents location in search results

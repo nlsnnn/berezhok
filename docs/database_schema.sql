@@ -117,12 +117,12 @@ CREATE TABLE partners (
     logo_url TEXT,
     parent_partner_id UUID REFERENCES partners(id) ON DELETE SET NULL,
     account_type VARCHAR(20) DEFAULT 'independent' CHECK (account_type IN ('independent', 'network_head', 'franchise')),
-    
+
     -- Комиссии
     commission_rate NUMERIC(5, 4) NOT NULL DEFAULT 0.20 CHECK (commission_rate >= 0 AND commission_rate <= 1),
     promo_commission_rate NUMERIC(5, 4) CHECK (promo_commission_rate >= 0 AND promo_commission_rate <= 1),
     promo_commission_until DATE,
-    
+
     status VARCHAR(20) NOT NULL DEFAULT 'pending_documents' CHECK (status IN ('pending_documents', 'active', 'suspended', 'blocked')),
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
@@ -189,19 +189,19 @@ CREATE TABLE locations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     partner_id UUID NOT NULL REFERENCES partners(id) ON DELETE CASCADE,
     category_code VARCHAR(50) NOT NULL REFERENCES location_categories(code),
-    
+
     name VARCHAR(200) NOT NULL,
     address TEXT NOT NULL,
     location GEOGRAPHY(POINT, 4326) NOT NULL,
     phone VARCHAR(15),
-    
+
     logo_url TEXT,
     cover_image_url TEXT,
     gallery_urls TEXT[] DEFAULT '{}',
-    
+
     working_hours JSONB,
     status VARCHAR(20) NOT NULL DEFAULT 'inactive' CHECK (status IN ('active', 'inactive', 'closed')),
-    
+
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -219,15 +219,15 @@ CREATE TABLE partner_employees (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     partner_id UUID NOT NULL REFERENCES partners(id) ON DELETE CASCADE,
     location_id UUID REFERENCES locations(id) ON DELETE SET NULL,
-    
+
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL DEFAULT 'employee' CHECK (role IN ('owner', 'manager', 'employee')),
     name VARCHAR(100),
-    
+
     must_change_password BOOLEAN DEFAULT TRUE,
     last_login_at TIMESTAMP,
-    
+
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -243,22 +243,22 @@ CREATE INDEX idx_employees_email ON partner_employees(email);
 CREATE TABLE surprise_boxes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     location_id UUID NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
-    
+
     name VARCHAR(200) NOT NULL,
     description TEXT,
     original_price NUMERIC(10, 2),
     discount_price NUMERIC(10, 2) NOT NULL,
     quantity_available INT NOT NULL DEFAULT 0,
-    
+
     pickup_time_start TIME NOT NULL,
     pickup_time_end TIME NOT NULL,
-    
+
     image_url TEXT,
     status VARCHAR(20) NOT NULL DEFAULT 'inactive' CHECK (status IN ('active', 'inactive', 'sold_out')),
-    
+
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    
+
     CONSTRAINT positive_quantity CHECK (quantity_available >= 0),
     CONSTRAINT valid_price CHECK (discount_price > 0 AND (original_price IS NULL OR discount_price < original_price))
 );
@@ -278,38 +278,38 @@ CREATE TABLE orders (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     box_id UUID NOT NULL REFERENCES surprise_boxes(id) ON DELETE RESTRICT,
     location_id UUID NOT NULL REFERENCES locations(id) ON DELETE RESTRICT,
-    
+
     -- Код для получения
     pickup_code VARCHAR(8) UNIQUE NOT NULL,
     qr_code_url TEXT,
-    
+
     -- Финансы
     amount NUMERIC(10, 2) NOT NULL,
-    
+
     -- Время получения
     pickup_time_start TIMESTAMP NOT NULL,
     pickup_time_end TIMESTAMP NOT NULL,
-    
+
     -- Статусы
     status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'confirmed', 'picked_up', 'completed', 'cancelled', 'refunded', 'disputed')),
-    
+
     -- Подтверждение партнёром
     partner_confirmation_deadline TIMESTAMP,
     partner_confirmed_at TIMESTAMP,
     partner_confirmed_by UUID REFERENCES partner_employees(id),
-    
+
     -- Отмена
     cancellation_reason TEXT,
     cancelled_at TIMESTAMP,
-    
+
     -- Выдача
     employee_confirmed_at TIMESTAMP,
     employee_confirmed_by UUID REFERENCES partner_employees(id),
-    
+
     -- Получение клиентом
     user_confirmed_at TIMESTAMP,
     auto_completed_at TIMESTAMP,
-    
+
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -348,18 +348,18 @@ CREATE INDEX idx_order_status_history_created ON order_status_history(created_at
 CREATE TABLE payments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     order_id UUID NOT NULL REFERENCES orders(id) ON DELETE RESTRICT,
-    
+
     -- Интеграция с ЮKassa
     external_payment_id VARCHAR(255) UNIQUE,
     payment_url TEXT,
-    
+
     amount NUMERIC(10, 2) NOT NULL,
     currency VARCHAR(3) DEFAULT 'RUB',
-    
+
     status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'succeeded', 'cancelled', 'failed')),
-    
+
     payment_method JSONB,
-    
+
     paid_at TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
@@ -374,22 +374,22 @@ CREATE TABLE payouts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     partner_id UUID NOT NULL REFERENCES partners(id) ON DELETE RESTRICT,
     payout_account_id UUID NOT NULL REFERENCES partner_payout_accounts(id) ON DELETE RESTRICT,
-    
+
     -- Финансы
     gross_amount NUMERIC(10, 2) NOT NULL,
     commission_rate NUMERIC(5, 4) NOT NULL,
     commission_amount NUMERIC(10, 2) NOT NULL,
     net_amount NUMERIC(10, 2) NOT NULL,
-    
+
     period_start DATE NOT NULL,
     period_end DATE NOT NULL,
-    
+
     orders_count INT NOT NULL,
-    
+
     status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
-    
+
     payout_details JSONB,
-    
+
     processed_at TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -417,13 +417,13 @@ CREATE TABLE reviews (
     order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     location_id UUID NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
-    
+
     rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
     comment TEXT,
-    
+
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    
+
     CONSTRAINT one_review_per_order UNIQUE (order_id)
 );
 
@@ -439,18 +439,18 @@ CREATE INDEX idx_reviews_created ON reviews(created_at DESC);
 CREATE TABLE disputes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-    
+
     initiated_by VARCHAR(10) NOT NULL CHECK (initiated_by IN ('user', 'partner')),
-    
+
     reason TEXT NOT NULL,
     evidence_urls TEXT[] DEFAULT '{}',
-    
+
     status VARCHAR(20) NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'under_review', 'resolved_for_user', 'resolved_for_partner')),
-    
+
     resolution TEXT,
     resolved_by UUID REFERENCES admin_users(id),
     resolved_at TIMESTAMP,
-    
+
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -479,16 +479,16 @@ CREATE INDEX idx_dispute_messages_created ON dispute_messages(created_at ASC);
 CREATE TABLE notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    
+
     type VARCHAR(50) NOT NULL CHECK (type IN ('sms', 'push', 'email')),
     channel VARCHAR(50) NOT NULL,
-    
+
     recipient VARCHAR(255) NOT NULL,
     content JSONB NOT NULL,
-    
+
     status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed')),
     error_message TEXT,
-    
+
     sent_at TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -504,7 +504,7 @@ CREATE INDEX idx_notifications_created ON notifications(created_at DESC);
 
 -- Активные заказы на сегодня по партнёру
 CREATE VIEW partner_today_orders AS
-SELECT 
+SELECT
     o.id,
     o.pickup_code,
     o.status,
@@ -527,7 +527,7 @@ WHERE DATE(o.pickup_time_start) = CURRENT_DATE
 
 -- Статистика заведений
 CREATE VIEW location_stats AS
-SELECT 
+SELECT
     l.id as location_id,
     l.name,
     COUNT(DISTINCT o.id) as total_orders,

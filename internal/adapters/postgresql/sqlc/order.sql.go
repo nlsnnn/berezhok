@@ -13,6 +13,20 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countActiveOrdersByLocationID = `-- name: CountActiveOrdersByLocationID :one
+SELECT COUNT(*)
+FROM orders o
+WHERE o.location_id = $1
+  AND o.status IN ('paid', 'confirmed')
+`
+
+func (q *Queries) CountActiveOrdersByLocationID(ctx context.Context, locationID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countActiveOrdersByLocationID, locationID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countOrdersByCustomerID = `-- name: CountOrdersByCustomerID :one
 SELECT COUNT(*)
 FROM orders o
@@ -30,6 +44,29 @@ type CountOrdersByCustomerIDParams struct {
 
 func (q *Queries) CountOrdersByCustomerID(ctx context.Context, arg CountOrdersByCustomerIDParams) (int64, error) {
 	row := q.db.QueryRow(ctx, countOrdersByCustomerID, arg.UserID, arg.Column2)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countOrdersByPartnerID = `-- name: CountOrdersByPartnerID :one
+SELECT COUNT(*)
+FROM orders o
+  JOIN locations l ON o.location_id = l.id
+WHERE l.partner_id = $1
+  AND (
+    $2 = ''
+    OR o.status::text = $2
+  )
+`
+
+type CountOrdersByPartnerIDParams struct {
+	PartnerID uuid.UUID   `json:"partner_id"`
+	Column2   interface{} `json:"column_2"`
+}
+
+func (q *Queries) CountOrdersByPartnerID(ctx context.Context, arg CountOrdersByPartnerIDParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countOrdersByPartnerID, arg.PartnerID, arg.Column2)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -154,6 +191,88 @@ func (q *Queries) FindActiveOrdersByLocationId(ctx context.Context, locationID u
 		return nil, err
 	}
 	return items, nil
+}
+
+const getLocationOrderByID = `-- name: GetLocationOrderByID :one
+SELECT o.id,
+  o.status
+FROM orders o
+WHERE o.id = $1
+  AND o.location_id = $2
+`
+
+type GetLocationOrderByIDParams struct {
+	ID         uuid.UUID `json:"id"`
+	LocationID uuid.UUID `json:"location_id"`
+}
+
+type GetLocationOrderByIDRow struct {
+	ID     uuid.UUID   `json:"id"`
+	Status OrderStatus `json:"status"`
+}
+
+func (q *Queries) GetLocationOrderByID(ctx context.Context, arg GetLocationOrderByIDParams) (GetLocationOrderByIDRow, error) {
+	row := q.db.QueryRow(ctx, getLocationOrderByID, arg.ID, arg.LocationID)
+	var i GetLocationOrderByIDRow
+	err := row.Scan(&i.ID, &i.Status)
+	return i, err
+}
+
+const getLocationOrderByPickupCode = `-- name: GetLocationOrderByPickupCode :one
+SELECT o.id,
+  o.pickup_code,
+  o.status,
+  sb.name AS box_name,
+  COALESCE(sb.image_url, '') AS box_image_url,
+  u.phone AS customer_phone,
+  COALESCE(u.name, '') AS customer_name,
+  o.pickup_time_start,
+  o.pickup_time_end,
+  o.created_at
+FROM orders o
+  JOIN surprise_boxes sb ON sb.id = o.box_id
+  JOIN users u ON u.id = o.user_id
+WHERE o.pickup_code = $1
+  AND o.location_id = $2
+  AND o.status IN ('paid', 'confirmed')
+ORDER BY o.created_at DESC
+LIMIT 1
+`
+
+type GetLocationOrderByPickupCodeParams struct {
+	PickupCode string    `json:"pickup_code"`
+	LocationID uuid.UUID `json:"location_id"`
+}
+
+type GetLocationOrderByPickupCodeRow struct {
+	ID              uuid.UUID   `json:"id"`
+	PickupCode      string      `json:"pickup_code"`
+	Status          OrderStatus `json:"status"`
+	BoxName         string      `json:"box_name"`
+	BoxImageUrl     string      `json:"box_image_url"`
+	CustomerPhone   string      `json:"customer_phone"`
+	CustomerName    string      `json:"customer_name"`
+	PickupTimeStart time.Time   `json:"pickup_time_start"`
+	PickupTimeEnd   time.Time   `json:"pickup_time_end"`
+	CreatedAt       time.Time   `json:"created_at"`
+}
+
+func (q *Queries) GetLocationOrderByPickupCode(ctx context.Context, arg GetLocationOrderByPickupCodeParams) (GetLocationOrderByPickupCodeRow, error) {
+	row := q.db.QueryRow(ctx, getLocationOrderByPickupCode, arg.PickupCode, arg.LocationID)
+	var i GetLocationOrderByPickupCodeRow
+	err := row.Scan(
+		&i.ID,
+		&i.PickupCode,
+		&i.Status,
+		&i.BoxName,
+		&i.BoxImageUrl,
+		&i.CustomerPhone,
+		&i.CustomerName,
+		&i.PickupTimeStart,
+		&i.PickupTimeEnd,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const getOrderByID = `-- name: GetOrderByID :one
@@ -343,6 +462,86 @@ func (q *Queries) GetPartnerOrderByPickupCode(ctx context.Context, arg GetPartne
 	return i, err
 }
 
+const listActiveOrdersByLocationID = `-- name: ListActiveOrdersByLocationID :many
+SELECT o.id,
+  o.status,
+  o.pickup_code,
+  o.created_at,
+  sb.name AS box_name,
+  COALESCE(sb.image_url, '') AS box_image_url,
+  COALESCE(u.phone, '') AS customer_phone,
+  COALESCE(u.name, '') AS customer_name,
+  l.id AS location_id,
+  l.name AS location_name,
+  l.address AS location_address,
+  o.pickup_time_start,
+  o.pickup_time_end
+FROM orders o
+  JOIN surprise_boxes sb ON o.box_id = sb.id
+  JOIN users u ON o.user_id = u.id
+  JOIN locations l ON o.location_id = l.id
+WHERE l.id = $1
+  AND o.status IN ('paid', 'confirmed')
+ORDER BY o.created_at DESC
+LIMIT $2 OFFSET $3
+`
+
+type ListActiveOrdersByLocationIDParams struct {
+	ID     uuid.UUID `json:"id"`
+	Limit  int32     `json:"limit"`
+	Offset int32     `json:"offset"`
+}
+
+type ListActiveOrdersByLocationIDRow struct {
+	ID              uuid.UUID   `json:"id"`
+	Status          OrderStatus `json:"status"`
+	PickupCode      string      `json:"pickup_code"`
+	CreatedAt       time.Time   `json:"created_at"`
+	BoxName         string      `json:"box_name"`
+	BoxImageUrl     string      `json:"box_image_url"`
+	CustomerPhone   string      `json:"customer_phone"`
+	CustomerName    string      `json:"customer_name"`
+	LocationID      uuid.UUID   `json:"location_id"`
+	LocationName    string      `json:"location_name"`
+	LocationAddress string      `json:"location_address"`
+	PickupTimeStart time.Time   `json:"pickup_time_start"`
+	PickupTimeEnd   time.Time   `json:"pickup_time_end"`
+}
+
+func (q *Queries) ListActiveOrdersByLocationID(ctx context.Context, arg ListActiveOrdersByLocationIDParams) ([]ListActiveOrdersByLocationIDRow, error) {
+	rows, err := q.db.Query(ctx, listActiveOrdersByLocationID, arg.ID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListActiveOrdersByLocationIDRow
+	for rows.Next() {
+		var i ListActiveOrdersByLocationIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Status,
+			&i.PickupCode,
+			&i.CreatedAt,
+			&i.BoxName,
+			&i.BoxImageUrl,
+			&i.CustomerPhone,
+			&i.CustomerName,
+			&i.LocationID,
+			&i.LocationName,
+			&i.LocationAddress,
+			&i.PickupTimeStart,
+			&i.PickupTimeEnd,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOrdersByCustomerID = `-- name: ListOrdersByCustomerID :many
 SELECT id, user_id, box_id, location_id, pickup_code, qr_code_url, amount, pickup_time_start, pickup_time_end, status, partner_confirmation_deadline, partner_confirmed_at, partner_confirmed_by, cancellation_reason, cancelled_at, picked_up_at, picked_up_confirmed_by, user_confirmed_at, auto_completed_at, created_at, updated_at
 FROM orders
@@ -461,6 +660,95 @@ func (q *Queries) ListOrdersByCustomerIDFiltered(ctx context.Context, arg ListOr
 			&i.BoxName,
 			&i.LocationName,
 			&i.HasReview,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOrdersByPartnerIDFiltered = `-- name: ListOrdersByPartnerIDFiltered :many
+SELECT o.id,
+  o.status,
+  o.pickup_code,
+  o.created_at,
+  sb.name AS box_name,
+  COALESCE(sb.image_url, '') AS box_image_url,
+  COALESCE(u.phone, '') AS customer_phone,
+  COALESCE(u.name, '') AS customer_name,
+  l.id AS location_id,
+  l.name AS location_name,
+  l.address AS location_address,
+  o.pickup_time_start,
+  o.pickup_time_end
+FROM orders o
+  JOIN surprise_boxes sb ON o.box_id = sb.id
+  JOIN users u ON o.user_id = u.id
+  JOIN locations l ON o.location_id = l.id
+WHERE l.partner_id = $1
+  AND (
+    $2 = ''
+    OR o.status::text = $2
+  )
+ORDER BY o.created_at DESC
+LIMIT $3 OFFSET $4
+`
+
+type ListOrdersByPartnerIDFilteredParams struct {
+	PartnerID uuid.UUID   `json:"partner_id"`
+	Column2   interface{} `json:"column_2"`
+	Limit     int32       `json:"limit"`
+	Offset    int32       `json:"offset"`
+}
+
+type ListOrdersByPartnerIDFilteredRow struct {
+	ID              uuid.UUID   `json:"id"`
+	Status          OrderStatus `json:"status"`
+	PickupCode      string      `json:"pickup_code"`
+	CreatedAt       time.Time   `json:"created_at"`
+	BoxName         string      `json:"box_name"`
+	BoxImageUrl     string      `json:"box_image_url"`
+	CustomerPhone   string      `json:"customer_phone"`
+	CustomerName    string      `json:"customer_name"`
+	LocationID      uuid.UUID   `json:"location_id"`
+	LocationName    string      `json:"location_name"`
+	LocationAddress string      `json:"location_address"`
+	PickupTimeStart time.Time   `json:"pickup_time_start"`
+	PickupTimeEnd   time.Time   `json:"pickup_time_end"`
+}
+
+func (q *Queries) ListOrdersByPartnerIDFiltered(ctx context.Context, arg ListOrdersByPartnerIDFilteredParams) ([]ListOrdersByPartnerIDFilteredRow, error) {
+	rows, err := q.db.Query(ctx, listOrdersByPartnerIDFiltered,
+		arg.PartnerID,
+		arg.Column2,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOrdersByPartnerIDFilteredRow
+	for rows.Next() {
+		var i ListOrdersByPartnerIDFilteredRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Status,
+			&i.PickupCode,
+			&i.CreatedAt,
+			&i.BoxName,
+			&i.BoxImageUrl,
+			&i.CustomerPhone,
+			&i.CustomerName,
+			&i.LocationID,
+			&i.LocationName,
+			&i.LocationAddress,
+			&i.PickupTimeStart,
+			&i.PickupTimeEnd,
 		); err != nil {
 			return nil, err
 		}

@@ -39,6 +39,8 @@ export default function PartnerLoginPage() {
       const data = await login(form.email, form.password)
       if (data.must_change_password) {
         navigate('/partner/change-password', { replace: true })
+      } else if (data.role === 'employee') {
+        navigate('/partner/orders/pickup', { replace: true })
       } else {
         navigate('/partner/dashboard', { replace: true })
       }
@@ -55,7 +57,7 @@ export default function PartnerLoginPage() {
         <div className="text-center mb-8">
           <img src="/logo.png" alt="Бережок" className="w-16 h-16 rounded-2xl object-cover mx-auto mb-4 shadow-sm" />
           <h1 className="text-3xl font-bold text-brand-900">Вход для партнеров</h1>
-          <p className="text-sm text-brand-600 mt-2">Управляйте локациями, боксами и выдачей заказов</p>
+          <p className="text-sm text-brand-600 mt-2">Для владельцев и сотрудников заведений</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card space-y-4" noValidate>

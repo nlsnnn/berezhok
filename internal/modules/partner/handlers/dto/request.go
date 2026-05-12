@@ -37,3 +37,9 @@ type AddLegalInfoRequest struct {
 	LegalAddress string `json:"legal_address" validate:"required,min=5,max=500"`
 	LegalName    string `json:"legal_name" validate:"required,min=2,max=200"`
 }
+
+type CreateEmployeeRequest struct {
+	LocationID string `json:"location_id" validate:"required,uuid"`
+	Name       string `json:"name" validate:"required,min=2,max=100"`
+	Email      string `json:"email" validate:"required,email"`
+}

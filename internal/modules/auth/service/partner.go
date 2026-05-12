@@ -45,11 +45,22 @@ func (a *partnerAuthenticator) Authenticate(ctx context.Context, email, password
 		return nil, err
 	}
 
+	var locationID *uuid.UUID
+	if emp.LocationID != "" {
+		parsedLocationID, err := uuid.Parse(emp.LocationID)
+		if err != nil {
+			return nil, err
+		}
+		locationID = &parsedLocationID
+	}
+
 	claims := auth.TokenClaims{
-		UserID:   userID,
-		UserType: "partner",
-		Role:     string(emp.Role),
-		UserData: partnerID,
+		UserID:     userID,
+		UserType:   "partner",
+		Role:       string(emp.Role),
+		PartnerID:  &partnerID,
+		LocationID: locationID,
+		UserData:   partnerID,
 	}
 	token, err := a.tokenService.Generate(claims)
 	if err != nil {

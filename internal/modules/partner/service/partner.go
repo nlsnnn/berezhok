@@ -2,6 +2,9 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"strings"
+	"time"
 	"unicode"
 
 	"github.com/google/uuid"
@@ -26,6 +29,20 @@ type AddLegalInfoInput struct {
 	LegalName    string
 }
 
+const (
+	defaultStatsPeriod      = "last_7_days"
+	defaultTopLocationsSort = "revenue_desc"
+	defaultTopBoxesSort     = "revenue_desc"
+	defaultOrdersSort       = "created_at_desc"
+	defaultStatsLimit       = 20
+	maxStatsLimit           = 100
+	statsPeriodToday        = "today"
+	statsPeriodLast7Days    = "last_7_days"
+	statsPeriodLast30Days   = "last_30_days"
+	statsPeriodThisMonth    = "this_month"
+	statsPeriodLastMonth    = "last_month"
+)
+
 type partService struct {
 	repo    partnerRepo
 	empRepo employeeRepoForPartner
@@ -38,6 +55,7 @@ type partnerRepo interface {
 	CheckEmailExists(ctx context.Context, email string) (bool, error)
 	GetProfile(ctx context.Context, employeeID string) (domain.PartnerProfile, error)
 	GetDashboard(ctx context.Context, employeeID string) (domain.PartnerDashboard, error)
+	GetStats(ctx context.Context, employeeID string, filter domain.StatsFilter) (domain.PartnerStats, error)
 	UpdateEmployeePassword(ctx context.Context, employeeID, newHash string) error
 	UpsertLegalInfo(ctx context.Context, info domain.LegalInfo) error
 	UpdateStatus(ctx context.Context, partnerID string, status domain.PartnerStatus) error
@@ -102,6 +120,15 @@ func (s *partService) Dashboard(ctx context.Context, userID string) (domain.Part
 	return s.repo.GetDashboard(ctx, userID)
 }
 
+func (s *partService) Stats(ctx context.Context, userID string, filter domain.StatsFilter) (domain.PartnerStats, error) {
+	resolvedFilter, err := NormalizeStatsFilter(filter)
+	if err != nil {
+		return domain.PartnerStats{}, err
+	}
+
+	return s.repo.GetStats(ctx, userID, resolvedFilter)
+}
+
 func (s *partService) AddLegalInfo(ctx context.Context, input AddLegalInfoInput) error {
 	// TODO: move validation to handler (?)
 	if !isDigitsOnly(input.Inn) || (len(input.Inn) != 10 && len(input.Inn) != 12) {
@@ -157,4 +184,117 @@ func isDigitsOnly(value string) bool {
 	}
 
 	return true
+}
+
+func NormalizeStatsFilter(filter domain.StatsFilter) (domain.StatsFilter, error) {
+	resolved := filter
+	resolved.Period = strings.TrimSpace(resolved.Period)
+	resolved.LocationID = strings.TrimSpace(resolved.LocationID)
+	resolved.Status = strings.TrimSpace(resolved.Status)
+	resolved.TopLocationsSort = strings.TrimSpace(resolved.TopLocationsSort)
+	resolved.TopBoxesSort = strings.TrimSpace(resolved.TopBoxesSort)
+	resolved.OrdersSort = strings.TrimSpace(resolved.OrdersSort)
+
+	if resolved.Limit <= 0 {
+		resolved.Limit = defaultStatsLimit
+	}
+	if resolved.Limit > maxStatsLimit {
+		resolved.Limit = maxStatsLimit
+	}
+	if resolved.Offset < 0 {
+		resolved.Offset = 0
+	}
+
+	if resolved.TopLocationsSort == "" {
+		resolved.TopLocationsSort = defaultTopLocationsSort
+	}
+	if !isAllowedValue(resolved.TopLocationsSort, defaultTopLocationsSort, "orders_desc", "rating_desc", "name_asc") {
+		return domain.StatsFilter{}, errors.ErrInvalidStatsSort
+	}
+
+	if resolved.TopBoxesSort == "" {
+		resolved.TopBoxesSort = defaultTopBoxesSort
+	}
+	if !isAllowedValue(resolved.TopBoxesSort, defaultTopBoxesSort, "orders_desc", "name_asc") {
+		return domain.StatsFilter{}, errors.ErrInvalidStatsSort
+	}
+
+	if resolved.OrdersSort == "" {
+		resolved.OrdersSort = defaultOrdersSort
+	}
+	if !isAllowedValue(resolved.OrdersSort, defaultOrdersSort, "created_at_asc", "amount_desc", "amount_asc", "pickup_time_desc", "pickup_time_asc") {
+		return domain.StatsFilter{}, errors.ErrInvalidStatsSort
+	}
+
+	if resolved.LocationID != "" {
+		if _, err := uuid.Parse(resolved.LocationID); err != nil {
+			return domain.StatsFilter{}, fmt.Errorf("%w: invalid location_id", errors.ErrInvalidStatsDateRange)
+		}
+	}
+
+	if resolved.Period == "" {
+		if resolved.DateFrom.IsZero() || resolved.DateTo.IsZero() {
+			resolved.Period = defaultStatsPeriod
+		}
+	}
+
+	now := time.Now()
+	switch resolved.Period {
+	case statsPeriodToday:
+		resolved.DateFrom = startOfDay(now)
+		resolved.DateTo = startOfDay(now)
+	case statsPeriodLast7Days:
+		today := startOfDay(now)
+		resolved.DateFrom = today.AddDate(0, 0, -6)
+		resolved.DateTo = today
+	case statsPeriodLast30Days:
+		today := startOfDay(now)
+		resolved.DateFrom = today.AddDate(0, 0, -29)
+		resolved.DateTo = today
+	case statsPeriodThisMonth:
+		today := startOfDay(now)
+		resolved.DateFrom = time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, today.Location())
+		resolved.DateTo = today
+	case statsPeriodLastMonth:
+		today := startOfDay(now)
+		firstDayCurrentMonth := time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, today.Location())
+		lastMonthDate := firstDayCurrentMonth.AddDate(0, -1, 0)
+		resolved.DateFrom = time.Date(lastMonthDate.Year(), lastMonthDate.Month(), 1, 0, 0, 0, 0, today.Location())
+		resolved.DateTo = firstDayCurrentMonth.AddDate(0, 0, -1)
+	case "":
+		if resolved.DateFrom.IsZero() || resolved.DateTo.IsZero() {
+			return domain.StatsFilter{}, errors.ErrInvalidStatsDateRange
+		}
+		resolved.Period = "custom"
+	default:
+		return domain.StatsFilter{}, errors.ErrInvalidStatsPeriod
+	}
+
+	if resolved.Period == "custom" {
+		if resolved.DateFrom.IsZero() || resolved.DateTo.IsZero() {
+			return domain.StatsFilter{}, errors.ErrInvalidStatsDateRange
+		}
+	}
+
+	resolved.DateFrom = startOfDay(resolved.DateFrom)
+	resolved.DateTo = startOfDay(resolved.DateTo)
+	if resolved.DateFrom.After(resolved.DateTo) {
+		return domain.StatsFilter{}, errors.ErrInvalidStatsDateRange
+	}
+
+	return resolved, nil
+}
+
+func startOfDay(value time.Time) time.Time {
+	return time.Date(value.Year(), value.Month(), value.Day(), 0, 0, 0, 0, value.Location())
+}
+
+func isAllowedValue(value string, allowed ...string) bool {
+	for _, item := range allowed {
+		if value == item {
+			return true
+		}
+	}
+
+	return false
 }

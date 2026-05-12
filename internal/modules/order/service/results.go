@@ -18,3 +18,11 @@ type ListOrdersResult struct {
 	Limit  int
 	Offset int
 }
+
+// ListPartnerOrdersResult contains paginated partner order list data.
+type ListPartnerOrdersResult struct {
+	Items  []domain.PartnerOrderListItem
+	Total  int
+	Limit  int
+	Offset int
+}

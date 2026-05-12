@@ -9,6 +9,9 @@ export const getPartnerProfile = () =>
 export const getPartnerDashboard = () =>
   api.get("/partner/dashboard").then((r) => r.data.data);
 
+export const getPartnerStats = (params = {}) =>
+  api.get("/partner/stats", { params }).then((r) => r.data.data);
+
 export const changePassword = (current_password, new_password) =>
   api
     .post("/partner/change-password", { current_password, new_password })
@@ -22,6 +25,15 @@ export const createLocation = (data) =>
 
 export const listLocations = () =>
   api.get("/partner/locations").then((r) => r.data.data);
+
+export const listEmployees = () =>
+  api.get("/partner/employees").then((r) => r.data.data);
+
+export const createEmployee = (data) =>
+  api.post("/partner/employees", data).then((r) => r.data.data);
+
+export const deleteEmployee = (id) =>
+  api.delete(`/partner/employees/${id}`).then((r) => r.data.data);
 
 // Boxes
 export const createBox = (data) =>
@@ -46,6 +58,13 @@ export const listLocationBoxes = (locationId) =>
   api.get(`/locations/${locationId}/boxes`).then((r) => r.data.data);
 
 // Orders
+export const listPartnerOrders = ({ status = "", limit = 20, offset = 0 } = {}) =>
+  api
+    .get("/partner/orders", {
+      params: { status, limit, offset },
+    })
+    .then((r) => r.data.data);
+
 export const getOrderByPickupCode = (pickupCode) =>
   api
     .get(`/partner/orders/by-code/${encodeURIComponent(pickupCode)}`)

@@ -71,6 +71,10 @@ func (h *authHandler) PartnerLogin(w http.ResponseWriter, r *http.Request) {
 
 	response.Success(w, LoginPartnerResponse{
 		UserID:     claims.UserID.String(),
+		EmployeeID: claims.UserID.String(),
+		PartnerID:  claims.PartnerID.String(),
+		LocationID: employeeLocationID(claims.UserData.(domain.Employee)),
+		Role:       claims.Role,
 		Token:      claims.Access,
 		MustChange: claims.UserData.(domain.Employee).MustChangePassword,
 	})
@@ -122,4 +126,13 @@ func (h *authHandler) CustomerLogin(w http.ResponseWriter, r *http.Request) {
 		UserID: claims.UserID.String(),
 		Token:  claims.Access,
 	})
+}
+
+func employeeLocationID(employee domain.Employee) *string {
+	if employee.LocationID == "" {
+		return nil
+	}
+
+	locationID := employee.LocationID
+	return &locationID
 }
