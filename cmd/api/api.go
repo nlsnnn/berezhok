@@ -44,6 +44,7 @@ import (
 	reviewHandlers "github.com/nlsnnn/berezhok/internal/modules/review/handlers"
 	reviewRepos "github.com/nlsnnn/berezhok/internal/modules/review/repository"
 	reviewServices "github.com/nlsnnn/berezhok/internal/modules/review/service"
+	"github.com/nlsnnn/berezhok/internal/shared/authz"
 	"github.com/nlsnnn/berezhok/internal/shared/config"
 	"github.com/nlsnnn/berezhok/internal/shared/jwt"
 	middlewares "github.com/nlsnnn/berezhok/internal/shared/middleware"
@@ -216,33 +217,61 @@ func (app *application) mount() http.Handler {
 			r.Use(authMiddleware.RequireAuth("partner"))
 
 			r.Group(func(r chi.Router) {
-				r.Use(authMiddleware.RequirePartnerRoles("owner", "employee"))
-
+				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerPasswordChange))
 				r.Post("/partner/change-password", partHandler.ChangePassword)
+			})
+
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerOrdersView))
 
 				// Orders
 				r.Get("/partner/orders", orderHandler.ListPartnerOrders)
 				r.Get("/partner/orders/by-code/{pickup_code}", orderHandler.GetPartnerOrderByPickupCode)
+			})
+
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerOrdersPickup))
+
 				r.Post("/partner/orders/{order_id}/pickup", orderHandler.PartnerPickupOrder)
 			})
 
 			r.Group(func(r chi.Router) {
-				r.Use(authMiddleware.RequirePartnerRoles("owner"))
-
+				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerProfileManage))
 				r.Get("/partner/profile", partHandler.Profile)
-				r.Get("/partner/dashboard", partHandler.Dashboard)
-				r.Get("/partner/stats", partHandler.Stats)
-				r.Post("/partner/legal-info", partHandler.AddLegalInfo)
+			})
 
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerLegalInfoManage))
+				r.Post("/partner/legal-info", partHandler.AddLegalInfo)
+			})
+
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerDashboardView))
+				r.Get("/partner/dashboard", partHandler.Dashboard)
+			})
+
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerStatsView))
+				r.Get("/partner/stats", partHandler.Stats)
+			})
+
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerEmployeesManage))
 				// Employees
 				r.Get("/partner/employees", employeeHandler.List)
 				r.Post("/partner/employees", employeeHandler.Create)
 				r.Delete("/partner/employees/{id}", employeeHandler.Delete)
+			})
 
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerLocationsManage))
 				// Location
 				r.Get("/partner/locations", locationHandler.List)
 				r.Post("/partner/locations", locationHandler.Create)
+			})
 
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerBoxesManage))
 				// Surprise Box
 				r.Post("/partner/boxes", boxHandler.Create)
 				r.Get("/partner/boxes/{id}", boxHandler.GetByID)
@@ -250,7 +279,10 @@ func (app *application) mount() http.Handler {
 				r.Delete("/partner/boxes/{id}", boxHandler.Delete)
 				r.Get("/partner/boxes", boxHandler.GetAllByPartnerID)
 				r.Get("/locations/{location_id}/boxes", boxHandler.GetAllByLocationID)
+			})
 
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerMediaUpload))
 				// Media
 				r.Post("/media/upload", mediaHandler.Upload)
 			})

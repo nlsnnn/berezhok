@@ -16,12 +16,13 @@ import (
 
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/service"
+	"github.com/nlsnnn/berezhok/internal/shared/authz"
 	"github.com/nlsnnn/berezhok/internal/shared/contextx"
 )
 
 type partnerSvcDashboardStub struct {
 	dashboardFn    func(ctx context.Context, userID string) (domain.PartnerDashboard, error)
-	statsFn        func(ctx context.Context, userID string, filter domain.StatsFilter) (domain.PartnerStats, error)
+	statsFn        func(ctx context.Context, actor authz.PartnerActor, filter domain.StatsFilter) (domain.PartnerStats, error)
 	addLegalInfoFn func(ctx context.Context, input service.AddLegalInfoInput) error
 }
 
@@ -41,9 +42,9 @@ func (s *partnerSvcDashboardStub) Dashboard(ctx context.Context, userID string) 
 	return domain.PartnerDashboard{}, nil
 }
 
-func (s *partnerSvcDashboardStub) Stats(ctx context.Context, userID string, filter domain.StatsFilter) (domain.PartnerStats, error) {
+func (s *partnerSvcDashboardStub) Stats(ctx context.Context, actor authz.PartnerActor, filter domain.StatsFilter) (domain.PartnerStats, error) {
 	if s.statsFn != nil {
-		return s.statsFn(ctx, userID, filter)
+		return s.statsFn(ctx, actor, filter)
 	}
 
 	return domain.PartnerStats{}, nil
@@ -232,9 +233,9 @@ func TestPartnerStatsSuccess(t *testing.T) {
 
 	userID := uuid.New()
 	h := NewPartnerHandler(&partnerSvcDashboardStub{
-		statsFn: func(ctx context.Context, gotUserID string, filter domain.StatsFilter) (domain.PartnerStats, error) {
-			if gotUserID != userID.String() {
-				t.Fatalf("expected user id %s, got %s", userID, gotUserID)
+		statsFn: func(ctx context.Context, actor authz.PartnerActor, filter domain.StatsFilter) (domain.PartnerStats, error) {
+			if actor.EmployeeID != userID {
+				t.Fatalf("expected employee id %s, got %s", userID, actor.EmployeeID)
 			}
 			if filter.Period != "last_7_days" {
 				t.Fatalf("expected period last_7_days, got %s", filter.Period)
@@ -266,7 +267,11 @@ func TestPartnerStatsSuccess(t *testing.T) {
 	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/partner/stats?period=last_7_days", nil)
-	req = req.WithContext(context.WithValue(req.Context(), contextx.UserIDKey, userID))
+	req = req.WithContext(context.WithValue(req.Context(), contextx.PartnerActorKey, authz.PartnerActor{
+		PartnerID:  uuid.New(),
+		EmployeeID: userID,
+		Role:       authz.RoleOwner,
+	}))
 	rr := httptest.NewRecorder()
 
 	h.Stats(rr, req)
@@ -294,7 +299,11 @@ func TestPartnerStatsValidationError(t *testing.T) {
 	h := NewPartnerHandler(&partnerSvcDashboardStub{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/partner/stats?date_from=2026-04-20&date_to=bad-date", nil)
-	req = req.WithContext(context.WithValue(req.Context(), contextx.UserIDKey, userID))
+	req = req.WithContext(context.WithValue(req.Context(), contextx.PartnerActorKey, authz.PartnerActor{
+		PartnerID:  uuid.New(),
+		EmployeeID: userID,
+		Role:       authz.RoleOwner,
+	}))
 	rr := httptest.NewRecorder()
 
 	h.Stats(rr, req)

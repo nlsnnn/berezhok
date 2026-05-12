@@ -12,6 +12,7 @@ import (
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/errors"
 	"github.com/nlsnnn/berezhok/internal/shared/auth"
+	"github.com/nlsnnn/berezhok/internal/shared/authz"
 )
 
 type ChangePasswordInput struct {
@@ -120,13 +121,20 @@ func (s *partService) Dashboard(ctx context.Context, userID string) (domain.Part
 	return s.repo.GetDashboard(ctx, userID)
 }
 
-func (s *partService) Stats(ctx context.Context, userID string, filter domain.StatsFilter) (domain.PartnerStats, error) {
+func (s *partService) Stats(ctx context.Context, actor authz.PartnerActor, filter domain.StatsFilter) (domain.PartnerStats, error) {
 	resolvedFilter, err := NormalizeStatsFilter(filter)
 	if err != nil {
 		return domain.PartnerStats{}, err
 	}
 
-	return s.repo.GetStats(ctx, userID, resolvedFilter)
+	if actor.Role != authz.RoleOwner {
+		if actor.LocationID == nil {
+			return domain.PartnerStats{}, authz.ErrLocationScopeDenied
+		}
+		resolvedFilter.LocationID = actor.LocationID.String()
+	}
+
+	return s.repo.GetStats(ctx, actor.EmployeeID.String(), resolvedFilter)
 }
 
 func (s *partService) AddLegalInfo(ctx context.Context, input AddLegalInfoInput) error {

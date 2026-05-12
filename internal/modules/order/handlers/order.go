@@ -18,6 +18,7 @@ import (
 	orderErrors "github.com/nlsnnn/berezhok/internal/modules/order/errors"
 	"github.com/nlsnnn/berezhok/internal/modules/order/handlers/dto"
 	orderService "github.com/nlsnnn/berezhok/internal/modules/order/service"
+	"github.com/nlsnnn/berezhok/internal/shared/authz"
 	"github.com/nlsnnn/berezhok/internal/shared/contextx"
 	"github.com/nlsnnn/berezhok/internal/shared/response"
 )
@@ -26,9 +27,9 @@ type orderServiceInterface interface {
 	CreateOrder(ctx context.Context, boxID, customerID uuid.UUID) (*orderService.CreateOrderResult, error)
 	GetOrderByID(ctx context.Context, orderID uuid.UUID) (*domain.Order, error)
 	GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) (*domain.OrderDetails, error)
-	GetPartnerOrderByPickupCode(ctx context.Context, actor orderService.PartnerActor, pickupCode string) (*domain.PartnerOrderByCode, error)
-	ListOrdersByPartnerID(ctx context.Context, actor orderService.PartnerActor, status string, limit, offset int) (*orderService.ListPartnerOrdersResult, error)
-	MarkOrderPickedUp(ctx context.Context, actor orderService.PartnerActor, orderID uuid.UUID) error
+	GetPartnerOrderByPickupCode(ctx context.Context, actor authz.PartnerActor, pickupCode string) (*domain.PartnerOrderByCode, error)
+	ListOrdersByPartnerID(ctx context.Context, actor authz.PartnerActor, status string, limit, offset int) (*orderService.ListPartnerOrdersResult, error)
+	MarkOrderPickedUp(ctx context.Context, actor authz.PartnerActor, orderID uuid.UUID) error
 	ListOrdersByCustomerID(ctx context.Context, customerID uuid.UUID, status string, limit, offset int) (*orderService.ListOrdersResult, error)
 }
 
@@ -237,14 +238,7 @@ func (h *orderHandler) GetPartnerOrderByPickupCode(w http.ResponseWriter, r *htt
 		return
 	}
 
-	partnerID, err := contextx.PartnerID(r)
-	if err != nil {
-		log.Error("failed to get partner_id from context", sl.Err(err))
-		response.Unauthorized(w, "authentication required")
-		return
-	}
-
-	actor, err := partnerActorFromRequest(r, partnerID)
+	actor, err := contextx.PartnerActor(r)
 	if err != nil {
 		log.Error("failed to build partner actor", sl.Err(err))
 		response.Unauthorized(w, "authentication required")
@@ -253,13 +247,15 @@ func (h *orderHandler) GetPartnerOrderByPickupCode(w http.ResponseWriter, r *htt
 
 	order, err := h.service.GetPartnerOrderByPickupCode(r.Context(), actor, pickupCode)
 	if err != nil {
-		if errors.Is(err, orderErrors.ErrOrderNotFound) {
+		switch {
+		case errors.Is(err, orderErrors.ErrOrderNotFound):
 			response.NotFound(w, "order not found")
-			return
+		case errors.Is(err, authz.ErrLocationScopeDenied):
+			response.Forbidden(w, "access denied")
+		default:
+			log.Error("failed to get order by pickup code", sl.Err(err))
+			response.InternalError(w, nil)
 		}
-
-		log.Error("failed to get order by pickup code", sl.Err(err))
-		response.InternalError(w, nil)
 		return
 	}
 
@@ -271,14 +267,7 @@ func (h *orderHandler) ListPartnerOrders(w http.ResponseWriter, r *http.Request)
 	const op = "order.handler.ListPartnerOrders"
 	log := h.log.With(slog.String("op", op))
 
-	partnerID, err := contextx.PartnerID(r)
-	if err != nil {
-		log.Error("failed to get partner_id from context", sl.Err(err))
-		response.Unauthorized(w, "authentication required")
-		return
-	}
-
-	actor, err := partnerActorFromRequest(r, partnerID)
+	actor, err := contextx.PartnerActor(r)
 	if err != nil {
 		log.Error("failed to build partner actor", sl.Err(err))
 		response.Unauthorized(w, "authentication required")
@@ -303,6 +292,11 @@ func (h *orderHandler) ListPartnerOrders(w http.ResponseWriter, r *http.Request)
 
 	result, err := h.service.ListOrdersByPartnerID(r.Context(), actor, status, limit, offset)
 	if err != nil {
+		if errors.Is(err, authz.ErrLocationScopeDenied) {
+			response.Forbidden(w, "access denied")
+			return
+		}
+
 		log.Error("failed to list partner orders", sl.Err(err))
 		response.InternalError(w, nil)
 		return
@@ -328,27 +322,12 @@ func (h *orderHandler) PartnerPickupOrder(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	partnerID, err := contextx.PartnerID(r)
-	if err != nil {
-		log.Error("failed to get partner_id from context", sl.Err(err))
-		response.Unauthorized(w, "authentication required")
-		return
-	}
-
-	employeeID, err := contextx.EmployeeID(r)
-	if err != nil {
-		log.Error("failed to get employee user_id from context", sl.Err(err))
-		response.Unauthorized(w, "authentication required")
-		return
-	}
-
-	actor, err := partnerActorFromRequest(r, partnerID)
+	actor, err := contextx.PartnerActor(r)
 	if err != nil {
 		log.Error("failed to build partner actor", sl.Err(err))
 		response.Unauthorized(w, "authentication required")
 		return
 	}
-	actor.EmployeeID = employeeID
 
 	err = h.service.MarkOrderPickedUp(r.Context(), actor, orderID)
 	if err != nil {
@@ -357,6 +336,8 @@ func (h *orderHandler) PartnerPickupOrder(w http.ResponseWriter, r *http.Request
 			response.NotFound(w, "order not found")
 		case errors.Is(err, orderErrors.ErrOrderNotReady):
 			response.BadRequest(w, "order is not ready for pickup")
+		case errors.Is(err, authz.ErrLocationScopeDenied):
+			response.Forbidden(w, "access denied")
 		default:
 			log.Error("failed to mark order as picked up", sl.Err(err))
 			response.InternalError(w, nil)
@@ -370,32 +351,4 @@ func (h *orderHandler) PartnerPickupOrder(w http.ResponseWriter, r *http.Request
 		string(domain.OrderStatusCompleted),
 		"order marked as picked up successfully",
 	))
-}
-
-func partnerActorFromRequest(r *http.Request, partnerID uuid.UUID) (orderService.PartnerActor, error) {
-	employeeID, err := contextx.EmployeeID(r)
-	if err != nil {
-		return orderService.PartnerActor{}, err
-	}
-
-	role, err := contextx.UserRole(r)
-	if err != nil {
-		return orderService.PartnerActor{}, err
-	}
-
-	actor := orderService.PartnerActor{
-		PartnerID:  partnerID,
-		EmployeeID: employeeID,
-		Role:       role,
-	}
-
-	if role == "employee" {
-		locationID, err := contextx.LocationID(r)
-		if err != nil {
-			return orderService.PartnerActor{}, err
-		}
-		actor.LocationID = &locationID
-	}
-
-	return actor, nil
 }

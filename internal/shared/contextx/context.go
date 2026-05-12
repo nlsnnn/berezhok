@@ -6,19 +6,21 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/nlsnnn/berezhok/internal/shared/authz"
 	sharedErrors "github.com/nlsnnn/berezhok/internal/shared/errors"
 )
 
 type key string
 
 const (
-	UserIDKey     key = "user_id"
-	UserTypeKey   key = "user_type"
-	UserRoleKey   key = "user_role"
-	CustomerIDKey key = "customer_id"
-	PartnerIDKey  key = "partner_id"
-	EmployeeIDKey key = "employee_id"
-	LocationIDKey key = "location_id"
+	UserIDKey       key = "user_id"
+	UserTypeKey     key = "user_type"
+	UserRoleKey     key = "user_role"
+	CustomerIDKey   key = "customer_id"
+	PartnerIDKey    key = "partner_id"
+	EmployeeIDKey   key = "employee_id"
+	LocationIDKey   key = "location_id"
+	PartnerActorKey key = "partner_actor"
 )
 
 func UserID(r *http.Request) (uuid.UUID, error) {
@@ -63,6 +65,25 @@ func EmployeeIDFromContext(ctx context.Context) (uuid.UUID, error) {
 
 func LocationID(r *http.Request) (uuid.UUID, error) {
 	return getIDFromCtx(r.Context(), LocationIDKey)
+}
+
+func PartnerActor(r *http.Request) (authz.PartnerActor, error) {
+	return PartnerActorFromContext(r.Context())
+}
+
+func PartnerActorFromContext(ctx context.Context) (authz.PartnerActor, error) {
+	if ctx == nil {
+		return authz.PartnerActor{}, sharedErrors.ErrNotFoundContextValue
+	}
+	val := ctx.Value(PartnerActorKey)
+	if val == nil {
+		return authz.PartnerActor{}, sharedErrors.ErrNotFoundContextValue
+	}
+	actor, ok := val.(authz.PartnerActor)
+	if !ok {
+		return authz.PartnerActor{}, sharedErrors.ErrNotFoundContextValue
+	}
+	return actor, nil
 }
 
 func getIDFromCtx(ctx context.Context, k key) (uuid.UUID, error) {

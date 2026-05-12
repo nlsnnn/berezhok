@@ -13,6 +13,7 @@ import (
 	catalogErrors "github.com/nlsnnn/berezhok/internal/modules/catalog/errors"
 	"github.com/nlsnnn/berezhok/internal/modules/order/domain"
 	orderErrors "github.com/nlsnnn/berezhok/internal/modules/order/errors"
+	"github.com/nlsnnn/berezhok/internal/shared/authz"
 )
 
 type orderRepository interface {
@@ -28,13 +29,6 @@ type orderRepository interface {
 	ListOrdersFiltered(ctx context.Context, customerID uuid.UUID, status string, limit, offset int) ([]domain.OrderListItem, int, error)
 	UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, status domain.OrderStatus) error
 	ReserveBox(ctx context.Context, boxID uuid.UUID) (bool, error)
-}
-
-type PartnerActor struct {
-	PartnerID  uuid.UUID
-	EmployeeID uuid.UUID
-	Role       string
-	LocationID *uuid.UUID
 }
 
 type paymentProvider interface {
@@ -146,7 +140,7 @@ func (s *orderService) GetOrderDetailsByID(ctx context.Context, orderID uuid.UUI
 }
 
 // GetPartnerOrderByPickupCode retrieves partner-scoped order details by pickup code.
-func (s *orderService) GetPartnerOrderByPickupCode(ctx context.Context, actor PartnerActor, pickupCode string) (*domain.PartnerOrderByCode, error) {
+func (s *orderService) GetPartnerOrderByPickupCode(ctx context.Context, actor authz.PartnerActor, pickupCode string) (*domain.PartnerOrderByCode, error) {
 	const op = "order.service.GetPartnerOrderByPickupCode"
 
 	var (
@@ -154,7 +148,11 @@ func (s *orderService) GetPartnerOrderByPickupCode(ctx context.Context, actor Pa
 		err   error
 	)
 
-	if actor.Role == "employee" && actor.LocationID != nil {
+	if actor.Role != authz.RoleOwner {
+		fmt.Println("JOPA")
+		if actor.LocationID == nil {
+			return nil, authz.ErrLocationScopeDenied
+		}
 		order, err = s.repo.GetLocationOrderByPickupCode(ctx, pickupCode, *actor.LocationID)
 	} else {
 		order, err = s.repo.GetPartnerOrderByPickupCode(ctx, pickupCode, actor.PartnerID)
@@ -167,7 +165,7 @@ func (s *orderService) GetPartnerOrderByPickupCode(ctx context.Context, actor Pa
 }
 
 // ListOrdersByPartnerID retrieves filtered, paginated orders for a partner.
-func (s *orderService) ListOrdersByPartnerID(ctx context.Context, actor PartnerActor, status string, limit, offset int) (*ListPartnerOrdersResult, error) {
+func (s *orderService) ListOrdersByPartnerID(ctx context.Context, actor authz.PartnerActor, status string, limit, offset int) (*ListPartnerOrdersResult, error) {
 	const op = "order.service.ListOrdersByPartnerID"
 
 	var (
@@ -176,7 +174,10 @@ func (s *orderService) ListOrdersByPartnerID(ctx context.Context, actor PartnerA
 		err   error
 	)
 
-	if actor.Role == "employee" && actor.LocationID != nil {
+	if actor.Role != authz.RoleOwner {
+		if actor.LocationID == nil {
+			return nil, authz.ErrLocationScopeDenied
+		}
 		items, total, err = s.repo.ListActiveOrdersByLocationID(ctx, *actor.LocationID, limit, offset)
 	} else {
 		items, total, err = s.repo.ListOrdersByPartnerID(ctx, actor.PartnerID, status, limit, offset)
@@ -194,11 +195,14 @@ func (s *orderService) ListOrdersByPartnerID(ctx context.Context, actor PartnerA
 }
 
 // MarkOrderPickedUp marks a partner's order as picked up.
-func (s *orderService) MarkOrderPickedUp(ctx context.Context, actor PartnerActor, orderID uuid.UUID) error {
+func (s *orderService) MarkOrderPickedUp(ctx context.Context, actor authz.PartnerActor, orderID uuid.UUID) error {
 	const op = "order.service.MarkOrderPickedUp"
 
 	var err error
-	if actor.Role == "employee" && actor.LocationID != nil {
+	if actor.Role != authz.RoleOwner {
+		if actor.LocationID == nil {
+			return authz.ErrLocationScopeDenied
+		}
 		err = s.repo.MarkLocationOrderPickedUp(ctx, orderID, *actor.LocationID, actor.EmployeeID)
 	} else {
 		err = s.repo.MarkOrderPickedUp(ctx, orderID, actor.PartnerID, actor.EmployeeID)

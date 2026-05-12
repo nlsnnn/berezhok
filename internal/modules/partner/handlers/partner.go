@@ -13,6 +13,7 @@ import (
 	partnerErrors "github.com/nlsnnn/berezhok/internal/modules/partner/errors"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/handlers/dto"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/service"
+	"github.com/nlsnnn/berezhok/internal/shared/authz"
 	"github.com/nlsnnn/berezhok/internal/shared/contextx"
 	"github.com/nlsnnn/berezhok/internal/shared/response"
 )
@@ -201,9 +202,9 @@ func (h *partnerHandler) Stats(w http.ResponseWriter, r *http.Request) {
 	const op = "partner.handler.Stats"
 	log := h.log.With(slog.String("op", op))
 
-	userID, err := contextx.UserID(r)
+	actor, err := contextx.PartnerActor(r)
 	if err != nil {
-		log.Error("user_id not found in context", sl.Err(err))
+		log.Error("partner actor not found in context", sl.Err(err))
 		response.InternalError(w, nil)
 		return
 	}
@@ -214,13 +215,15 @@ func (h *partnerHandler) Stats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stats, err := h.partService.Stats(r.Context(), userID.String(), filter)
+	stats, err := h.partService.Stats(r.Context(), actor, filter)
 	if err != nil {
 		switch {
 		case errors.Is(err, partnerErrors.ErrInvalidStatsPeriod),
 			errors.Is(err, partnerErrors.ErrInvalidStatsDateRange),
 			errors.Is(err, partnerErrors.ErrInvalidStatsSort):
 			response.BadRequest(w, err.Error())
+		case errors.Is(err, authz.ErrLocationScopeDenied):
+			response.Forbidden(w, "access denied")
 		default:
 			log.Error("failed to get stats", sl.Err(err))
 			response.InternalError(w, nil)
