@@ -103,6 +103,25 @@ func (r *OrderRepo) GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) 
 	}, nil
 }
 
+func (r *OrderRepo) GetOrderChatProjection(ctx context.Context, orderID uuid.UUID) (*domain.OrderChatProjection, error) {
+	row, err := r.q.GetOrderChatProjection(ctx, orderID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, orderErrors.ErrOrderNotFound
+		}
+		return nil, err
+	}
+
+	return &domain.OrderChatProjection{
+		OrderID:    row.OrderID,
+		CustomerID: row.CustomerID,
+		PartnerID:  row.PartnerID,
+		LocationID: row.LocationID,
+		Status:     domain.OrderStatus(row.Status),
+		UpdatedAt:  row.UpdatedAt,
+	}, nil
+}
+
 // GetPartnerOrderByPickupCode retrieves partner-scoped order details by pickup code.
 func (r *OrderRepo) GetPartnerOrderByPickupCode(ctx context.Context, pickupCode string, partnerID uuid.UUID) (*domain.PartnerOrderByCode, error) {
 	row, err := r.q.GetPartnerOrderByPickupCode(ctx, sqlc.GetPartnerOrderByPickupCodeParams{

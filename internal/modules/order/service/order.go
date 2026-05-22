@@ -20,6 +20,7 @@ type orderRepository interface {
 	CreateOrder(ctx context.Context, order *domain.Order) error
 	GetOrderByID(ctx context.Context, orderID uuid.UUID) (*domain.Order, error)
 	GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) (*domain.OrderDetails, error)
+	GetOrderChatProjection(ctx context.Context, orderID uuid.UUID) (*domain.OrderChatProjection, error)
 	GetPartnerOrderByPickupCode(ctx context.Context, pickupCode string, partnerID uuid.UUID) (*domain.PartnerOrderByCode, error)
 	GetLocationOrderByPickupCode(ctx context.Context, pickupCode string, locationID uuid.UUID) (*domain.PartnerOrderByCode, error)
 	ListOrdersByPartnerID(ctx context.Context, partnerID uuid.UUID, status string, limit, offset int) ([]domain.PartnerOrderListItem, int, error)
@@ -29,6 +30,11 @@ type orderRepository interface {
 	ListOrdersFiltered(ctx context.Context, customerID uuid.UUID, status string, limit, offset int) ([]domain.OrderListItem, int, error)
 	UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, status domain.OrderStatus) error
 	ReserveBox(ctx context.Context, boxID uuid.UUID) (bool, error)
+}
+
+type orderProjectionPublisher interface {
+	PublishOrderCreated(ctx context.Context, projection domain.OrderChatProjection) error
+	PublishOrderStatusChanged(ctx context.Context, projection domain.OrderChatProjection) error
 }
 
 type paymentProvider interface {
@@ -43,16 +49,21 @@ type orderService struct {
 	repo            orderRepository
 	paymentProvider paymentProvider
 	boxProvider     boxProvider
+	eventPublisher  orderProjectionPublisher
 	log             *slog.Logger
 }
 
-func NewOrderService(repo orderRepository, boxProvider boxProvider, paymentProvider paymentProvider, log *slog.Logger) *orderService {
-	return &orderService{
+func NewOrderService(repo orderRepository, boxProvider boxProvider, paymentProvider paymentProvider, log *slog.Logger, publishers ...orderProjectionPublisher) *orderService {
+	s := &orderService{
 		repo:            repo,
 		boxProvider:     boxProvider,
 		paymentProvider: paymentProvider,
 		log:             log,
 	}
+	if len(publishers) > 0 {
+		s.eventPublisher = publishers[0]
+	}
+	return s
 }
 
 // CreateOrder creates a new order with box reservation
@@ -101,6 +112,7 @@ func (s *orderService) CreateOrder(ctx context.Context, boxID, customerID uuid.U
 		slog.String("customer_id", customerID.String()),
 		slog.String("box_id", boxID.String()),
 	)
+	s.publishProjection(ctx, order.ID, false)
 
 	// 6. Create payment link
 	paymentLink, err := s.paymentProvider.Create(ctx, box.Price.Discount, order.ID)
@@ -137,6 +149,16 @@ func (s *orderService) GetOrderDetailsByID(ctx context.Context, orderID uuid.UUI
 	}
 
 	return order, nil
+}
+
+func (s *orderService) GetOrderChatProjection(ctx context.Context, orderID uuid.UUID) (*domain.OrderChatProjection, error) {
+	const op = "order.service.GetOrderChatProjection"
+
+	projection, err := s.repo.GetOrderChatProjection(ctx, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+	return projection, nil
 }
 
 // GetPartnerOrderByPickupCode retrieves partner-scoped order details by pickup code.
@@ -210,6 +232,7 @@ func (s *orderService) MarkOrderPickedUp(ctx context.Context, actor authz.Partne
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
+	s.publishProjection(ctx, orderID, true)
 
 	return nil
 }
@@ -248,6 +271,28 @@ func (s *orderService) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID,
 		slog.String("order_id", orderID.String()),
 		slog.String("new_status", string(status)),
 	)
+	s.publishProjection(ctx, orderID, true)
 
 	return nil
+}
+
+func (s *orderService) publishProjection(ctx context.Context, orderID uuid.UUID, statusChanged bool) {
+	if s.eventPublisher == nil {
+		return
+	}
+	projection, err := s.repo.GetOrderChatProjection(ctx, orderID)
+	if err != nil {
+		if s.log != nil {
+			s.log.Warn("failed to load order chat projection", slog.String("order_id", orderID.String()), slog.String("err", err.Error()))
+		}
+		return
+	}
+	if statusChanged {
+		err = s.eventPublisher.PublishOrderStatusChanged(ctx, *projection)
+	} else {
+		err = s.eventPublisher.PublishOrderCreated(ctx, *projection)
+	}
+	if err != nil && s.log != nil {
+		s.log.Warn("failed to publish order chat projection", slog.String("order_id", orderID.String()), slog.String("err", err.Error()))
+	}
 }

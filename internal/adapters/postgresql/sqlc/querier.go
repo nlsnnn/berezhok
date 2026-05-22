@@ -69,6 +69,7 @@ type Querier interface {
 	GetLocationOrderByID(ctx context.Context, arg GetLocationOrderByIDParams) (GetLocationOrderByIDRow, error)
 	GetLocationOrderByPickupCode(ctx context.Context, arg GetLocationOrderByPickupCodeParams) (GetLocationOrderByPickupCodeRow, error)
 	GetOrderByID(ctx context.Context, id uuid.UUID) (Order, error)
+	GetOrderChatProjection(ctx context.Context, id uuid.UUID) (GetOrderChatProjectionRow, error)
 	GetOrderDetailsByID(ctx context.Context, id uuid.UUID) (GetOrderDetailsByIDRow, error)
 	GetPartnerDashboardFinance(ctx context.Context, partnerID uuid.UUID) (GetPartnerDashboardFinanceRow, error)
 	GetPartnerDashboardTodayStats(ctx context.Context, partnerID uuid.UUID) (GetPartnerDashboardTodayStatsRow, error)

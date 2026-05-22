@@ -10,15 +10,20 @@ import (
 )
 
 type orderStatusUpdater struct {
-	repo orderRepository
-	log  *slog.Logger
+	repo           orderRepository
+	eventPublisher orderProjectionPublisher
+	log            *slog.Logger
 }
 
-func NewOrderStatusUpdater(repo orderRepository, log *slog.Logger) *orderStatusUpdater {
-	return &orderStatusUpdater{
+func NewOrderStatusUpdater(repo orderRepository, log *slog.Logger, publishers ...orderProjectionPublisher) *orderStatusUpdater {
+	u := &orderStatusUpdater{
 		repo: repo,
 		log:  log,
 	}
+	if len(publishers) > 0 {
+		u.eventPublisher = publishers[0]
+	}
+	return u
 }
 
 func (u *orderStatusUpdater) MarkOrderPaid(ctx context.Context, orderID uuid.UUID) error {
@@ -32,6 +37,7 @@ func (u *orderStatusUpdater) MarkOrderPaid(ctx context.Context, orderID uuid.UUI
 	}
 
 	log.Info("order marked as paid")
+	u.publishProjection(ctx, orderID)
 	return nil
 }
 
@@ -46,5 +52,20 @@ func (u *orderStatusUpdater) MarkOrderCanceled(ctx context.Context, orderID uuid
 	}
 
 	log.Info("order marked as canceled")
+	u.publishProjection(ctx, orderID)
 	return nil
+}
+
+func (u *orderStatusUpdater) publishProjection(ctx context.Context, orderID uuid.UUID) {
+	if u.eventPublisher == nil {
+		return
+	}
+	projection, err := u.repo.GetOrderChatProjection(ctx, orderID)
+	if err != nil {
+		u.log.Warn("failed to load order chat projection", slog.String("order_id", orderID.String()), slog.String("err", err.Error()))
+		return
+	}
+	if err = u.eventPublisher.PublishOrderStatusChanged(ctx, *projection); err != nil {
+		u.log.Warn("failed to publish order chat projection", slog.String("order_id", orderID.String()), slog.String("err", err.Error()))
+	}
 }

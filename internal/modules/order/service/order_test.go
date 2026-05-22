@@ -26,6 +26,10 @@ func (r *orderRepoStub) GetOrderDetailsByID(ctx context.Context, orderID uuid.UU
 	return nil, nil
 }
 
+func (r *orderRepoStub) GetOrderChatProjection(ctx context.Context, orderID uuid.UUID) (*domain.OrderChatProjection, error) {
+	return nil, nil
+}
+
 func (r *orderRepoStub) GetPartnerOrderByPickupCode(ctx context.Context, pickupCode string, partnerID uuid.UUID) (*domain.PartnerOrderByCode, error) {
 	return nil, nil
 }

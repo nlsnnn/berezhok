@@ -27,6 +27,7 @@ type orderServiceInterface interface {
 	CreateOrder(ctx context.Context, boxID, customerID uuid.UUID) (*orderService.CreateOrderResult, error)
 	GetOrderByID(ctx context.Context, orderID uuid.UUID) (*domain.Order, error)
 	GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) (*domain.OrderDetails, error)
+	GetOrderChatProjection(ctx context.Context, orderID uuid.UUID) (*domain.OrderChatProjection, error)
 	GetPartnerOrderByPickupCode(ctx context.Context, actor authz.PartnerActor, pickupCode string) (*domain.PartnerOrderByCode, error)
 	ListOrdersByPartnerID(ctx context.Context, actor authz.PartnerActor, status string, limit, offset int) (*orderService.ListPartnerOrdersResult, error)
 	MarkOrderPickedUp(ctx context.Context, actor authz.PartnerActor, orderID uuid.UUID) error
@@ -157,6 +158,31 @@ func (h *orderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 
 	resp := dto.ToOrderDetailResponse(order)
 	response.Success(w, resp)
+}
+
+func (h *orderHandler) InternalChatAccess(w http.ResponseWriter, r *http.Request) {
+	const op = "order.handler.InternalChatAccess"
+	log := h.log.With(slog.String("op", op))
+
+	orderIDStr := chi.URLParam(r, "order_id")
+	orderID, err := uuid.Parse(orderIDStr)
+	if err != nil {
+		response.BadRequest(w, "invalid order_id format")
+		return
+	}
+
+	projection, err := h.service.GetOrderChatProjection(r.Context(), orderID)
+	if err != nil {
+		if errors.Is(err, orderErrors.ErrOrderNotFound) {
+			response.NotFound(w, "order not found")
+			return
+		}
+		log.Error("failed to get order chat projection", sl.Err(err))
+		response.InternalError(w, nil)
+		return
+	}
+
+	response.Success(w, dto.ToOrderChatAccessResponse(projection))
 }
 
 // ListOrders handles GET /customer/orders

@@ -31,6 +31,7 @@ import (
 	mediaHandlers "github.com/nlsnnn/berezhok/internal/modules/media/handlers"
 	mediaRepos "github.com/nlsnnn/berezhok/internal/modules/media/repository"
 	mediaServices "github.com/nlsnnn/berezhok/internal/modules/media/service"
+	orderAdapters "github.com/nlsnnn/berezhok/internal/modules/order/adapters"
 	orderHandlers "github.com/nlsnnn/berezhok/internal/modules/order/handlers"
 	orderRepos "github.com/nlsnnn/berezhok/internal/modules/order/repository"
 	orderServices "github.com/nlsnnn/berezhok/internal/modules/order/service"
@@ -59,7 +60,7 @@ func (app *application) mount() http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins: []string{"http://localhost", "http://localhost:5173", "http://localhost:3000", "http://localhost:8000", "http://localhost:65035"},
+		AllowedOrigins: []string{"http://localhost", "http://localhost:5173", "http://localhost:3000", "http://localhost:8000", "http://localhost:55636"},
 		AllowedMethods: []string{"GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders: []string{"Link"},
@@ -75,6 +76,7 @@ func (app *application) mount() http.Handler {
 	v := validator.New()
 	jwtService := jwt.NewTokenService([]byte("supersecretkey"))
 	notificationPublisher := rabbitmq.NewNotificationPublisher(app.rabbitmq)
+	orderPublisher := rabbitmq.NewOrderPublisher(app.rabbitmq)
 
 	// Partner module - adapters
 	notificationAdapter := partneradapters.NewNotificationAdapter(notificationPublisher)
@@ -125,16 +127,17 @@ func (app *application) mount() http.Handler {
 
 	// Order module — repositories
 	orderRepo := orderRepos.NewOrderRepo(queries)
+	chatEventAdapter := orderAdapters.NewChatEventAdapter(orderPublisher)
 
 	// Payment module
-	orderStatusUpdater := orderServices.NewOrderStatusUpdater(orderRepo, app.log)
+	orderStatusUpdater := orderServices.NewOrderStatusUpdater(orderRepo, app.log, chatEventAdapter)
 	yookassaAdapter := yookassa.NewAdapter(yookassa.New(app.cfg.Yookassa))
 	paymentRepo := paymentRepos.NewPaymentRepo(queries)
 	paymentSvc := paymentServices.NewPaymentService(paymentRepo, yookassaAdapter, orderStatusUpdater)
 	webhookHandler := paymentHandlers.NewWebhookHandler(paymentSvc, app.log, v)
 
 	// Order module — services
-	orderSvc := orderServices.NewOrderService(orderRepo, boxSvc, paymentSvc, app.log)
+	orderSvc := orderServices.NewOrderService(orderRepo, boxSvc, paymentSvc, app.log, chatEventAdapter)
 
 	// Order module — handlers
 	orderHandler := orderHandlers.NewOrderHandler(orderSvc, app.log, v)
@@ -298,6 +301,10 @@ func (app *application) mount() http.Handler {
 			r.Use(webhookMiddleware.IPFilterMiddleware)
 			r.Post("/webhooks/yookassa", webhookHandler.Yookassa)
 		})
+	})
+
+	r.Route("/api/internal/v1", func(r chi.Router) {
+		r.Get("/orders/{order_id}/chat-access", orderHandler.InternalChatAccess)
 	})
 
 	return r

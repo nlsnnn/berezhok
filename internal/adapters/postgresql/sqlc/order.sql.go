@@ -310,6 +310,41 @@ func (q *Queries) GetOrderByID(ctx context.Context, id uuid.UUID) (Order, error)
 	return i, err
 }
 
+const getOrderChatProjection = `-- name: GetOrderChatProjection :one
+SELECT o.id AS order_id,
+  o.user_id AS customer_id,
+  l.partner_id,
+  o.location_id,
+  o.status,
+  o.updated_at
+FROM orders o
+  JOIN locations l ON l.id = o.location_id
+WHERE o.id = $1
+`
+
+type GetOrderChatProjectionRow struct {
+	OrderID    uuid.UUID   `json:"order_id"`
+	CustomerID uuid.UUID   `json:"customer_id"`
+	PartnerID  uuid.UUID   `json:"partner_id"`
+	LocationID uuid.UUID   `json:"location_id"`
+	Status     OrderStatus `json:"status"`
+	UpdatedAt  time.Time   `json:"updated_at"`
+}
+
+func (q *Queries) GetOrderChatProjection(ctx context.Context, id uuid.UUID) (GetOrderChatProjectionRow, error) {
+	row := q.db.QueryRow(ctx, getOrderChatProjection, id)
+	var i GetOrderChatProjectionRow
+	err := row.Scan(
+		&i.OrderID,
+		&i.CustomerID,
+		&i.PartnerID,
+		&i.LocationID,
+		&i.Status,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getOrderDetailsByID = `-- name: GetOrderDetailsByID :one
 SELECT o.id,
   o.user_id,

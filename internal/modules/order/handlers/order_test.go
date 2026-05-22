@@ -35,6 +35,10 @@ func (s *orderServiceStub) GetOrderDetailsByID(ctx context.Context, orderID uuid
 	return nil, nil
 }
 
+func (s *orderServiceStub) GetOrderChatProjection(ctx context.Context, orderID uuid.UUID) (*domain.OrderChatProjection, error) {
+	return nil, nil
+}
+
 func (s *orderServiceStub) GetPartnerOrderByPickupCode(ctx context.Context, actor authz.PartnerActor, pickupCode string) (*domain.PartnerOrderByCode, error) {
 	return nil, nil
 }

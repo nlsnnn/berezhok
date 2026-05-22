@@ -59,6 +59,15 @@ type Order struct {
 	UpdatedAt             time.Time
 }
 
+type OrderChatProjection struct {
+	OrderID    uuid.UUID
+	CustomerID uuid.UUID
+	PartnerID  uuid.UUID
+	LocationID uuid.UUID
+	Status     OrderStatus
+	UpdatedAt  time.Time
+}
+
 func NewOrder(
 	customerID, boxID, locationID uuid.UUID,
 	pickupTime domain.PickupTime,
