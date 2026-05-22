@@ -9,6 +9,7 @@ import (
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 	partnerErrors "github.com/nlsnnn/berezhok/internal/modules/partner/errors"
 	"github.com/nlsnnn/berezhok/internal/shared/auth"
+	"github.com/nlsnnn/berezhok/internal/shared/authz"
 	"github.com/nlsnnn/berezhok/internal/shared/generator"
 )
 
@@ -41,16 +42,15 @@ type employeeNotificationProvider interface {
 }
 
 type CreateManagedEmployeeInput struct {
-	PartnerID  string
+	Actor      authz.PartnerActor
 	LocationID string
 	Email      string
 	Name       string
 }
 
 type DeleteManagedEmployeeInput struct {
-	PartnerID       string
-	ActorEmployeeID string
-	EmployeeID      string
+	Actor      authz.PartnerActor
+	EmployeeID string
 }
 
 func NewEmployeeService(
@@ -87,7 +87,12 @@ func (s *empService) Delete(ctx context.Context, id string) error {
 	return s.repo.Delete(ctx, id)
 }
 
-func (s *empService) ListManagedByPartnerID(ctx context.Context, partnerID string) ([]domain.ManagedEmployee, error) {
+func (s *empService) ListManagedByPartnerID(ctx context.Context, actor authz.PartnerActor) ([]domain.ManagedEmployee, error) {
+	if err := actor.EnsureCan(authz.PermissionPartnerEmployeesManage); err != nil {
+		return nil, err
+	}
+
+	partnerID := actor.PartnerID.String()
 	employees, err := s.repo.ListByPartnerID(ctx, partnerID)
 	if err != nil {
 		return nil, err
@@ -112,6 +117,10 @@ func (s *empService) ListManagedByPartnerID(ctx context.Context, partnerID strin
 }
 
 func (s *empService) CreateManaged(ctx context.Context, input CreateManagedEmployeeInput) (domain.ManagedEmployee, error) {
+	if err := input.Actor.EnsureCan(authz.PermissionPartnerEmployeesManage); err != nil {
+		return domain.ManagedEmployee{}, err
+	}
+
 	emailExists, err := s.emailChecker.CheckEmailExists(ctx, input.Email)
 	if err != nil {
 		return domain.ManagedEmployee{}, err
@@ -129,7 +138,8 @@ func (s *empService) CreateManaged(ctx context.Context, input CreateManagedEmplo
 	if err != nil {
 		return domain.ManagedEmployee{}, err
 	}
-	if location.PartnerID != input.PartnerID {
+	partnerID := input.Actor.PartnerID.String()
+	if location.PartnerID != partnerID {
 		return domain.ManagedEmployee{}, partnerErrors.ErrLocationNotOwnedByPartner
 	}
 
@@ -141,7 +151,7 @@ func (s *empService) CreateManaged(ctx context.Context, input CreateManagedEmplo
 
 	employee, err := s.repo.Create(
 		ctx,
-		input.PartnerID,
+		partnerID,
 		input.LocationID,
 		input.Email,
 		passwordHash,
@@ -164,18 +174,22 @@ func (s *empService) CreateManaged(ctx context.Context, input CreateManagedEmplo
 }
 
 func (s *empService) DeleteManaged(ctx context.Context, input DeleteManagedEmployeeInput) error {
+	if err := input.Actor.EnsureCan(authz.PermissionPartnerEmployeesManage); err != nil {
+		return err
+	}
+
 	employee, err := s.repo.FindByID(ctx, input.EmployeeID)
 	if err != nil {
 		return err
 	}
 
-	if employee.PartnerID != input.PartnerID {
+	if employee.PartnerID != input.Actor.PartnerID.String() {
 		return partnerErrors.ErrEmployeeNotFound
 	}
 	if employee.Role == domain.EmployeeRoleOwner {
 		return partnerErrors.ErrCannotDeleteOwner
 	}
-	if employee.ID == input.ActorEmployeeID {
+	if employee.ID == input.Actor.EmployeeID.String() {
 		return partnerErrors.ErrCannotDeleteSelf
 	}
 

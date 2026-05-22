@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/nlsnnn/berezhok/internal/modules/auth"
+	"github.com/nlsnnn/berezhok/internal/shared/authz"
 	"github.com/nlsnnn/berezhok/internal/shared/contextx"
 	"github.com/nlsnnn/berezhok/internal/shared/response"
 )
@@ -69,18 +70,27 @@ func (a *authMiddleware) RequireAuth(allowedTypes ...string) func(http.Handler) 
 
 			if claims.UserType == "partner" {
 				ctx = context.WithValue(ctx, contextx.EmployeeIDKey, claims.UserID)
+				actor := authz.PartnerActor{
+					EmployeeID: claims.UserID,
+					Role:       authz.Role(claims.Role),
+				}
 				if claims.LocationID != nil {
 					ctx = context.WithValue(ctx, contextx.LocationIDKey, *claims.LocationID)
+					actor.LocationID = claims.LocationID
 				}
 				if claims.PartnerID != nil {
 					ctx = context.WithValue(ctx, contextx.PartnerIDKey, *claims.PartnerID)
+					actor.PartnerID = *claims.PartnerID
 				} else if pid, ok := claims.UserData.(uuid.UUID); ok {
 					ctx = context.WithValue(ctx, contextx.PartnerIDKey, pid)
+					actor.PartnerID = pid
 				} else if pidStr, ok := claims.UserData.(string); ok {
 					if pid, err := uuid.Parse(pidStr); err == nil {
 						ctx = context.WithValue(ctx, contextx.PartnerIDKey, pid)
+						actor.PartnerID = pid
 					}
 				}
+				ctx = context.WithValue(ctx, contextx.PartnerActorKey, actor)
 			}
 
 			if claims.UserType == "customer" {
@@ -92,7 +102,7 @@ func (a *authMiddleware) RequireAuth(allowedTypes ...string) func(http.Handler) 
 	}
 }
 
-func (a *authMiddleware) RequirePartnerRoles(allowedRoles ...string) func(http.Handler) http.Handler {
+func (a *authMiddleware) RequirePermission(permission authz.Permission) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			userType, err := contextx.UserType(r)
@@ -101,20 +111,18 @@ func (a *authMiddleware) RequirePartnerRoles(allowedRoles ...string) func(http.H
 				return
 			}
 
-			role, err := contextx.UserRole(r)
+			actor, err := contextx.PartnerActor(r)
 			if err != nil {
 				response.Forbidden(w, "access denied for this user")
 				return
 			}
 
-			for _, allowedRole := range allowedRoles {
-				if role == allowedRole {
-					next.ServeHTTP(w, r)
-					return
-				}
+			if !actor.Can(permission) {
+				response.Forbidden(w, "access denied for this action")
+				return
 			}
 
-			response.Forbidden(w, "access denied for this action")
+			next.ServeHTTP(w, r)
 		})
 	}
 }

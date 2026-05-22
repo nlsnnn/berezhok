@@ -10,6 +10,7 @@ import (
 
 	"github.com/nlsnnn/berezhok/internal/modules/catalog/domain"
 	catalogErrors "github.com/nlsnnn/berezhok/internal/modules/catalog/errors"
+	"github.com/nlsnnn/berezhok/internal/shared/authz"
 	sharedDomain "github.com/nlsnnn/berezhok/internal/shared/domain"
 )
 
@@ -27,7 +28,6 @@ type CreateBoxInput struct {
 }
 
 type UpdateBoxInput struct {
-	PartnerID       uuid.UUID
 	ID              string
 	Name            string
 	Description     string
@@ -79,7 +79,14 @@ func NewBoxService(boxRepo BoxRepository, locationSvc locationFinder, partnerSvc
 	}
 }
 
-func (s *boxService) CreateBox(ctx context.Context, partnerID uuid.UUID, input CreateBoxInput) (domain.SurpriseBox, error) {
+func (s *boxService) CreateBox(ctx context.Context, actor authz.PartnerActor, input CreateBoxInput) (domain.SurpriseBox, error) {
+	if err := actor.EnsureCan(authz.PermissionPartnerBoxesManage); err != nil {
+		return domain.SurpriseBox{}, err
+	}
+	if err := actor.EnsureLocation(input.LocationID); err != nil {
+		return domain.SurpriseBox{}, err
+	}
+
 	// Validate location
 	exists, err := s.locationSvc.Exists(ctx, input.LocationID)
 	if err != nil {
@@ -90,7 +97,7 @@ func (s *boxService) CreateBox(ctx context.Context, partnerID uuid.UUID, input C
 	}
 
 	// Validate partner ownership of the location
-	owns, err := s.locationSvc.PartnerOwnsLocation(ctx, partnerID, input.LocationID)
+	owns, err := s.locationSvc.PartnerOwnsLocation(ctx, actor.PartnerID, input.LocationID)
 	if err != nil {
 		return domain.SurpriseBox{}, fmt.Errorf("checking location ownership: %w", err)
 	}
@@ -118,7 +125,7 @@ func (s *boxService) CreateBox(ctx context.Context, partnerID uuid.UUID, input C
 		Image:      input.Image,
 	}
 
-	canActivate, err := s.partnerSvc.CanActivateBoxes(ctx, partnerID)
+	canActivate, err := s.partnerSvc.CanActivateBoxes(ctx, actor.PartnerID)
 	if err != nil {
 		return domain.SurpriseBox{}, fmt.Errorf("checking partner legal info: %w", err)
 	}
@@ -139,15 +146,45 @@ func (s *boxService) GetBoxesByLocationID(ctx context.Context, locationID uuid.U
 	return s.boxRepo.GetBoxesByLocationID(ctx, locationID)
 }
 
-func (s *boxService) GetBoxesByPartnerID(ctx context.Context, partnerID uuid.UUID) ([]domain.SurpriseBox, error) {
-	return s.boxRepo.GetBoxesByPartnerID(ctx, partnerID)
+func (s *boxService) GetBoxesByPartnerID(ctx context.Context, actor authz.PartnerActor) ([]domain.SurpriseBox, error) {
+	if err := actor.EnsureCan(authz.PermissionPartnerBoxesManage); err != nil {
+		return nil, err
+	}
+	if actor.Role != authz.RoleOwner {
+		if actor.LocationID == nil {
+			return nil, authz.ErrLocationScopeDenied
+		}
+		return s.boxRepo.GetBoxesByLocationID(ctx, *actor.LocationID)
+	}
+
+	return s.boxRepo.GetBoxesByPartnerID(ctx, actor.PartnerID)
 }
 
 func (s *boxService) GetBoxByID(ctx context.Context, id string) (*domain.SurpriseBox, error) {
 	return s.boxRepo.GetBoxByID(ctx, id)
 }
 
-func (s *boxService) UpdateBox(ctx context.Context, input UpdateBoxInput) (domain.SurpriseBox, error) {
+func (s *boxService) GetPartnerBoxByID(ctx context.Context, actor authz.PartnerActor, id string) (*domain.SurpriseBox, error) {
+	if err := actor.EnsureCan(authz.PermissionPartnerBoxesManage); err != nil {
+		return nil, err
+	}
+
+	box, err := s.boxRepo.GetBoxByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if err = actor.EnsureLocation(box.LocationID); err != nil {
+		return nil, err
+	}
+
+	return box, nil
+}
+
+func (s *boxService) UpdateBox(ctx context.Context, actor authz.PartnerActor, input UpdateBoxInput) (domain.SurpriseBox, error) {
+	if err := actor.EnsureCan(authz.PermissionPartnerBoxesManage); err != nil {
+		return domain.SurpriseBox{}, err
+	}
+
 	pickupTime, err := sharedDomain.NewPickupTimeFromStrings(input.PickupTimeStart, input.PickupTimeEnd)
 	if err != nil {
 		return domain.SurpriseBox{}, mapPickupTimeErr(err)
@@ -157,9 +194,12 @@ func (s *boxService) UpdateBox(ctx context.Context, input UpdateBoxInput) (domai
 	if err != nil {
 		return domain.SurpriseBox{}, err
 	}
+	if err = actor.EnsureLocation(box.LocationID); err != nil {
+		return domain.SurpriseBox{}, err
+	}
 
 	if domain.BoxStatus(input.Status) == domain.BoxStatusActive {
-		canActivate, err := s.partnerSvc.CanActivateBoxes(ctx, input.PartnerID)
+		canActivate, err := s.partnerSvc.CanActivateBoxes(ctx, actor.PartnerID)
 		if err != nil {
 			return domain.SurpriseBox{}, fmt.Errorf("checking partner legal info: %w", err)
 		}
@@ -185,7 +225,18 @@ func (s *boxService) UpdateBox(ctx context.Context, input UpdateBoxInput) (domai
 	return *box, nil
 }
 
-func (s *boxService) DeleteBox(ctx context.Context, id string) error {
+func (s *boxService) DeleteBox(ctx context.Context, actor authz.PartnerActor, id string) error {
+	if err := actor.EnsureCan(authz.PermissionPartnerBoxesManage); err != nil {
+		return err
+	}
+	box, err := s.boxRepo.GetBoxByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if err = actor.EnsureLocation(box.LocationID); err != nil {
+		return err
+	}
+
 	return s.boxRepo.DeleteBox(ctx, id)
 }
 

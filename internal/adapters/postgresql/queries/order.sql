@@ -50,6 +50,17 @@ FROM orders o
   JOIN locations l ON l.id = o.location_id
 WHERE o.id = $1;
 
+-- name: GetOrderChatProjection :one
+SELECT o.id AS order_id,
+  o.user_id AS customer_id,
+  l.partner_id,
+  o.location_id,
+  o.status,
+  o.updated_at
+FROM orders o
+  JOIN locations l ON l.id = o.location_id
+WHERE o.id = $1;
+
 -- name: GetPartnerOrderByPickupCode :one
 SELECT o.id,
   o.pickup_code,

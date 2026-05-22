@@ -62,6 +62,23 @@ func (c *Client) connect() error {
 		return fmt.Errorf("rabbitmq declare exchange: %w", err)
 	}
 
+	err = ch.ExchangeDeclare(
+		ExchangeOrders,
+		amqp.ExchangeTopic,
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		err = ch.Close()
+		c.failOnError(err, "rabbitmq declare orders exchange")
+		err = conn.Close()
+		c.failOnError(err, "rabbitmq declare orders exchange")
+		return fmt.Errorf("rabbitmq declare orders exchange: %w", err)
+	}
+
 	// Publisher confirms - брокер подтверждает, что принял сообщение
 	if err = ch.Confirm(false); err != nil {
 		err = ch.Close()
@@ -95,11 +112,15 @@ func (c *Client) reconnect() {
 }
 
 func (c *Client) Publish(ctx context.Context, routingKey string, body []byte) error {
+	return c.PublishToExchange(ctx, ExchangeNotifications, routingKey, body)
+}
+
+func (c *Client) PublishToExchange(ctx context.Context, exchange, routingKey string, body []byte) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	err := c.ch.PublishWithContext(ctx,
-		ExchangeNotifications,
+		exchange,
 		routingKey,
 		true, // mandatory — вернёт ошибку, если нет подходящей очереди
 		false,

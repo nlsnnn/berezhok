@@ -10,6 +10,7 @@ import (
 
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 	partnerErrors "github.com/nlsnnn/berezhok/internal/modules/partner/errors"
+	"github.com/nlsnnn/berezhok/internal/shared/authz"
 )
 
 type employeeRepoStub struct {
@@ -158,7 +159,7 @@ func TestCreateManagedEmployeeSuccess(t *testing.T) {
 	)
 
 	employee, err := svc.CreateManaged(context.Background(), CreateManagedEmployeeInput{
-		PartnerID:  partnerID,
+		Actor:      ownerActor(t, partnerID, uuid.New().String()),
 		LocationID: locationID.String(),
 		Email:      "staff@example.com",
 		Name:       "Ivan",
@@ -190,7 +191,7 @@ func TestCreateManagedEmployeeRejectsForeignLocation(t *testing.T) {
 	)
 
 	_, err := svc.CreateManaged(context.Background(), CreateManagedEmployeeInput{
-		PartnerID:  uuid.New().String(),
+		Actor:      ownerActor(t, uuid.New().String(), uuid.New().String()),
 		LocationID: uuid.New().String(),
 		Email:      "staff@example.com",
 		Name:       "Ivan",
@@ -242,7 +243,7 @@ func TestCreateManagedEmployeeRollsBackWhenInviteFails(t *testing.T) {
 	)
 
 	_, err := svc.CreateManaged(context.Background(), CreateManagedEmployeeInput{
-		PartnerID:  partnerID,
+		Actor:      ownerActor(t, partnerID, uuid.New().String()),
 		LocationID: locationID.String(),
 		Email:      "staff@example.com",
 		Name:       "Ivan",
@@ -258,12 +259,15 @@ func TestCreateManagedEmployeeRollsBackWhenInviteFails(t *testing.T) {
 func TestDeleteManagedEmployeeRejectsOwnerAndSelf(t *testing.T) {
 	t.Parallel()
 
+	partnerID := "11111111-1111-1111-1111-111111111111"
+	actorEmployeeID := "22222222-2222-2222-2222-222222222222"
+	employeeID := "33333333-3333-3333-3333-333333333333"
 	svc := NewEmployeeService(
 		&employeeRepoStub{
 			findByIDFn: func(ctx context.Context, id string) (domain.Employee, error) {
 				return domain.Employee{
 					ID:        id,
-					PartnerID: "partner-1",
+					PartnerID: partnerID,
 					Role:      domain.EmployeeRoleOwner,
 				}, nil
 			},
@@ -274,9 +278,8 @@ func TestDeleteManagedEmployeeRejectsOwnerAndSelf(t *testing.T) {
 	)
 
 	err := svc.DeleteManaged(context.Background(), DeleteManagedEmployeeInput{
-		PartnerID:       "partner-1",
-		ActorEmployeeID: "employee-1",
-		EmployeeID:      "employee-2",
+		Actor:      ownerActor(t, partnerID, actorEmployeeID),
+		EmployeeID: employeeID,
 	})
 	if !errors.Is(err, partnerErrors.ErrCannotDeleteOwner) {
 		t.Fatalf("expected ErrCannotDeleteOwner, got %v", err)
@@ -287,7 +290,7 @@ func TestDeleteManagedEmployeeRejectsOwnerAndSelf(t *testing.T) {
 			findByIDFn: func(ctx context.Context, id string) (domain.Employee, error) {
 				return domain.Employee{
 					ID:        id,
-					PartnerID: "partner-1",
+					PartnerID: partnerID,
 					Role:      domain.EmployeeRoleEmployee,
 				}, nil
 			},
@@ -298,11 +301,57 @@ func TestDeleteManagedEmployeeRejectsOwnerAndSelf(t *testing.T) {
 	)
 
 	err = selfSvc.DeleteManaged(context.Background(), DeleteManagedEmployeeInput{
-		PartnerID:       "partner-1",
-		ActorEmployeeID: "employee-1",
-		EmployeeID:      "employee-1",
+		Actor:      ownerActor(t, partnerID, actorEmployeeID),
+		EmployeeID: actorEmployeeID,
 	})
 	if !errors.Is(err, partnerErrors.ErrCannotDeleteSelf) {
 		t.Fatalf("expected ErrCannotDeleteSelf, got %v", err)
 	}
+}
+
+func TestManagedEmployeesRejectsNonOwnerActor(t *testing.T) {
+	t.Parallel()
+
+	svc := NewEmployeeService(
+		&employeeRepoStub{},
+		&employeeEmailCheckerStub{},
+		&employeeLocationProviderStub{},
+		&employeeNotificationProviderStub{},
+	)
+	manager := authz.PartnerActor{PartnerID: uuid.New(), EmployeeID: uuid.New(), Role: authz.RoleManager}
+
+	if _, err := svc.ListManagedByPartnerID(context.Background(), manager); !errors.Is(err, authz.ErrForbidden) {
+		t.Fatalf("expected forbidden list, got %v", err)
+	}
+
+	_, err := svc.CreateManaged(context.Background(), CreateManagedEmployeeInput{
+		Actor:      manager,
+		LocationID: uuid.New().String(),
+		Email:      "staff@example.com",
+		Name:       "Ivan",
+	})
+	if !errors.Is(err, authz.ErrForbidden) {
+		t.Fatalf("expected forbidden create, got %v", err)
+	}
+
+	err = svc.DeleteManaged(context.Background(), DeleteManagedEmployeeInput{
+		Actor:      manager,
+		EmployeeID: uuid.New().String(),
+	})
+	if !errors.Is(err, authz.ErrForbidden) {
+		t.Fatalf("expected forbidden delete, got %v", err)
+	}
+}
+
+func ownerActor(t *testing.T, partnerID, employeeID string) authz.PartnerActor {
+	t.Helper()
+
+	actor := authz.PartnerActor{Role: authz.RoleOwner}
+	if id, err := uuid.Parse(partnerID); err == nil {
+		actor.PartnerID = id
+	}
+	if id, err := uuid.Parse(employeeID); err == nil {
+		actor.EmployeeID = id
+	}
+	return actor
 }

@@ -18,6 +18,17 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
+      '/chat-api': {
+        target: 'http://localhost:8090',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/chat-api/, '/api'),
+      },
+      '/chat-ws': {
+        target: 'ws://localhost:8090',
+        ws: true,
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/chat-ws/, '/ws'),
+      },
     },
   },
 })

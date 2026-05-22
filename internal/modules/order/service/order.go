@@ -13,12 +13,14 @@ import (
 	catalogErrors "github.com/nlsnnn/berezhok/internal/modules/catalog/errors"
 	"github.com/nlsnnn/berezhok/internal/modules/order/domain"
 	orderErrors "github.com/nlsnnn/berezhok/internal/modules/order/errors"
+	"github.com/nlsnnn/berezhok/internal/shared/authz"
 )
 
 type orderRepository interface {
 	CreateOrder(ctx context.Context, order *domain.Order) error
 	GetOrderByID(ctx context.Context, orderID uuid.UUID) (*domain.Order, error)
 	GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) (*domain.OrderDetails, error)
+	GetOrderChatProjection(ctx context.Context, orderID uuid.UUID) (*domain.OrderChatProjection, error)
 	GetPartnerOrderByPickupCode(ctx context.Context, pickupCode string, partnerID uuid.UUID) (*domain.PartnerOrderByCode, error)
 	GetLocationOrderByPickupCode(ctx context.Context, pickupCode string, locationID uuid.UUID) (*domain.PartnerOrderByCode, error)
 	ListOrdersByPartnerID(ctx context.Context, partnerID uuid.UUID, status string, limit, offset int) ([]domain.PartnerOrderListItem, int, error)
@@ -30,11 +32,9 @@ type orderRepository interface {
 	ReserveBox(ctx context.Context, boxID uuid.UUID) (bool, error)
 }
 
-type PartnerActor struct {
-	PartnerID  uuid.UUID
-	EmployeeID uuid.UUID
-	Role       string
-	LocationID *uuid.UUID
+type orderProjectionPublisher interface {
+	PublishOrderCreated(ctx context.Context, projection domain.OrderChatProjection) error
+	PublishOrderStatusChanged(ctx context.Context, projection domain.OrderChatProjection) error
 }
 
 type paymentProvider interface {
@@ -49,16 +49,21 @@ type orderService struct {
 	repo            orderRepository
 	paymentProvider paymentProvider
 	boxProvider     boxProvider
+	eventPublisher  orderProjectionPublisher
 	log             *slog.Logger
 }
 
-func NewOrderService(repo orderRepository, boxProvider boxProvider, paymentProvider paymentProvider, log *slog.Logger) *orderService {
-	return &orderService{
+func NewOrderService(repo orderRepository, boxProvider boxProvider, paymentProvider paymentProvider, log *slog.Logger, publishers ...orderProjectionPublisher) *orderService {
+	s := &orderService{
 		repo:            repo,
 		boxProvider:     boxProvider,
 		paymentProvider: paymentProvider,
 		log:             log,
 	}
+	if len(publishers) > 0 {
+		s.eventPublisher = publishers[0]
+	}
+	return s
 }
 
 // CreateOrder creates a new order with box reservation
@@ -107,6 +112,7 @@ func (s *orderService) CreateOrder(ctx context.Context, boxID, customerID uuid.U
 		slog.String("customer_id", customerID.String()),
 		slog.String("box_id", boxID.String()),
 	)
+	s.publishProjection(ctx, order.ID, false)
 
 	// 6. Create payment link
 	paymentLink, err := s.paymentProvider.Create(ctx, box.Price.Discount, order.ID)
@@ -145,8 +151,18 @@ func (s *orderService) GetOrderDetailsByID(ctx context.Context, orderID uuid.UUI
 	return order, nil
 }
 
+func (s *orderService) GetOrderChatProjection(ctx context.Context, orderID uuid.UUID) (*domain.OrderChatProjection, error) {
+	const op = "order.service.GetOrderChatProjection"
+
+	projection, err := s.repo.GetOrderChatProjection(ctx, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+	return projection, nil
+}
+
 // GetPartnerOrderByPickupCode retrieves partner-scoped order details by pickup code.
-func (s *orderService) GetPartnerOrderByPickupCode(ctx context.Context, actor PartnerActor, pickupCode string) (*domain.PartnerOrderByCode, error) {
+func (s *orderService) GetPartnerOrderByPickupCode(ctx context.Context, actor authz.PartnerActor, pickupCode string) (*domain.PartnerOrderByCode, error) {
 	const op = "order.service.GetPartnerOrderByPickupCode"
 
 	var (
@@ -154,7 +170,11 @@ func (s *orderService) GetPartnerOrderByPickupCode(ctx context.Context, actor Pa
 		err   error
 	)
 
-	if actor.Role == "employee" && actor.LocationID != nil {
+	if actor.Role != authz.RoleOwner {
+		fmt.Println("JOPA")
+		if actor.LocationID == nil {
+			return nil, authz.ErrLocationScopeDenied
+		}
 		order, err = s.repo.GetLocationOrderByPickupCode(ctx, pickupCode, *actor.LocationID)
 	} else {
 		order, err = s.repo.GetPartnerOrderByPickupCode(ctx, pickupCode, actor.PartnerID)
@@ -167,7 +187,7 @@ func (s *orderService) GetPartnerOrderByPickupCode(ctx context.Context, actor Pa
 }
 
 // ListOrdersByPartnerID retrieves filtered, paginated orders for a partner.
-func (s *orderService) ListOrdersByPartnerID(ctx context.Context, actor PartnerActor, status string, limit, offset int) (*ListPartnerOrdersResult, error) {
+func (s *orderService) ListOrdersByPartnerID(ctx context.Context, actor authz.PartnerActor, status string, limit, offset int) (*ListPartnerOrdersResult, error) {
 	const op = "order.service.ListOrdersByPartnerID"
 
 	var (
@@ -176,7 +196,10 @@ func (s *orderService) ListOrdersByPartnerID(ctx context.Context, actor PartnerA
 		err   error
 	)
 
-	if actor.Role == "employee" && actor.LocationID != nil {
+	if actor.Role != authz.RoleOwner {
+		if actor.LocationID == nil {
+			return nil, authz.ErrLocationScopeDenied
+		}
 		items, total, err = s.repo.ListActiveOrdersByLocationID(ctx, *actor.LocationID, limit, offset)
 	} else {
 		items, total, err = s.repo.ListOrdersByPartnerID(ctx, actor.PartnerID, status, limit, offset)
@@ -194,11 +217,14 @@ func (s *orderService) ListOrdersByPartnerID(ctx context.Context, actor PartnerA
 }
 
 // MarkOrderPickedUp marks a partner's order as picked up.
-func (s *orderService) MarkOrderPickedUp(ctx context.Context, actor PartnerActor, orderID uuid.UUID) error {
+func (s *orderService) MarkOrderPickedUp(ctx context.Context, actor authz.PartnerActor, orderID uuid.UUID) error {
 	const op = "order.service.MarkOrderPickedUp"
 
 	var err error
-	if actor.Role == "employee" && actor.LocationID != nil {
+	if actor.Role != authz.RoleOwner {
+		if actor.LocationID == nil {
+			return authz.ErrLocationScopeDenied
+		}
 		err = s.repo.MarkLocationOrderPickedUp(ctx, orderID, *actor.LocationID, actor.EmployeeID)
 	} else {
 		err = s.repo.MarkOrderPickedUp(ctx, orderID, actor.PartnerID, actor.EmployeeID)
@@ -206,6 +232,7 @@ func (s *orderService) MarkOrderPickedUp(ctx context.Context, actor PartnerActor
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
+	s.publishProjection(ctx, orderID, true)
 
 	return nil
 }
@@ -244,6 +271,28 @@ func (s *orderService) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID,
 		slog.String("order_id", orderID.String()),
 		slog.String("new_status", string(status)),
 	)
+	s.publishProjection(ctx, orderID, true)
 
 	return nil
+}
+
+func (s *orderService) publishProjection(ctx context.Context, orderID uuid.UUID, statusChanged bool) {
+	if s.eventPublisher == nil {
+		return
+	}
+	projection, err := s.repo.GetOrderChatProjection(ctx, orderID)
+	if err != nil {
+		if s.log != nil {
+			s.log.Warn("failed to load order chat projection", slog.String("order_id", orderID.String()), slog.String("err", err.Error()))
+		}
+		return
+	}
+	if statusChanged {
+		err = s.eventPublisher.PublishOrderStatusChanged(ctx, *projection)
+	} else {
+		err = s.eventPublisher.PublishOrderCreated(ctx, *projection)
+	}
+	if err != nil && s.log != nil {
+		s.log.Warn("failed to publish order chat projection", slog.String("order_id", orderID.String()), slog.String("err", err.Error()))
+	}
 }

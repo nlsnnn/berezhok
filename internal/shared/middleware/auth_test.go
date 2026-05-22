@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/nlsnnn/berezhok/internal/modules/auth"
+	"github.com/nlsnnn/berezhok/internal/shared/authz"
 	"github.com/nlsnnn/berezhok/internal/shared/contextx"
 )
 
@@ -54,6 +55,10 @@ func TestRequireAuthStoresPartnerEmployeeContext(t *testing.T) {
 		role, _ := contextx.UserRole(r)
 		payload["role"] = role
 
+		actor, _ := contextx.PartnerActor(r)
+		payload["actor_role"] = string(actor.Role)
+		payload["actor_partner_id"] = actor.PartnerID.String()
+
 		_ = json.NewEncoder(w).Encode(payload)
 	}))
 
@@ -84,9 +89,15 @@ func TestRequireAuthStoresPartnerEmployeeContext(t *testing.T) {
 	if payload["role"] != "employee" {
 		t.Fatalf("expected role employee, got %s", payload["role"])
 	}
+	if payload["actor_role"] != "employee" {
+		t.Fatalf("expected actor role employee, got %s", payload["actor_role"])
+	}
+	if payload["actor_partner_id"] != partnerID.String() {
+		t.Fatalf("expected actor partner_id %s, got %s", partnerID, payload["actor_partner_id"])
+	}
 }
 
-func TestRequirePartnerRolesRejectsNonOwner(t *testing.T) {
+func TestRequirePermissionRejectsMissingPermission(t *testing.T) {
 	t.Parallel()
 
 	mw := NewAuthMiddleware(&tokenServiceStub{
@@ -99,7 +110,7 @@ func TestRequirePartnerRolesRejectsNonOwner(t *testing.T) {
 		},
 	})
 
-	handler := mw.RequireAuth("partner")(mw.RequirePartnerRoles("owner")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := mw.RequireAuth("partner")(mw.RequirePermission(authz.PermissionPartnerEmployeesManage)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})))
 
@@ -111,5 +122,37 @@ func TestRequirePartnerRolesRejectsNonOwner(t *testing.T) {
 
 	if rr.Code != http.StatusForbidden {
 		t.Fatalf("expected status 403, got %d", rr.Code)
+	}
+}
+
+func TestRequirePermissionAllowsManagerBoxes(t *testing.T) {
+	t.Parallel()
+
+	partnerID := uuid.New()
+	locationID := uuid.New()
+	mw := NewAuthMiddleware(&tokenServiceStub{
+		validateFn: func(token string) (*auth.TokenClaims, error) {
+			return &auth.TokenClaims{
+				UserID:     uuid.New(),
+				UserType:   "partner",
+				Role:       "manager",
+				PartnerID:  &partnerID,
+				LocationID: &locationID,
+			}, nil
+		},
+	})
+
+	handler := mw.RequireAuth("partner")(mw.RequirePermission(authz.PermissionPartnerBoxesManage)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})))
+
+	req := httptest.NewRequest(http.MethodGet, "/partner/boxes", nil)
+	req.Header.Set("Authorization", "Bearer token")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rr.Code)
 	}
 }
