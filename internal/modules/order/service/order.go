@@ -2,48 +2,15 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 
 	"github.com/google/uuid"
-	"github.com/shopspring/decimal"
 
-	catalogDomain "github.com/nlsnnn/berezhok/internal/modules/catalog/domain"
-	catalogErrors "github.com/nlsnnn/berezhok/internal/modules/catalog/errors"
 	"github.com/nlsnnn/berezhok/internal/modules/order/domain"
 	orderErrors "github.com/nlsnnn/berezhok/internal/modules/order/errors"
 	"github.com/nlsnnn/berezhok/internal/shared/authz"
 )
-
-type orderRepository interface {
-	CreateOrder(ctx context.Context, order *domain.Order) error
-	GetOrderByID(ctx context.Context, orderID uuid.UUID) (*domain.Order, error)
-	GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) (*domain.OrderDetails, error)
-	GetOrderChatProjection(ctx context.Context, orderID uuid.UUID) (*domain.OrderChatProjection, error)
-	GetPartnerOrderByPickupCode(ctx context.Context, pickupCode string, partnerID uuid.UUID) (*domain.PartnerOrderByCode, error)
-	GetLocationOrderByPickupCode(ctx context.Context, pickupCode string, locationID uuid.UUID) (*domain.PartnerOrderByCode, error)
-	ListOrdersByPartnerID(ctx context.Context, partnerID uuid.UUID, status string, limit, offset int) ([]domain.PartnerOrderListItem, int, error)
-	ListActiveOrdersByLocationID(ctx context.Context, locationID uuid.UUID, limit, offset int) ([]domain.PartnerOrderListItem, int, error)
-	MarkOrderPickedUp(ctx context.Context, orderID, partnerID, employeeID uuid.UUID) error
-	MarkLocationOrderPickedUp(ctx context.Context, orderID, locationID, employeeID uuid.UUID) error
-	ListOrdersFiltered(ctx context.Context, customerID uuid.UUID, status string, limit, offset int) ([]domain.OrderListItem, int, error)
-	UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, status domain.OrderStatus) error
-	ReserveBox(ctx context.Context, boxID uuid.UUID) (bool, error)
-}
-
-type orderProjectionPublisher interface {
-	PublishOrderCreated(ctx context.Context, projection domain.OrderChatProjection) error
-	PublishOrderStatusChanged(ctx context.Context, projection domain.OrderChatProjection) error
-}
-
-type paymentProvider interface {
-	Create(ctx context.Context, amount decimal.Decimal, orderID uuid.UUID) (string, error)
-}
-
-type boxProvider interface {
-	GetBoxByID(ctx context.Context, id string) (*catalogDomain.SurpriseBox, error)
-}
 
 type orderService struct {
 	repo            orderRepository
@@ -71,53 +38,49 @@ func (s *orderService) CreateOrder(ctx context.Context, boxID, customerID uuid.U
 	const op = "order.service.CreateOrder"
 	log := s.log.With(slog.String("op", op))
 
-	// 1. Validate box exists and is active
-	box, err := s.boxProvider.GetBoxByID(ctx, boxID.String())
+	// 1. Validate box exists and load the order-facing snapshot.
+	box, err := s.boxProvider.GetBoxForOrder(ctx, boxID)
 	if err != nil {
-		if errors.Is(err, catalogErrors.ErrBoxNotFound) {
-			return nil, orderErrors.ErrBoxNotAvailable
+		return nil, fmt.Errorf("%s: failed to get box for order: %w", op, err)
+	}
+
+	// 2. Validate box status and stock availability.
+	if !box.Available {
+		log.Warn("box is not available", slog.String("box_id", boxID.String()))
+		return nil, orderErrors.ErrBoxNotAvailable
+	}
+
+	// 3. Build a pending order from the catalog snapshot.
+	order := domain.NewOrder(customerID, boxID, box.LocationID, box.PickupTime, box.Amount)
+
+	// 4. Atomically create the order or reuse the customer's active order for this box.
+	created, err := s.repo.CreateOrGetActiveOrder(ctx, order)
+	if err != nil {
+		return nil, fmt.Errorf("%s: failed to create or get active order: %w", op, err)
+	}
+
+	// 5. Publish order.created only for a newly inserted order.
+	if created {
+		log.Info("order created successfully",
+			slog.String("order_id", order.ID.String()),
+			slog.String("customer_id", customerID.String()),
+			slog.String("box_id", boxID.String()),
+		)
+		s.publishProjection(ctx, order.ID, false)
+	} else {
+		log.Info("active order reused",
+			slog.String("order_id", order.ID.String()),
+			slog.String("customer_id", customerID.String()),
+			slog.String("box_id", boxID.String()),
+		)
+	}
+
+	// 6. Ensure the payment module returns a usable payment link.
+	paymentLink, err := s.paymentProvider.EnsurePaymentLink(ctx, order.Amount(), order.ID)
+	if err != nil {
+		if s.log != nil {
+			s.log.Error("failed to ensure payment link", slog.String("order_id", order.ID.String()), slog.Any("error", err))
 		}
-		return nil, fmt.Errorf("%s: failed to get box: %w", op, err)
-	}
-
-	// 2. Validate box status
-	if !box.IsAvailable() {
-		log.Warn("box is not available", slog.String("box_id", boxID.String()), slog.String("status", string(box.Status)))
-		return nil, orderErrors.ErrBoxNotAvailable
-	}
-
-	// 3. Atomically reserve the box
-	// TODO: Move reservation logic to a catalog service
-	reserved, err := s.repo.ReserveBox(ctx, boxID)
-	if err != nil {
-		return nil, fmt.Errorf("%s: failed to reserve box: %w", op, err)
-	}
-
-	if !reserved {
-		log.Warn("failed to reserve box - no rows affected", slog.String("box_id", boxID.String()))
-		return nil, orderErrors.ErrBoxNotAvailable
-	}
-
-	// 5. Create the order
-	order := domain.NewOrder(customerID, boxID, box.LocationID, box.PickupTime, box.Price.Discount)
-
-	err = s.repo.CreateOrder(ctx, order)
-	if err != nil {
-		// TODO: Consider implementing rollback logic to unreserve the box
-		return nil, fmt.Errorf("%s: failed to create order: %w", op, err)
-	}
-
-	log.Info("order created successfully",
-		slog.String("order_id", order.ID.String()),
-		slog.String("customer_id", customerID.String()),
-		slog.String("box_id", boxID.String()),
-	)
-	s.publishProjection(ctx, order.ID, false)
-
-	// 6. Create payment link
-	paymentLink, err := s.paymentProvider.Create(ctx, box.Price.Discount, order.ID)
-	if err != nil {
-		log.Error("failed to create payment link", slog.String("order_id", order.ID.String()), slog.Any("error", err))
 		return nil, fmt.Errorf("%s: %w", op, orderErrors.ErrPaymentFailed)
 	}
 

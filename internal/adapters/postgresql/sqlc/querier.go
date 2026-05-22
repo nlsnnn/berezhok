@@ -12,6 +12,7 @@ import (
 )
 
 type Querier interface {
+	AcquireOrderCreationLock(ctx context.Context, arg AcquireOrderCreationLockParams) error
 	ActivateLocation(ctx context.Context, id uuid.UUID) error
 	CheckEmailExists(ctx context.Context, email string) (bool, error)
 	CloseLocation(ctx context.Context, id uuid.UUID) error
@@ -36,7 +37,7 @@ type Querier interface {
 	CreateOrder(ctx context.Context, arg CreateOrderParams) (Order, error)
 	CreatePartner(ctx context.Context, arg CreatePartnerParams) (Partner, error)
 	CreatePartnerEmployee(ctx context.Context, arg CreatePartnerEmployeeParams) (PartnerEmployee, error)
-	CreatePayment(ctx context.Context, arg CreatePaymentParams) (Payment, error)
+	CreatePayment(ctx context.Context, arg CreatePaymentParams) (CreatePaymentRow, error)
 	CreateReview(ctx context.Context, arg CreateReviewParams) (Review, error)
 	DeactivateLocation(ctx context.Context, id uuid.UUID) error
 	DeleteApplication(ctx context.Context, id uuid.UUID) error
@@ -62,6 +63,7 @@ type Querier interface {
 	FindPartnerByID(ctx context.Context, id uuid.UUID) (Partner, error)
 	FindPartnerEmployeeByEmail(ctx context.Context, email string) (PartnerEmployee, error)
 	FindPartnerEmployeeByID(ctx context.Context, id uuid.UUID) (PartnerEmployee, error)
+	GetActiveOrderByCustomerAndBox(ctx context.Context, arg GetActiveOrderByCustomerAndBoxParams) (Order, error)
 	// Get customer profile with stats
 	GetCustomerProfile(ctx context.Context, id uuid.UUID) (GetCustomerProfileRow, error)
 	// Get location details by ID with category info
