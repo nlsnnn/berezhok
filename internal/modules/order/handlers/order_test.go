@@ -15,11 +15,12 @@ import (
 	"github.com/nlsnnn/berezhok/internal/lib/validator"
 	"github.com/nlsnnn/berezhok/internal/modules/order/domain"
 	"github.com/nlsnnn/berezhok/internal/modules/order/service"
+	"github.com/nlsnnn/berezhok/internal/shared/authz"
 	"github.com/nlsnnn/berezhok/internal/shared/contextx"
 )
 
 type orderServiceStub struct {
-	listPartnerOrdersByIDFn func(ctx context.Context, actor service.PartnerActor, status string, limit, offset int) (*service.ListPartnerOrdersResult, error)
+	listPartnerOrdersByIDFn func(ctx context.Context, actor authz.PartnerActor, status string, limit, offset int) (*service.ListPartnerOrdersResult, error)
 }
 
 func (s *orderServiceStub) CreateOrder(ctx context.Context, boxID, customerID uuid.UUID) (*service.CreateOrderResult, error) {
@@ -34,11 +35,15 @@ func (s *orderServiceStub) GetOrderDetailsByID(ctx context.Context, orderID uuid
 	return nil, nil
 }
 
-func (s *orderServiceStub) GetPartnerOrderByPickupCode(ctx context.Context, actor service.PartnerActor, pickupCode string) (*domain.PartnerOrderByCode, error) {
+func (s *orderServiceStub) GetOrderChatProjection(ctx context.Context, orderID uuid.UUID) (*domain.OrderChatProjection, error) {
 	return nil, nil
 }
 
-func (s *orderServiceStub) ListOrdersByPartnerID(ctx context.Context, actor service.PartnerActor, status string, limit, offset int) (*service.ListPartnerOrdersResult, error) {
+func (s *orderServiceStub) GetPartnerOrderByPickupCode(ctx context.Context, actor authz.PartnerActor, pickupCode string) (*domain.PartnerOrderByCode, error) {
+	return nil, nil
+}
+
+func (s *orderServiceStub) ListOrdersByPartnerID(ctx context.Context, actor authz.PartnerActor, status string, limit, offset int) (*service.ListPartnerOrdersResult, error) {
 	if s.listPartnerOrdersByIDFn != nil {
 		return s.listPartnerOrdersByIDFn(ctx, actor, status, limit, offset)
 	}
@@ -46,7 +51,7 @@ func (s *orderServiceStub) ListOrdersByPartnerID(ctx context.Context, actor serv
 	return &service.ListPartnerOrdersResult{}, nil
 }
 
-func (s *orderServiceStub) MarkOrderPickedUp(ctx context.Context, actor service.PartnerActor, orderID uuid.UUID) error {
+func (s *orderServiceStub) MarkOrderPickedUp(ctx context.Context, actor authz.PartnerActor, orderID uuid.UUID) error {
 	return nil
 }
 
@@ -63,11 +68,11 @@ func TestListPartnerOrdersSuccess(t *testing.T) {
 	createdAt := pickupStart.Add(-4 * time.Hour)
 
 	h := NewOrderHandler(&orderServiceStub{
-		listPartnerOrdersByIDFn: func(ctx context.Context, actor service.PartnerActor, status string, limit, offset int) (*service.ListPartnerOrdersResult, error) {
+		listPartnerOrdersByIDFn: func(ctx context.Context, actor authz.PartnerActor, status string, limit, offset int) (*service.ListPartnerOrdersResult, error) {
 			if actor.PartnerID != partnerID {
 				t.Fatalf("expected partner id %s, got %s", partnerID, actor.PartnerID)
 			}
-			if actor.Role != "owner" {
+			if actor.Role != authz.RoleOwner {
 				t.Fatalf("expected role owner, got %s", actor.Role)
 			}
 			if status != "confirmed" {
@@ -106,8 +111,11 @@ func TestListPartnerOrdersSuccess(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/partner/orders?status=confirmed&limit=10&offset=20", nil)
 	ctx := context.WithValue(req.Context(), contextx.PartnerIDKey, partnerID)
-	ctx = context.WithValue(ctx, contextx.EmployeeIDKey, uuid.New())
-	ctx = context.WithValue(ctx, contextx.UserRoleKey, "owner")
+	ctx = context.WithValue(ctx, contextx.PartnerActorKey, authz.PartnerActor{
+		PartnerID:  partnerID,
+		EmployeeID: uuid.New(),
+		Role:       authz.RoleOwner,
+	})
 	req = req.WithContext(ctx)
 	rr := httptest.NewRecorder()
 

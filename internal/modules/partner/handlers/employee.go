@@ -12,6 +12,7 @@ import (
 	partnerErrors "github.com/nlsnnn/berezhok/internal/modules/partner/errors"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/handlers/dto"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/service"
+	"github.com/nlsnnn/berezhok/internal/shared/authz"
 	"github.com/nlsnnn/berezhok/internal/shared/contextx"
 	"github.com/nlsnnn/berezhok/internal/shared/response"
 )
@@ -34,15 +35,20 @@ func (h *employeeHandler) List(w http.ResponseWriter, r *http.Request) {
 	const op = "partner.handler.employee.List"
 	log := h.log.With(slog.String("op", op))
 
-	partnerID, err := contextx.PartnerID(r)
+	actor, err := contextx.PartnerActor(r)
 	if err != nil {
-		log.Error("partner_id not found in context", sl.Err(err))
+		log.Error("partner actor not found in context", sl.Err(err))
 		response.InternalError(w, nil)
 		return
 	}
 
-	employees, err := h.svc.ListManagedByPartnerID(r.Context(), partnerID.String())
+	employees, err := h.svc.ListManagedByPartnerID(r.Context(), actor)
 	if err != nil {
+		if errors.Is(err, authz.ErrForbidden) {
+			response.Forbidden(w, "access denied")
+			return
+		}
+
 		log.Error("failed to list employees", sl.Err(err))
 		response.InternalError(w, nil)
 		return
@@ -55,9 +61,9 @@ func (h *employeeHandler) Create(w http.ResponseWriter, r *http.Request) {
 	const op = "partner.handler.employee.Create"
 	log := h.log.With(slog.String("op", op))
 
-	partnerID, err := contextx.PartnerID(r)
+	actor, err := contextx.PartnerActor(r)
 	if err != nil {
-		log.Error("partner_id not found in context", sl.Err(err))
+		log.Error("partner actor not found in context", sl.Err(err))
 		response.InternalError(w, nil)
 		return
 	}
@@ -69,9 +75,11 @@ func (h *employeeHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	employee, err := h.svc.CreateManaged(r.Context(), req.ToInput(partnerID.String()))
+	employee, err := h.svc.CreateManaged(r.Context(), req.ToInput(actor))
 	if err != nil {
 		switch {
+		case errors.Is(err, authz.ErrForbidden):
+			response.Forbidden(w, "access denied")
 		case errors.Is(err, partnerErrors.ErrEmailAlreadyInUse),
 			errors.Is(err, partnerErrors.ErrLocationNotOwnedByPartner):
 			log.Warn("failed to create employee", sl.Err(err))
@@ -93,28 +101,22 @@ func (h *employeeHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	const op = "partner.handler.employee.Delete"
 	log := h.log.With(slog.String("op", op))
 
-	partnerID, err := contextx.PartnerID(r)
+	actor, err := contextx.PartnerActor(r)
 	if err != nil {
-		log.Error("partner_id not found in context", sl.Err(err))
-		response.InternalError(w, nil)
-		return
-	}
-
-	actorEmployeeID, err := contextx.EmployeeID(r)
-	if err != nil {
-		log.Error("employee_id not found in context", sl.Err(err))
+		log.Error("partner actor not found in context", sl.Err(err))
 		response.InternalError(w, nil)
 		return
 	}
 
 	employeeID := chi.URLParam(r, "id")
 	err = h.svc.DeleteManaged(r.Context(), service.DeleteManagedEmployeeInput{
-		PartnerID:       partnerID.String(),
-		ActorEmployeeID: actorEmployeeID.String(),
-		EmployeeID:      employeeID,
+		Actor:      actor,
+		EmployeeID: employeeID,
 	})
 	if err != nil {
 		switch {
+		case errors.Is(err, authz.ErrForbidden):
+			response.Forbidden(w, "access denied")
 		case errors.Is(err, partnerErrors.ErrEmployeeNotFound):
 			log.Warn("employee not found", sl.Err(err))
 			response.NotFound(w, err.Error())

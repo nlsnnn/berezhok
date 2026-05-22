@@ -9,6 +9,8 @@ import {
   QrCode,
   UserCircle,
   Users,
+  MessageSquare,
+  Gift,
 } from 'lucide-react'
 
 export const partnerNavLinks = [
@@ -20,6 +22,7 @@ export const partnerNavLinks = [
     mobilePrimary: true,
     matchPaths: ['/partner/dashboard'],
   },
+
   {
     to: '/partner/locations',
     label: 'Локации',
@@ -49,6 +52,19 @@ export const partnerNavLinks = [
     roles: ['owner', 'employee'],
     mobilePrimary: true,
     matchPaths: ['/partner/orders/pickup'],
+  },
+  {
+    to: '/partner/chat',
+    label: 'Чаты',
+    icon: MessageSquare,
+    roles: ['owner', 'employee'],
+  },
+{
+    to: '/partner/promo',
+    label: 'Промо',
+    icon: Gift,
+    roles: ['owner'],
+    matchPaths: ['/partner/promo'],
   },
   {
     to: '/partner/employees',

@@ -113,6 +113,15 @@ type OrderListResponse struct {
 	Pagination PaginationResponse `json:"pagination"`
 }
 
+type OrderChatAccessResponse struct {
+	OrderID    string    `json:"order_id"`
+	CustomerID string    `json:"customer_id"`
+	PartnerID  string    `json:"partner_id"`
+	LocationID string    `json:"location_id"`
+	Status     string    `json:"status"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
 // ToOrderDetailResponse converts order details to API response contract for GET /customer/orders/{order_id}
 func ToOrderDetailResponse(order *domain.OrderDetails) OrderDetailResponse {
 	return OrderDetailResponse{
@@ -259,5 +268,16 @@ func ToCreateOrderResponse(orderID, paymentURL string, amount float64, expiresAt
 		PaymentURL: paymentURL,
 		Amount:     amount,
 		ExpiresAt:  expiresAt,
+	}
+}
+
+func ToOrderChatAccessResponse(projection *domain.OrderChatProjection) OrderChatAccessResponse {
+	return OrderChatAccessResponse{
+		OrderID:    projection.OrderID.String(),
+		CustomerID: projection.CustomerID.String(),
+		PartnerID:  projection.PartnerID.String(),
+		LocationID: projection.LocationID.String(),
+		Status:     string(projection.Status),
+		UpdatedAt:  projection.UpdatedAt,
 	}
 }

@@ -31,6 +31,7 @@ import (
 	mediaHandlers "github.com/nlsnnn/berezhok/internal/modules/media/handlers"
 	mediaRepos "github.com/nlsnnn/berezhok/internal/modules/media/repository"
 	mediaServices "github.com/nlsnnn/berezhok/internal/modules/media/service"
+	orderAdapters "github.com/nlsnnn/berezhok/internal/modules/order/adapters"
 	orderHandlers "github.com/nlsnnn/berezhok/internal/modules/order/handlers"
 	orderRepos "github.com/nlsnnn/berezhok/internal/modules/order/repository"
 	orderServices "github.com/nlsnnn/berezhok/internal/modules/order/service"
@@ -44,6 +45,7 @@ import (
 	reviewHandlers "github.com/nlsnnn/berezhok/internal/modules/review/handlers"
 	reviewRepos "github.com/nlsnnn/berezhok/internal/modules/review/repository"
 	reviewServices "github.com/nlsnnn/berezhok/internal/modules/review/service"
+	"github.com/nlsnnn/berezhok/internal/shared/authz"
 	"github.com/nlsnnn/berezhok/internal/shared/config"
 	"github.com/nlsnnn/berezhok/internal/shared/jwt"
 	middlewares "github.com/nlsnnn/berezhok/internal/shared/middleware"
@@ -58,7 +60,7 @@ func (app *application) mount() http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins: []string{"http://localhost", "http://localhost:5173", "http://localhost:3000", "http://localhost:8000", "http://localhost:65035"},
+		AllowedOrigins: []string{"http://localhost", "http://localhost:5173", "http://localhost:3000", "http://localhost:8000", "http://localhost:55636"},
 		AllowedMethods: []string{"GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders: []string{"Link"},
@@ -74,6 +76,7 @@ func (app *application) mount() http.Handler {
 	v := validator.New()
 	jwtService := jwt.NewTokenService([]byte("supersecretkey"))
 	notificationPublisher := rabbitmq.NewNotificationPublisher(app.rabbitmq)
+	orderPublisher := rabbitmq.NewOrderPublisher(app.rabbitmq)
 
 	// Partner module - adapters
 	notificationAdapter := partneradapters.NewNotificationAdapter(notificationPublisher)
@@ -124,16 +127,17 @@ func (app *application) mount() http.Handler {
 
 	// Order module — repositories
 	orderRepo := orderRepos.NewOrderRepo(queries)
+	chatEventAdapter := orderAdapters.NewChatEventAdapter(orderPublisher)
 
 	// Payment module
-	orderStatusUpdater := orderServices.NewOrderStatusUpdater(orderRepo, app.log)
+	orderStatusUpdater := orderServices.NewOrderStatusUpdater(orderRepo, app.log, chatEventAdapter)
 	yookassaAdapter := yookassa.NewAdapter(yookassa.New(app.cfg.Yookassa))
 	paymentRepo := paymentRepos.NewPaymentRepo(queries)
 	paymentSvc := paymentServices.NewPaymentService(paymentRepo, yookassaAdapter, orderStatusUpdater)
 	webhookHandler := paymentHandlers.NewWebhookHandler(paymentSvc, app.log, v)
 
 	// Order module — services
-	orderSvc := orderServices.NewOrderService(orderRepo, boxSvc, paymentSvc, app.log)
+	orderSvc := orderServices.NewOrderService(orderRepo, boxSvc, paymentSvc, app.log, chatEventAdapter)
 
 	// Order module — handlers
 	orderHandler := orderHandlers.NewOrderHandler(orderSvc, app.log, v)
@@ -216,33 +220,61 @@ func (app *application) mount() http.Handler {
 			r.Use(authMiddleware.RequireAuth("partner"))
 
 			r.Group(func(r chi.Router) {
-				r.Use(authMiddleware.RequirePartnerRoles("owner", "employee"))
-
+				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerPasswordChange))
 				r.Post("/partner/change-password", partHandler.ChangePassword)
+			})
+
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerOrdersView))
 
 				// Orders
 				r.Get("/partner/orders", orderHandler.ListPartnerOrders)
 				r.Get("/partner/orders/by-code/{pickup_code}", orderHandler.GetPartnerOrderByPickupCode)
+			})
+
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerOrdersPickup))
+
 				r.Post("/partner/orders/{order_id}/pickup", orderHandler.PartnerPickupOrder)
 			})
 
 			r.Group(func(r chi.Router) {
-				r.Use(authMiddleware.RequirePartnerRoles("owner"))
-
+				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerProfileManage))
 				r.Get("/partner/profile", partHandler.Profile)
-				r.Get("/partner/dashboard", partHandler.Dashboard)
-				r.Get("/partner/stats", partHandler.Stats)
-				r.Post("/partner/legal-info", partHandler.AddLegalInfo)
+			})
 
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerLegalInfoManage))
+				r.Post("/partner/legal-info", partHandler.AddLegalInfo)
+			})
+
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerDashboardView))
+				r.Get("/partner/dashboard", partHandler.Dashboard)
+			})
+
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerStatsView))
+				r.Get("/partner/stats", partHandler.Stats)
+			})
+
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerEmployeesManage))
 				// Employees
 				r.Get("/partner/employees", employeeHandler.List)
 				r.Post("/partner/employees", employeeHandler.Create)
 				r.Delete("/partner/employees/{id}", employeeHandler.Delete)
+			})
 
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerLocationsManage))
 				// Location
 				r.Get("/partner/locations", locationHandler.List)
 				r.Post("/partner/locations", locationHandler.Create)
+			})
 
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerBoxesManage))
 				// Surprise Box
 				r.Post("/partner/boxes", boxHandler.Create)
 				r.Get("/partner/boxes/{id}", boxHandler.GetByID)
@@ -250,7 +282,10 @@ func (app *application) mount() http.Handler {
 				r.Delete("/partner/boxes/{id}", boxHandler.Delete)
 				r.Get("/partner/boxes", boxHandler.GetAllByPartnerID)
 				r.Get("/locations/{location_id}/boxes", boxHandler.GetAllByLocationID)
+			})
 
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerMediaUpload))
 				// Media
 				r.Post("/media/upload", mediaHandler.Upload)
 			})
@@ -266,6 +301,10 @@ func (app *application) mount() http.Handler {
 			r.Use(webhookMiddleware.IPFilterMiddleware)
 			r.Post("/webhooks/yookassa", webhookHandler.Yookassa)
 		})
+	})
+
+	r.Route("/api/internal/v1", func(r chi.Router) {
+		r.Get("/orders/{order_id}/chat-access", orderHandler.InternalChatAccess)
 	})
 
 	return r

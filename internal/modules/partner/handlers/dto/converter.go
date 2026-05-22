@@ -3,6 +3,7 @@ package dto
 import (
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/service"
+	"github.com/nlsnnn/berezhok/internal/shared/authz"
 )
 
 func (r CreateApplicationRequest) ToInput() service.CreateApplicationInput {
@@ -41,9 +42,9 @@ func (r AddLegalInfoRequest) ToInput(partnerID string) service.AddLegalInfoInput
 	}
 }
 
-func (r CreateEmployeeRequest) ToInput(partnerID string) service.CreateManagedEmployeeInput {
+func (r CreateEmployeeRequest) ToInput(actor authz.PartnerActor) service.CreateManagedEmployeeInput {
 	return service.CreateManagedEmployeeInput{
-		PartnerID:  partnerID,
+		Actor:      actor,
 		LocationID: r.LocationID,
 		Email:      r.Email,
 		Name:       r.Name,

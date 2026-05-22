@@ -3,6 +3,9 @@ include .env
 run:
 	go run ./cmd/api
 
+front:
+	cd frontend && npm run dev
+
 seed:
 	go run ./cmd/seed
 

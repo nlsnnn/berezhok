@@ -20,6 +20,8 @@ import StatsPage from '@/pages/partner/StatsPage'
 import ProfilePage from '@/pages/partner/ProfilePage'
 import PartnerLegalInfoPage from '@/pages/partner/PartnerLegalInfoPage'
 import PartnerOfferPage from '@/pages/partner/PartnerOfferPage'
+import PartnerChatPage from '@/pages/partner/PartnerChatPage'
+import PromoPage from '@/pages/partner/PromoPage'
 
 export default function App() {
   return (
@@ -49,6 +51,12 @@ export default function App() {
               {/* Orders */}
               <Route path="/partner/orders" element={<OrdersPage />} />
               <Route path="/partner/orders/pickup" element={<OrderPickupPage />} />
+
+              {/* Chat */}
+              <Route path="/partner/chat" element={<PartnerChatPage />} />
+
+              {/* Promo */}
+              <Route path="/partner/promo" element={<PromoPage />} />
 
               {/* Employees */}
               <Route path="/partner/employees" element={<EmployeesPage />} />

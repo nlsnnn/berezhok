@@ -6,7 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
+	"github.com/nlsnnn/berezhok/internal/shared/authz"
 )
 
 type dashboardRepoStub struct {
@@ -152,4 +155,52 @@ func TestNormalizeStatsFilterCustomRange(t *testing.T) {
 	if filter.DateFrom.Hour() != 0 || filter.DateTo.Hour() != 0 {
 		t.Fatalf("expected normalized dates, got %v and %v", filter.DateFrom, filter.DateTo)
 	}
+}
+
+func TestPartnerServiceStatsScopesManagerToAssignedLocation(t *testing.T) {
+	t.Parallel()
+
+	locationID := "11111111-1111-1111-1111-111111111111"
+	actor := authz.PartnerActor{
+		Role:       authz.RoleManager,
+		EmployeeID: uuidFromString(t, "22222222-2222-2222-2222-222222222222"),
+		LocationID: ptrUUID(t, locationID),
+	}
+	repo := &dashboardRepoStub{
+		statsFn: func(ctx context.Context, employeeID string, filter domain.StatsFilter) (domain.PartnerStats, error) {
+			if employeeID != actor.EmployeeID.String() {
+				t.Fatalf("expected employee id %s, got %s", actor.EmployeeID, employeeID)
+			}
+			if filter.LocationID != locationID {
+				t.Fatalf("expected forced location_id %s, got %s", locationID, filter.LocationID)
+			}
+			return domain.PartnerStats{}, nil
+		},
+	}
+	svc := NewPartnerService(repo, &dashboardEmployeeRepoStub{})
+
+	_, err := svc.Stats(context.Background(), actor, domain.StatsFilter{
+		Period:     "today",
+		LocationID: "33333333-3333-3333-3333-333333333333",
+	})
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+}
+
+func uuidFromString(t *testing.T, value string) uuid.UUID {
+	t.Helper()
+
+	id, err := uuid.Parse(value)
+	if err != nil {
+		t.Fatalf("parse uuid: %v", err)
+	}
+	return id
+}
+
+func ptrUUID(t *testing.T, value string) *uuid.UUID {
+	t.Helper()
+
+	id := uuidFromString(t, value)
+	return &id
 }

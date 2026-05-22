@@ -15,6 +15,7 @@ import (
 	catalogErrors "github.com/nlsnnn/berezhok/internal/modules/catalog/errors"
 	"github.com/nlsnnn/berezhok/internal/modules/catalog/handlers/dto"
 	"github.com/nlsnnn/berezhok/internal/modules/catalog/service"
+	"github.com/nlsnnn/berezhok/internal/shared/authz"
 	"github.com/nlsnnn/berezhok/internal/shared/contextx"
 	"github.com/nlsnnn/berezhok/internal/shared/response"
 )
@@ -26,12 +27,13 @@ type boxHandler struct {
 }
 
 type BoxService interface {
-	CreateBox(ctx context.Context, partnerID uuid.UUID, input service.CreateBoxInput) (domain.SurpriseBox, error)
+	CreateBox(ctx context.Context, actor authz.PartnerActor, input service.CreateBoxInput) (domain.SurpriseBox, error)
 	GetBoxByID(ctx context.Context, id string) (*domain.SurpriseBox, error)
-	UpdateBox(ctx context.Context, input service.UpdateBoxInput) (domain.SurpriseBox, error)
-	DeleteBox(ctx context.Context, id string) error
+	GetPartnerBoxByID(ctx context.Context, actor authz.PartnerActor, id string) (*domain.SurpriseBox, error)
+	UpdateBox(ctx context.Context, actor authz.PartnerActor, input service.UpdateBoxInput) (domain.SurpriseBox, error)
+	DeleteBox(ctx context.Context, actor authz.PartnerActor, id string) error
 	GetBoxesByLocationID(ctx context.Context, locationID uuid.UUID) ([]domain.SurpriseBox, error)
-	GetBoxesByPartnerID(ctx context.Context, partnerID uuid.UUID) ([]domain.SurpriseBox, error)
+	GetBoxesByPartnerID(ctx context.Context, actor authz.PartnerActor) ([]domain.SurpriseBox, error)
 }
 
 func NewBoxHandler(boxService BoxService, log *slog.Logger, validator *validator.Validator) *boxHandler {
@@ -46,9 +48,9 @@ func (h *boxHandler) Create(w http.ResponseWriter, r *http.Request) {
 	const op = "catalog.handler.box.Create"
 	log := h.log.With(slog.String("op", op))
 
-	partnerID, err := contextx.PartnerID(r)
+	actor, err := contextx.PartnerActor(r)
 	if err != nil {
-		log.Error("partner_id not found in context", sl.Err(err))
+		log.Error("partner actor not found in context", sl.Err(err))
 		response.InternalError(w, nil)
 		return
 	}
@@ -61,9 +63,12 @@ func (h *boxHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	box, err := h.boxService.CreateBox(r.Context(), partnerID, req.ToInput())
+	box, err := h.boxService.CreateBox(r.Context(), actor, req.ToInput())
 	if err != nil {
 		switch {
+		case errors.Is(err, authz.ErrForbidden), errors.Is(err, authz.ErrLocationScopeDenied):
+			log.Warn("box create rejected", sl.Err(err))
+			response.Forbidden(w, "access denied")
 		case errors.Is(err, catalogErrors.ErrInvalidPickupTimeFormat):
 			log.Warn("invalid pickup time format", sl.Err(err))
 			response.BadRequest(w, "invalid pickup time format, expected HH:MM")
@@ -88,8 +93,24 @@ func (h *boxHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 func (h *boxHandler) GetAllByLocationID(w http.ResponseWriter, r *http.Request) {
 	locationID := chi.URLParam(r, "location_id")
+	parsedLocationID, err := uuid.Parse(locationID)
+	if err != nil {
+		response.BadRequest(w, "invalid location id")
+		return
+	}
 
-	boxes, err := h.boxService.GetBoxesByLocationID(r.Context(), uuid.MustParse(locationID))
+	actor, err := contextx.PartnerActor(r)
+	if err != nil {
+		h.log.Error("partner actor not found in context", sl.Err(err))
+		response.InternalError(w, nil)
+		return
+	}
+	if err = actor.EnsureLocation(parsedLocationID); err != nil {
+		response.Forbidden(w, "access denied")
+		return
+	}
+
+	boxes, err := h.boxService.GetBoxesByLocationID(r.Context(), parsedLocationID)
 	if err != nil {
 		h.log.Error("failed to get boxes by location id", sl.Err(err))
 		response.InternalError(w, nil)
@@ -100,15 +121,20 @@ func (h *boxHandler) GetAllByLocationID(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *boxHandler) GetAllByPartnerID(w http.ResponseWriter, r *http.Request) {
-	partnerID, err := contextx.PartnerID(r)
+	actor, err := contextx.PartnerActor(r)
 	if err != nil {
-		h.log.Error("partner_id not found in context", sl.Err(err))
+		h.log.Error("partner actor not found in context", sl.Err(err))
 		response.InternalError(w, nil)
 		return
 	}
 
-	boxes, err := h.boxService.GetBoxesByPartnerID(r.Context(), partnerID)
+	boxes, err := h.boxService.GetBoxesByPartnerID(r.Context(), actor)
 	if err != nil {
+		if errors.Is(err, authz.ErrForbidden) || errors.Is(err, authz.ErrLocationScopeDenied) {
+			response.Forbidden(w, "access denied")
+			return
+		}
+
 		h.log.Error("failed to get boxes by partner id", sl.Err(err))
 		response.InternalError(w, nil)
 		return
@@ -119,10 +145,18 @@ func (h *boxHandler) GetAllByPartnerID(w http.ResponseWriter, r *http.Request) {
 
 func (h *boxHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	actor, err := contextx.PartnerActor(r)
+	if err != nil {
+		h.log.Error("partner actor not found in context", sl.Err(err))
+		response.InternalError(w, nil)
+		return
+	}
 
-	box, err := h.boxService.GetBoxByID(r.Context(), id)
+	box, err := h.boxService.GetPartnerBoxByID(r.Context(), actor, id)
 	if err != nil {
 		switch {
+		case errors.Is(err, authz.ErrForbidden), errors.Is(err, authz.ErrLocationScopeDenied):
+			response.Forbidden(w, "access denied")
 		case errors.Is(err, catalogErrors.ErrInvalidBoxID):
 			response.BadRequest(w, "invalid box id")
 		case errors.Is(err, catalogErrors.ErrBoxNotFound):
@@ -139,9 +173,9 @@ func (h *boxHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 func (h *boxHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	partnerID, err := contextx.PartnerID(r)
+	actor, err := contextx.PartnerActor(r)
 	if err != nil {
-		h.log.Error("partner_id not found in context", sl.Err(err))
+		h.log.Error("partner actor not found in context", sl.Err(err))
 		response.InternalError(w, nil)
 		return
 	}
@@ -153,9 +187,11 @@ func (h *boxHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	box, err := h.boxService.UpdateBox(r.Context(), req.ToInput(partnerID, id))
+	box, err := h.boxService.UpdateBox(r.Context(), actor, req.ToInput(id))
 	if err != nil {
 		switch {
+		case errors.Is(err, authz.ErrForbidden), errors.Is(err, authz.ErrLocationScopeDenied):
+			response.Forbidden(w, "access denied")
 		case errors.Is(err, catalogErrors.ErrInvalidBoxID):
 			response.BadRequest(w, "invalid box id")
 		case errors.Is(err, catalogErrors.ErrBoxNotFound):
@@ -178,9 +214,17 @@ func (h *boxHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 func (h *boxHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	actor, err := contextx.PartnerActor(r)
+	if err != nil {
+		h.log.Error("partner actor not found in context", sl.Err(err))
+		response.InternalError(w, nil)
+		return
+	}
 
-	if err := h.boxService.DeleteBox(r.Context(), id); err != nil {
+	if err := h.boxService.DeleteBox(r.Context(), actor, id); err != nil {
 		switch {
+		case errors.Is(err, authz.ErrForbidden), errors.Is(err, authz.ErrLocationScopeDenied):
+			response.Forbidden(w, "access denied")
 		case errors.Is(err, catalogErrors.ErrInvalidBoxID):
 			response.BadRequest(w, "invalid box id")
 		case errors.Is(err, catalogErrors.ErrBoxNotFound):
