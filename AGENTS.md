@@ -195,3 +195,5 @@ frontend/src/
 - Config via `.env` + `cleanenv` → `config/local.yaml`
 - Response envelope: `{ "success": bool, "data": any }` or `{ "success": false, "error": { code, message, details } }`
 - Prefer `contextx.PartnerID(r)` / `contextx.CustomerID(r)` / `contextx.EmployeeID(r)` over raw `r.Context().Value(...)`
+
+Don't fight mistakes! Every time you encounter the same error twice, study the web and find 3-5 possible ways to fix it. Then choose the most effective solution and implement it.

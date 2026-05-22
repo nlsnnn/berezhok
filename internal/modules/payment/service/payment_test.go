@@ -166,6 +166,115 @@ func TestCreateProviderError(t *testing.T) {
 	}
 }
 
+func TestGetPaymentLinkByOrderIDReturnsStoredLink(t *testing.T) {
+	t.Parallel()
+
+	orderID := uuid.New()
+	repo := &testRepo{
+		getPaymentByOrderIDFn: func(ctx context.Context, reqOrderID uuid.UUID) (*domain.Payment, error) {
+			if reqOrderID != orderID {
+				t.Fatalf("expected order id %s, got %s", orderID, reqOrderID)
+			}
+			return &domain.Payment{
+				OrderID: orderID,
+				Provider: domain.Provider{
+					PaymentLink: "https://pay.example/stored",
+				},
+			}, nil
+		},
+	}
+
+	svc := NewPaymentService(repo, &testProvider{}, &testOrderUpdater{})
+
+	link, err := svc.GetPaymentLinkByOrderID(context.Background(), orderID)
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+	if link != "https://pay.example/stored" {
+		t.Fatalf("expected stored payment link, got %s", link)
+	}
+}
+
+func TestEnsurePaymentLinkReturnsStoredLink(t *testing.T) {
+	t.Parallel()
+
+	orderID := uuid.New()
+	providerCalled := false
+	repo := &testRepo{
+		getPaymentByOrderIDFn: func(ctx context.Context, reqOrderID uuid.UUID) (*domain.Payment, error) {
+			if reqOrderID != orderID {
+				t.Fatalf("expected order id %s, got %s", orderID, reqOrderID)
+			}
+			return &domain.Payment{
+				OrderID: orderID,
+				Provider: domain.Provider{
+					PaymentLink: "https://pay.example/stored",
+				},
+			}, nil
+		},
+	}
+	provider := &testProvider{
+		createFn: func(ctx context.Context, amount, description, returnURL string, metadata map[string]string) (domain.ProviderPaymentResult, error) {
+			providerCalled = true
+			return domain.ProviderPaymentResult{}, nil
+		},
+	}
+
+	svc := NewPaymentService(repo, provider, &testOrderUpdater{})
+
+	link, err := svc.EnsurePaymentLink(context.Background(), decimal.RequireFromString("123.45"), orderID)
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+	if link != "https://pay.example/stored" {
+		t.Fatalf("expected stored payment link, got %s", link)
+	}
+	if providerCalled {
+		t.Fatal("provider must not be called when stored payment link exists")
+	}
+}
+
+func TestEnsurePaymentLinkCreatesWhenPaymentMissing(t *testing.T) {
+	t.Parallel()
+
+	orderID := uuid.New()
+	repo := &testRepo{
+		getPaymentByOrderIDFn: func(ctx context.Context, reqOrderID uuid.UUID) (*domain.Payment, error) {
+			if reqOrderID != orderID {
+				t.Fatalf("expected order id %s, got %s", orderID, reqOrderID)
+			}
+			return nil, paymentErrors.ErrPaymentNotFound
+		},
+		createPaymentFn: func(ctx context.Context, payment *domain.Payment) error {
+			if payment.OrderID != orderID {
+				t.Fatalf("expected created payment order %s, got %s", orderID, payment.OrderID)
+			}
+			return nil
+		},
+	}
+	provider := &testProvider{
+		createFn: func(ctx context.Context, amount, description, returnURL string, metadata map[string]string) (domain.ProviderPaymentResult, error) {
+			if amount != "123.45" {
+				t.Fatalf("expected amount 123.45, got %s", amount)
+			}
+			return domain.ProviderPaymentResult{
+				PaymentLink:       "https://pay.example/new",
+				ProviderPaymentID: "provider-new",
+			}, nil
+		},
+	}
+
+	svc := NewPaymentService(repo, provider, &testOrderUpdater{})
+
+	link, err := svc.EnsurePaymentLink(context.Background(), decimal.RequireFromString("123.45"), orderID)
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+	if link != "https://pay.example/new" {
+		t.Fatalf("expected new payment link, got %s", link)
+	}
+}
+
 func TestProcessEventSucceeded(t *testing.T) {
 	t.Parallel()
 

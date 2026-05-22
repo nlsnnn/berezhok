@@ -77,6 +77,27 @@ func (s *paymentService) Create(ctx context.Context, amount decimal.Decimal, ord
 	return providerResult.PaymentLink, nil
 }
 
+func (s *paymentService) GetPaymentLinkByOrderID(ctx context.Context, orderID uuid.UUID) (string, error) {
+	payment, err := s.repo.GetPaymentByOrderID(ctx, orderID)
+	if err != nil {
+		return "", err
+	}
+
+	return payment.Provider.PaymentLink, nil
+}
+
+func (s *paymentService) EnsurePaymentLink(ctx context.Context, amount decimal.Decimal, orderID uuid.UUID) (string, error) {
+	paymentLink, err := s.GetPaymentLinkByOrderID(ctx, orderID)
+	if err == nil && paymentLink != "" {
+		return paymentLink, nil
+	}
+	if err != nil && !errors.Is(err, paymentErrors.ErrPaymentNotFound) {
+		return "", err
+	}
+
+	return s.Create(ctx, amount, orderID)
+}
+
 func (s *paymentService) ProccessEvent(ctx context.Context, orderID uuid.UUID, eventType string, payload interface{}) error {
 	payment, err := s.repo.GetPaymentByOrderID(ctx, orderID)
 	if err != nil {

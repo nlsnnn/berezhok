@@ -7,6 +7,7 @@ package sqlc
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -40,11 +41,23 @@ func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Payme
 }
 
 const createPayment = `-- name: CreatePayment :one
+WITH inserted AS (
 INSERT INTO payments (
     order_id, provider_payment_id, payment_url, method, provider, amount, status
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7
-) RETURNING id, order_id, provider_payment_id, payment_url, method, provider, amount, status, paid_at, created_at, updated_at
+)
+ON CONFLICT (order_id) DO NOTHING
+RETURNING id, order_id, provider_payment_id, payment_url, method, provider, amount, status, paid_at, created_at, updated_at
+)
+SELECT id, order_id, provider_payment_id, payment_url, method, provider, amount, status, paid_at, created_at, updated_at
+FROM inserted
+UNION ALL
+SELECT id, order_id, provider_payment_id, payment_url, method, provider, amount, status, paid_at, created_at, updated_at
+FROM payments
+WHERE order_id = $1
+  AND NOT EXISTS (SELECT 1 FROM inserted)
+LIMIT 1
 `
 
 type CreatePaymentParams struct {
@@ -57,7 +70,21 @@ type CreatePaymentParams struct {
 	Status            PaymentStatus       `json:"status"`
 }
 
-func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (Payment, error) {
+type CreatePaymentRow struct {
+	ID                uuid.UUID           `json:"id"`
+	OrderID           uuid.UUID           `json:"order_id"`
+	ProviderPaymentID pgtype.Text         `json:"provider_payment_id"`
+	PaymentUrl        pgtype.Text         `json:"payment_url"`
+	Method            NullPaymentMethod   `json:"method"`
+	Provider          NullPaymentProvider `json:"provider"`
+	Amount            pgtype.Numeric      `json:"amount"`
+	Status            PaymentStatus       `json:"status"`
+	PaidAt            pgtype.Timestamptz  `json:"paid_at"`
+	CreatedAt         time.Time           `json:"created_at"`
+	UpdatedAt         time.Time           `json:"updated_at"`
+}
+
+func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (CreatePaymentRow, error) {
 	row := q.db.QueryRow(ctx, createPayment,
 		arg.OrderID,
 		arg.ProviderPaymentID,
@@ -67,7 +94,7 @@ func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (P
 		arg.Amount,
 		arg.Status,
 	)
-	var i Payment
+	var i CreatePaymentRow
 	err := row.Scan(
 		&i.ID,
 		&i.OrderID,
@@ -108,7 +135,7 @@ func (q *Queries) GetPaymentByID(ctx context.Context, id uuid.UUID) (Payment, er
 }
 
 const getPaymentByOrderID = `-- name: GetPaymentByOrderID :one
-SELECT id, order_id, provider_payment_id, payment_url, method, provider, amount, status, paid_at, created_at, updated_at FROM payments WHERE order_id = $1
+SELECT id, order_id, provider_payment_id, payment_url, method, provider, amount, status, paid_at, created_at, updated_at FROM payments WHERE order_id = $1 ORDER BY created_at DESC LIMIT 1
 `
 
 func (q *Queries) GetPaymentByOrderID(ctx context.Context, orderID uuid.UUID) (Payment, error) {

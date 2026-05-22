@@ -44,6 +44,8 @@ func (r *PaymentRepo) CreatePayment(ctx context.Context, payment *domain.Payment
 	}
 
 	payment.ID = sqlPayment.ID
+	payment.Provider.PaymentID = pgconverter.TextToString(sqlPayment.ProviderPaymentID)
+	payment.Provider.PaymentLink = pgconverter.TextToString(sqlPayment.PaymentUrl)
 	payment.CreatedAt = sqlPayment.CreatedAt
 	payment.UpdatedAt = sqlPayment.UpdatedAt
 
