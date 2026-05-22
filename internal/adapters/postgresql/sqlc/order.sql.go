@@ -13,6 +13,20 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const acquireOrderCreationLock = `-- name: AcquireOrderCreationLock :exec
+SELECT pg_advisory_xact_lock(hashtextextended($1::text || ':' || $2::text, 0))
+`
+
+type AcquireOrderCreationLockParams struct {
+	UserID string `json:"user_id"`
+	BoxID  string `json:"box_id"`
+}
+
+func (q *Queries) AcquireOrderCreationLock(ctx context.Context, arg AcquireOrderCreationLockParams) error {
+	_, err := q.db.Exec(ctx, acquireOrderCreationLock, arg.UserID, arg.BoxID)
+	return err
+}
+
 const countActiveOrdersByLocationID = `-- name: CountActiveOrdersByLocationID :one
 SELECT COUNT(*)
 FROM orders o
@@ -191,6 +205,50 @@ func (q *Queries) FindActiveOrdersByLocationId(ctx context.Context, locationID u
 		return nil, err
 	}
 	return items, nil
+}
+
+const getActiveOrderByCustomerAndBox = `-- name: GetActiveOrderByCustomerAndBox :one
+SELECT id, user_id, box_id, location_id, pickup_code, qr_code_url, amount, pickup_time_start, pickup_time_end, status, partner_confirmation_deadline, partner_confirmed_at, partner_confirmed_by, cancellation_reason, cancelled_at, picked_up_at, picked_up_confirmed_by, user_confirmed_at, auto_completed_at, created_at, updated_at
+FROM orders
+WHERE user_id = $1
+  AND box_id = $2
+  AND status IN ('pending', 'paid', 'confirmed')
+ORDER BY created_at DESC
+LIMIT 1
+`
+
+type GetActiveOrderByCustomerAndBoxParams struct {
+	UserID uuid.UUID `json:"user_id"`
+	BoxID  uuid.UUID `json:"box_id"`
+}
+
+func (q *Queries) GetActiveOrderByCustomerAndBox(ctx context.Context, arg GetActiveOrderByCustomerAndBoxParams) (Order, error) {
+	row := q.db.QueryRow(ctx, getActiveOrderByCustomerAndBox, arg.UserID, arg.BoxID)
+	var i Order
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.BoxID,
+		&i.LocationID,
+		&i.PickupCode,
+		&i.QrCodeUrl,
+		&i.Amount,
+		&i.PickupTimeStart,
+		&i.PickupTimeEnd,
+		&i.Status,
+		&i.PartnerConfirmationDeadline,
+		&i.PartnerConfirmedAt,
+		&i.PartnerConfirmedBy,
+		&i.CancellationReason,
+		&i.CancelledAt,
+		&i.PickedUpAt,
+		&i.PickedUpConfirmedBy,
+		&i.UserConfirmedAt,
+		&i.AutoCompletedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const getLocationOrderByID = `-- name: GetLocationOrderByID :one

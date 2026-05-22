@@ -126,7 +126,8 @@ func (app *application) mount() http.Handler {
 	customerLocationSvc := customerServices.NewLocationService(customerLocationRepo)
 
 	// Order module — repositories
-	orderRepo := orderRepos.NewOrderRepo(queries)
+	orderRepo := orderRepos.NewOrderRepo(queries, app.pool)
+	orderBoxProvider := orderAdapters.NewCatalogBoxProvider(boxSvc)
 	chatEventAdapter := orderAdapters.NewChatEventAdapter(orderPublisher)
 
 	// Payment module
@@ -137,7 +138,7 @@ func (app *application) mount() http.Handler {
 	webhookHandler := paymentHandlers.NewWebhookHandler(paymentSvc, app.log, v)
 
 	// Order module — services
-	orderSvc := orderServices.NewOrderService(orderRepo, boxSvc, paymentSvc, app.log, chatEventAdapter)
+	orderSvc := orderServices.NewOrderService(orderRepo, orderBoxProvider, paymentSvc, app.log, chatEventAdapter)
 
 	// Order module — handlers
 	orderHandler := orderHandlers.NewOrderHandler(orderSvc, app.log, v)

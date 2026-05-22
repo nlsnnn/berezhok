@@ -3,11 +3,13 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
 	"github.com/nlsnnn/berezhok/internal/lib/pgconverter"
@@ -17,16 +19,21 @@ import (
 )
 
 type OrderRepo struct {
-	q *sqlc.Queries
+	q    *sqlc.Queries
+	pool *pgxpool.Pool
 }
 
-func NewOrderRepo(q *sqlc.Queries) *OrderRepo {
-	return &OrderRepo{q: q}
+func NewOrderRepo(q *sqlc.Queries, pool *pgxpool.Pool) *OrderRepo {
+	return &OrderRepo{q: q, pool: pool}
 }
 
 // CreateOrder creates a new order in the database
 func (r *OrderRepo) CreateOrder(ctx context.Context, order *domain.Order) error {
-	sqlOrder, err := r.q.CreateOrder(ctx, sqlc.CreateOrderParams{
+	return r.createOrder(ctx, r.q, order)
+}
+
+func (r *OrderRepo) createOrder(ctx context.Context, q *sqlc.Queries, order *domain.Order) error {
+	sqlOrder, err := q.CreateOrder(ctx, sqlc.CreateOrderParams{
 		UserID:                      order.CustomerID,
 		BoxID:                       order.BoxID,
 		LocationID:                  order.LocationID,
@@ -48,6 +55,61 @@ func (r *OrderRepo) CreateOrder(ctx context.Context, order *domain.Order) error 
 	order.UpdatedAt = sqlOrder.UpdatedAt
 
 	return nil
+}
+
+// CreateOrGetActiveOrder atomically reuses an active customer order for the same box.
+func (r *OrderRepo) CreateOrGetActiveOrder(ctx context.Context, order *domain.Order) (bool, error) {
+	if r.pool == nil {
+		return false, fmt.Errorf("order repository pool is required")
+	}
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+
+	qtx := r.q.WithTx(tx)
+	if err := qtx.AcquireOrderCreationLock(ctx, sqlc.AcquireOrderCreationLockParams{
+		UserID: order.CustomerID.String(),
+		BoxID:  order.BoxID.String(),
+	}); err != nil {
+		return false, err
+	}
+
+	existing, err := qtx.GetActiveOrderByCustomerAndBox(ctx, sqlc.GetActiveOrderByCustomerAndBoxParams{
+		UserID: order.CustomerID,
+		BoxID:  order.BoxID,
+	})
+	if err == nil {
+		*order = *r.toDomain(existing)
+		if err := tx.Commit(ctx); err != nil {
+			return false, err
+		}
+		return false, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return false, err
+	}
+
+	rowsAffected, err := qtx.ReserveBox(ctx, order.BoxID)
+	if err != nil {
+		return false, err
+	}
+	if rowsAffected == 0 {
+		return false, orderErrors.ErrBoxNotAvailable
+	}
+
+	if err := r.createOrder(ctx, qtx, order); err != nil {
+		return false, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 // GetOrderByID retrieves an order by ID

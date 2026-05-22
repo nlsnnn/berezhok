@@ -22,6 +22,18 @@ INSERT INTO orders (
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 RETURNING *;
 
+-- name: AcquireOrderCreationLock :exec
+SELECT pg_advisory_xact_lock(hashtextextended(sqlc.arg(user_id)::text || ':' || sqlc.arg(box_id)::text, 0));
+
+-- name: GetActiveOrderByCustomerAndBox :one
+SELECT *
+FROM orders
+WHERE user_id = sqlc.arg(user_id)
+  AND box_id = sqlc.arg(box_id)
+  AND status IN ('pending', 'paid', 'confirmed')
+ORDER BY created_at DESC
+LIMIT 1;
+
 -- name: GetOrderByID :one
 SELECT *
 FROM orders
