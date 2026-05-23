@@ -97,6 +97,14 @@ func (a *authMiddleware) RequireAuth(allowedTypes ...string) func(http.Handler) 
 				ctx = context.WithValue(ctx, contextx.CustomerIDKey, claims.UserID)
 			}
 
+			if claims.UserType == "admin" {
+				ctx = context.WithValue(ctx, contextx.AdminIDKey, claims.UserID)
+				ctx = context.WithValue(ctx, contextx.AdminActorKey, authz.AdminActor{
+					AdminID: claims.UserID,
+					Role:    authz.AdminRole(claims.Role),
+				})
+			}
+
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -112,6 +120,31 @@ func (a *authMiddleware) RequirePermission(permission authz.Permission) func(htt
 			}
 
 			actor, err := contextx.PartnerActor(r)
+			if err != nil {
+				response.Forbidden(w, "access denied for this user")
+				return
+			}
+
+			if !actor.Can(permission) {
+				response.Forbidden(w, "access denied for this action")
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func (a *authMiddleware) RequireAdminPermission(permission authz.AdminPermission) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			userType, err := contextx.UserType(r)
+			if err != nil || userType != "admin" {
+				response.Forbidden(w, "access denied for this user")
+				return
+			}
+
+			actor, err := contextx.AdminActor(r)
 			if err != nil {
 				response.Forbidden(w, "access denied for this user")
 				return

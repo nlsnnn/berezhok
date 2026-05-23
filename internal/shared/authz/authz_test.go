@@ -67,3 +67,31 @@ func TestPartnerActorCanAccessLocation(t *testing.T) {
 		})
 	}
 }
+
+func TestAdminRolePermissionsMatrix(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		role       AdminRole
+		permission AdminPermission
+		want       bool
+	}{
+		{name: "super admin manages admins", role: AdminRoleSuperAdmin, permission: PermissionAdminAdminsManage, want: true},
+		{name: "admin cannot manage admins", role: AdminRoleAdmin, permission: PermissionAdminAdminsManage, want: false},
+		{name: "admin manages ops", role: AdminRoleAdmin, permission: PermissionAdminOpsManage, want: true},
+		{name: "support can view ops", role: AdminRoleSupport, permission: PermissionAdminOpsView, want: true},
+		{name: "support cannot manage ops", role: AdminRoleSupport, permission: PermissionAdminOpsManage, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			actor := AdminActor{Role: tt.role}
+			if got := actor.Can(tt.permission); got != tt.want {
+				t.Fatalf("expected %v, got %v", tt.want, got)
+			}
+		})
+	}
+}

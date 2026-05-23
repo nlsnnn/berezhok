@@ -20,6 +20,7 @@ import (
 	smsAdapter "github.com/nlsnnn/berezhok/internal/adapters/sms"
 	"github.com/nlsnnn/berezhok/internal/adapters/yookassa"
 	"github.com/nlsnnn/berezhok/internal/lib/validator"
+	adminRepos "github.com/nlsnnn/berezhok/internal/modules/admin/repository"
 	authHandlers "github.com/nlsnnn/berezhok/internal/modules/auth/handlers"
 	authServices "github.com/nlsnnn/berezhok/internal/modules/auth/service"
 	catalogHandlers "github.com/nlsnnn/berezhok/internal/modules/catalog/handlers"
@@ -158,9 +159,11 @@ func (app *application) mount() http.Handler {
 	smsSvc := authServices.NewSMSService(smsStorage, smsSender)
 
 	// Auth module
+	adminRepo := adminRepos.NewAdminRepo(queries)
 	partnerAuthSvc := authServices.NewPartnerAuthenticator(employeeRepo, jwtService)
 	customerAuthSvc := authServices.NewCustomerAuthenticator(customerRepo, jwtService, smsSvc)
-	authHandler := authHandlers.NewAuthHandler(v, app.log, partnerAuthSvc, customerAuthSvc)
+	adminAuthSvc := authServices.NewAdminAuthenticator(adminRepo, jwtService)
+	authHandler := authHandlers.NewAuthHandler(v, app.log, partnerAuthSvc, customerAuthSvc, adminAuthSvc)
 
 	// Middlewares
 	authMiddleware := middlewares.NewAuthMiddleware(jwtService)
@@ -183,6 +186,7 @@ func (app *application) mount() http.Handler {
 		r.Post("/auth/partner/login", authHandler.PartnerLogin)
 		r.Post("/auth/customer/send-code", authHandler.CustomerSendCode)
 		r.Post("/auth/customer/login", authHandler.CustomerLogin)
+		r.Post("/auth/admin/login", authHandler.AdminLogin)
 
 		// Application
 		r.Post("/applications", appHandler.Create)
