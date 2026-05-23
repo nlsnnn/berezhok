@@ -166,6 +166,7 @@ func (app *application) mount() http.Handler {
 	adminAuthSvc := authServices.NewAdminAuthenticator(adminRepo, jwtService)
 	authHandler := authHandlers.NewAuthHandler(v, app.log, partnerAuthSvc, customerAuthSvc, adminAuthSvc)
 	adminApplicationHandler := adminHandlers.NewApplicationHandler(app.log, v, appSvc, adminRepo)
+	adminOpsHandler := adminHandlers.NewOpsHandler(app.log, v, queries, adminRepo)
 
 	// Middlewares
 	authMiddleware := middlewares.NewAuthMiddleware(jwtService)
@@ -299,8 +300,24 @@ func (app *application) mount() http.Handler {
 
 			r.Group(func(r chi.Router) {
 				r.Use(authMiddleware.RequireAdminPermission(authz.PermissionAdminOpsView))
+				r.Get("/admin/me", adminOpsHandler.Me)
 				r.Get("/admin/applications", adminApplicationHandler.List)
 				r.Get("/admin/applications/{id}", adminApplicationHandler.GetByID)
+				r.Get("/admin/audit", adminOpsHandler.ListAudit)
+				r.Get("/admin/partners", adminOpsHandler.ListPartners)
+				r.Get("/admin/partners/{id}", adminOpsHandler.GetPartner)
+				r.Get("/admin/locations", adminOpsHandler.ListLocations)
+				r.Get("/admin/locations/{id}", adminOpsHandler.GetLocation)
+				r.Get("/admin/boxes", adminOpsHandler.ListBoxes)
+				r.Get("/admin/boxes/{id}", adminOpsHandler.GetBox)
+				r.Get("/admin/customers", adminOpsHandler.ListCustomers)
+				r.Get("/admin/customers/{id}", adminOpsHandler.GetCustomer)
+				r.Get("/admin/orders", adminOpsHandler.ListOrders)
+				r.Get("/admin/orders/{id}", adminOpsHandler.GetOrder)
+				r.Get("/admin/payments", adminOpsHandler.ListPayments)
+				r.Get("/admin/payments/{id}", adminOpsHandler.GetPayment)
+				r.Get("/admin/payments/{id}/events", adminOpsHandler.ListPaymentEvents)
+				r.Get("/admin/stats", adminOpsHandler.Stats)
 			})
 
 			r.Group(func(r chi.Router) {
@@ -308,6 +325,17 @@ func (app *application) mount() http.Handler {
 				r.Delete("/admin/applications/{id}", adminApplicationHandler.Delete)
 				r.Post("/admin/applications/{id}/approve", adminApplicationHandler.Approve)
 				r.Post("/admin/applications/{id}/reject", adminApplicationHandler.Reject)
+				r.Patch("/admin/partners/{id}", adminOpsHandler.UpdatePartner)
+				r.Patch("/admin/locations/{id}/status", adminOpsHandler.UpdateLocationStatus)
+				r.Patch("/admin/boxes/{id}/status", adminOpsHandler.UpdateBoxStatus)
+			})
+
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequireAdminPermission(authz.PermissionAdminAdminsManage))
+				r.Get("/admin/admins", adminOpsHandler.ListAdmins)
+				r.Post("/admin/admins", adminOpsHandler.CreateAdmin)
+				r.Patch("/admin/admins/{id}", adminOpsHandler.UpdateAdmin)
+				r.Post("/admin/admins/{id}/deactivate", adminOpsHandler.DeactivateAdmin)
 			})
 		})
 

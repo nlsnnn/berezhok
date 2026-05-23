@@ -65,7 +65,7 @@ WHERE (
     OR sb.status = $1::text
 )
 AND (
-    $2::uuid IS NULL
+    $2::text = ''
     OR sb.location_id = $2::uuid
 )
 AND (
@@ -77,9 +77,9 @@ AND (
 `
 
 type CountAdminBoxesParams struct {
-	StatusFilter     string    `json:"status_filter"`
-	LocationIDFilter uuid.UUID `json:"location_id_filter"`
-	Search           string    `json:"search"`
+	StatusFilter     string `json:"status_filter"`
+	LocationIDFilter string `json:"location_id_filter"`
+	Search           string `json:"search"`
 }
 
 func (q *Queries) CountAdminBoxes(ctx context.Context, arg CountAdminBoxesParams) (int64, error) {
@@ -115,7 +115,7 @@ WHERE (
     OR l.status = $1::text
 )
 AND (
-    $2::uuid IS NULL
+    $2::text = ''
     OR l.partner_id = $2::uuid
 )
 AND (
@@ -127,9 +127,9 @@ AND (
 `
 
 type CountAdminLocationsParams struct {
-	StatusFilter    string    `json:"status_filter"`
-	PartnerIDFilter uuid.UUID `json:"partner_id_filter"`
-	Search          string    `json:"search"`
+	StatusFilter    string `json:"status_filter"`
+	PartnerIDFilter string `json:"partner_id_filter"`
+	Search          string `json:"search"`
 }
 
 func (q *Queries) CountAdminLocations(ctx context.Context, arg CountAdminLocationsParams) (int64, error) {
@@ -1006,7 +1006,7 @@ WHERE (
     OR sb.status = $1::text
 )
 AND (
-    $2::uuid IS NULL
+    $2::text = ''
     OR sb.location_id = $2::uuid
 )
 AND (
@@ -1021,11 +1021,11 @@ LIMIT $5 OFFSET $4
 `
 
 type ListAdminBoxesParams struct {
-	StatusFilter     string    `json:"status_filter"`
-	LocationIDFilter uuid.UUID `json:"location_id_filter"`
-	Search           string    `json:"search"`
-	PageOffset       int32     `json:"page_offset"`
-	PageLimit        int32     `json:"page_limit"`
+	StatusFilter     string `json:"status_filter"`
+	LocationIDFilter string `json:"location_id_filter"`
+	Search           string `json:"search"`
+	PageOffset       int32  `json:"page_offset"`
+	PageLimit        int32  `json:"page_limit"`
 }
 
 type ListAdminBoxesRow struct {
@@ -1180,7 +1180,7 @@ WHERE (
     OR l.status = $1::text
 )
 AND (
-    $2::uuid IS NULL
+    $2::text = ''
     OR l.partner_id = $2::uuid
 )
 AND (
@@ -1195,11 +1195,11 @@ LIMIT $5 OFFSET $4
 `
 
 type ListAdminLocationsParams struct {
-	StatusFilter    string    `json:"status_filter"`
-	PartnerIDFilter uuid.UUID `json:"partner_id_filter"`
-	Search          string    `json:"search"`
-	PageOffset      int32     `json:"page_offset"`
-	PageLimit       int32     `json:"page_limit"`
+	StatusFilter    string `json:"status_filter"`
+	PartnerIDFilter string `json:"partner_id_filter"`
+	Search          string `json:"search"`
+	PageOffset      int32  `json:"page_offset"`
+	PageLimit       int32  `json:"page_limit"`
 }
 
 type ListAdminLocationsRow struct {

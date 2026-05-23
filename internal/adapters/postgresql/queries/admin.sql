@@ -233,7 +233,7 @@ WHERE (
     OR l.status = sqlc.arg(status_filter)::text
 )
 AND (
-    sqlc.arg(partner_id_filter)::uuid IS NULL
+    sqlc.arg(partner_id_filter)::text = ''
     OR l.partner_id = sqlc.arg(partner_id_filter)::uuid
 )
 AND (
@@ -255,7 +255,7 @@ WHERE (
     OR l.status = sqlc.arg(status_filter)::text
 )
 AND (
-    sqlc.arg(partner_id_filter)::uuid IS NULL
+    sqlc.arg(partner_id_filter)::text = ''
     OR l.partner_id = sqlc.arg(partner_id_filter)::uuid
 )
 AND (
@@ -323,7 +323,7 @@ WHERE (
     OR sb.status = sqlc.arg(status_filter)::text
 )
 AND (
-    sqlc.arg(location_id_filter)::uuid IS NULL
+    sqlc.arg(location_id_filter)::text = ''
     OR sb.location_id = sqlc.arg(location_id_filter)::uuid
 )
 AND (
@@ -346,7 +346,7 @@ WHERE (
     OR sb.status = sqlc.arg(status_filter)::text
 )
 AND (
-    sqlc.arg(location_id_filter)::uuid IS NULL
+    sqlc.arg(location_id_filter)::text = ''
     OR sb.location_id = sqlc.arg(location_id_filter)::uuid
 )
 AND (

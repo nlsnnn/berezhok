@@ -28,6 +28,9 @@ func TestApplicationAdminRoutesAreProtected(t *testing.T) {
 		{name: "public application list removed", method: http.MethodGet, path: "/api/v1/applications", wantStatus: http.StatusMethodNotAllowed},
 		{name: "admin application list requires auth", method: http.MethodGet, path: "/api/v1/admin/applications", wantStatus: http.StatusUnauthorized},
 		{name: "admin application approve requires auth", method: http.MethodPost, path: "/api/v1/admin/applications/10000000-0000-0000-0000-000000000001/approve", wantStatus: http.StatusUnauthorized},
+		{name: "admin partners requires auth", method: http.MethodGet, path: "/api/v1/admin/partners", wantStatus: http.StatusUnauthorized},
+		{name: "admin stats requires auth", method: http.MethodGet, path: "/api/v1/admin/stats", wantStatus: http.StatusUnauthorized},
+		{name: "admin management requires auth", method: http.MethodGet, path: "/api/v1/admin/admins", wantStatus: http.StatusUnauthorized},
 	}
 
 	for _, tt := range tests {
