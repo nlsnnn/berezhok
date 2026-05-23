@@ -59,7 +59,7 @@ type Order struct {
 	UpdatedAt             time.Time
 }
 
-type OrderChatProjection struct {
+type OrderProjection struct {
 	OrderID    uuid.UUID
 	CustomerID uuid.UUID
 	PartnerID  uuid.UUID

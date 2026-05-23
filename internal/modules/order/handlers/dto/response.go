@@ -271,7 +271,7 @@ func ToCreateOrderResponse(orderID, paymentURL string, amount float64, expiresAt
 	}
 }
 
-func ToOrderChatAccessResponse(projection *domain.OrderChatProjection) OrderChatAccessResponse {
+func ToOrderChatAccessResponse(projection *domain.OrderProjection) OrderChatAccessResponse {
 	return OrderChatAccessResponse{
 		OrderID:    projection.OrderID.String(),
 		CustomerID: projection.CustomerID.String(),

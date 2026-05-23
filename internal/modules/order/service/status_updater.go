@@ -60,12 +60,12 @@ func (u *orderStatusUpdater) publishProjection(ctx context.Context, orderID uuid
 	if u.eventPublisher == nil {
 		return
 	}
-	projection, err := u.repo.GetOrderChatProjection(ctx, orderID)
+	projection, err := u.repo.GetOrderProjection(ctx, orderID)
 	if err != nil {
-		u.log.Warn("failed to load order chat projection", slog.String("order_id", orderID.String()), slog.String("err", err.Error()))
+		u.log.Warn("failed to load order projection", slog.String("order_id", orderID.String()), slog.String("err", err.Error()))
 		return
 	}
 	if err = u.eventPublisher.PublishOrderStatusChanged(ctx, *projection); err != nil {
-		u.log.Warn("failed to publish order chat projection", slog.String("order_id", orderID.String()), slog.String("err", err.Error()))
+		u.log.Warn("failed to publish order projection", slog.String("order_id", orderID.String()), slog.String("err", err.Error()))
 	}
 }

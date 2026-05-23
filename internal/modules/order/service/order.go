@@ -114,10 +114,10 @@ func (s *orderService) GetOrderDetailsByID(ctx context.Context, orderID uuid.UUI
 	return order, nil
 }
 
-func (s *orderService) GetOrderChatProjection(ctx context.Context, orderID uuid.UUID) (*domain.OrderChatProjection, error) {
-	const op = "order.service.GetOrderChatProjection"
+func (s *orderService) GetOrderProjection(ctx context.Context, orderID uuid.UUID) (*domain.OrderProjection, error) {
+	const op = "order.service.GetOrderProjection"
 
-	projection, err := s.repo.GetOrderChatProjection(ctx, orderID)
+	projection, err := s.repo.GetOrderProjection(ctx, orderID)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
@@ -243,10 +243,10 @@ func (s *orderService) publishProjection(ctx context.Context, orderID uuid.UUID,
 	if s.eventPublisher == nil {
 		return
 	}
-	projection, err := s.repo.GetOrderChatProjection(ctx, orderID)
+	projection, err := s.repo.GetOrderProjection(ctx, orderID)
 	if err != nil {
 		if s.log != nil {
-			s.log.Warn("failed to load order chat projection", slog.String("order_id", orderID.String()), slog.String("err", err.Error()))
+			s.log.Warn("failed to load order projection", slog.String("order_id", orderID.String()), slog.String("err", err.Error()))
 		}
 		return
 	}
@@ -256,6 +256,6 @@ func (s *orderService) publishProjection(ctx context.Context, orderID uuid.UUID,
 		err = s.eventPublisher.PublishOrderCreated(ctx, *projection)
 	}
 	if err != nil && s.log != nil {
-		s.log.Warn("failed to publish order chat projection", slog.String("order_id", orderID.String()), slog.String("err", err.Error()))
+		s.log.Warn("failed to publish order projection", slog.String("order_id", orderID.String()), slog.String("err", err.Error()))
 	}
 }

@@ -165,8 +165,8 @@ func (r *OrderRepo) GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) 
 	}, nil
 }
 
-func (r *OrderRepo) GetOrderChatProjection(ctx context.Context, orderID uuid.UUID) (*domain.OrderChatProjection, error) {
-	row, err := r.q.GetOrderChatProjection(ctx, orderID)
+func (r *OrderRepo) GetOrderProjection(ctx context.Context, orderID uuid.UUID) (*domain.OrderProjection, error) {
+	row, err := r.q.GetOrderProjection(ctx, orderID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, orderErrors.ErrOrderNotFound
@@ -174,7 +174,7 @@ func (r *OrderRepo) GetOrderChatProjection(ctx context.Context, orderID uuid.UUI
 		return nil, err
 	}
 
-	return &domain.OrderChatProjection{
+	return &domain.OrderProjection{
 		OrderID:    row.OrderID,
 		CustomerID: row.CustomerID,
 		PartnerID:  row.PartnerID,

@@ -15,7 +15,7 @@ type orderRepository interface {
 	CreateOrGetActiveOrder(ctx context.Context, order *domain.Order) (bool, error)
 	GetOrderByID(ctx context.Context, orderID uuid.UUID) (*domain.Order, error)
 	GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) (*domain.OrderDetails, error)
-	GetOrderChatProjection(ctx context.Context, orderID uuid.UUID) (*domain.OrderChatProjection, error)
+	GetOrderProjection(ctx context.Context, orderID uuid.UUID) (*domain.OrderProjection, error)
 	GetPartnerOrderByPickupCode(ctx context.Context, pickupCode string, partnerID uuid.UUID) (*domain.PartnerOrderByCode, error)
 	GetLocationOrderByPickupCode(ctx context.Context, pickupCode string, locationID uuid.UUID) (*domain.PartnerOrderByCode, error)
 	ListOrdersByPartnerID(ctx context.Context, partnerID uuid.UUID, status string, limit, offset int) ([]domain.PartnerOrderListItem, int, error)
@@ -28,8 +28,8 @@ type orderRepository interface {
 }
 
 type orderProjectionPublisher interface {
-	PublishOrderCreated(ctx context.Context, projection domain.OrderChatProjection) error
-	PublishOrderStatusChanged(ctx context.Context, projection domain.OrderChatProjection) error
+	PublishOrderCreated(ctx context.Context, projection domain.OrderProjection) error
+	PublishOrderStatusChanged(ctx context.Context, projection domain.OrderProjection) error
 }
 
 type paymentProvider interface {

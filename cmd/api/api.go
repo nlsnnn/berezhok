@@ -128,17 +128,17 @@ func (app *application) mount() http.Handler {
 	// Order module — repositories
 	orderRepo := orderRepos.NewOrderRepo(queries, app.pool)
 	orderBoxProvider := orderAdapters.NewCatalogBoxProvider(boxSvc)
-	chatEventAdapter := orderAdapters.NewChatEventAdapter(orderPublisher)
+	orderEventAdapter := orderAdapters.NewOrderEventAdapter(orderPublisher)
 
 	// Payment module
-	orderStatusUpdater := orderServices.NewOrderStatusUpdater(orderRepo, app.log, chatEventAdapter)
+	orderStatusUpdater := orderServices.NewOrderStatusUpdater(orderRepo, app.log, orderEventAdapter)
 	yookassaAdapter := yookassa.NewAdapter(yookassa.New(app.cfg.Yookassa))
 	paymentRepo := paymentRepos.NewPaymentRepo(queries)
 	paymentSvc := paymentServices.NewPaymentService(paymentRepo, yookassaAdapter, orderStatusUpdater)
 	webhookHandler := paymentHandlers.NewWebhookHandler(paymentSvc, app.log, v)
 
 	// Order module — services
-	orderSvc := orderServices.NewOrderService(orderRepo, orderBoxProvider, paymentSvc, app.log, chatEventAdapter)
+	orderSvc := orderServices.NewOrderService(orderRepo, orderBoxProvider, paymentSvc, app.log, orderEventAdapter)
 
 	// Order module — handlers
 	orderHandler := orderHandlers.NewOrderHandler(orderSvc, app.log, v)
