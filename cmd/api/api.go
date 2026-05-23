@@ -20,6 +20,7 @@ import (
 	smsAdapter "github.com/nlsnnn/berezhok/internal/adapters/sms"
 	"github.com/nlsnnn/berezhok/internal/adapters/yookassa"
 	"github.com/nlsnnn/berezhok/internal/lib/validator"
+	adminHandlers "github.com/nlsnnn/berezhok/internal/modules/admin/handlers"
 	adminRepos "github.com/nlsnnn/berezhok/internal/modules/admin/repository"
 	authHandlers "github.com/nlsnnn/berezhok/internal/modules/auth/handlers"
 	authServices "github.com/nlsnnn/berezhok/internal/modules/auth/service"
@@ -164,6 +165,7 @@ func (app *application) mount() http.Handler {
 	customerAuthSvc := authServices.NewCustomerAuthenticator(customerRepo, jwtService, smsSvc)
 	adminAuthSvc := authServices.NewAdminAuthenticator(adminRepo, jwtService)
 	authHandler := authHandlers.NewAuthHandler(v, app.log, partnerAuthSvc, customerAuthSvc, adminAuthSvc)
+	adminApplicationHandler := adminHandlers.NewApplicationHandler(app.log, v, appSvc, adminRepo)
 
 	// Middlewares
 	authMiddleware := middlewares.NewAuthMiddleware(jwtService)
@@ -190,11 +192,6 @@ func (app *application) mount() http.Handler {
 
 		// Application
 		r.Post("/applications", appHandler.Create)
-		r.Get("/applications", appHandler.List)
-		r.Get("/applications/{id}", appHandler.GetByID)
-		r.Delete("/applications/{id}", appHandler.Delete)
-		r.Post("/applications/{id}/approve", appHandler.Approve)
-		r.Post("/applications/{id}/reject", appHandler.Reject)
 
 		// == Customer Routes ==
 		r.Group(func(r chi.Router) {
@@ -299,6 +296,19 @@ func (app *application) mount() http.Handler {
 		// == Admin Routes ==
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequireAuth("admin"))
+
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequireAdminPermission(authz.PermissionAdminOpsView))
+				r.Get("/admin/applications", adminApplicationHandler.List)
+				r.Get("/admin/applications/{id}", adminApplicationHandler.GetByID)
+			})
+
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequireAdminPermission(authz.PermissionAdminOpsManage))
+				r.Delete("/admin/applications/{id}", adminApplicationHandler.Delete)
+				r.Post("/admin/applications/{id}/approve", adminApplicationHandler.Approve)
+				r.Post("/admin/applications/{id}/reject", adminApplicationHandler.Reject)
+			})
 		})
 
 		// == Webhook Routes ==
