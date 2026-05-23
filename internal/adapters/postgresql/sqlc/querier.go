@@ -21,10 +21,22 @@ type Querier interface {
 	// Count active locations for pagination
 	CountActiveLocations(ctx context.Context, categoryCode pgtype.Text) (int64, error)
 	CountActiveOrdersByLocationID(ctx context.Context, locationID uuid.UUID) (int64, error)
+	CountAdminApplications(ctx context.Context, statusFilter string) (int64, error)
+	CountAdminAuditLog(ctx context.Context, arg CountAdminAuditLogParams) (int64, error)
+	CountAdminBoxes(ctx context.Context, arg CountAdminBoxesParams) (int64, error)
+	CountAdminCustomers(ctx context.Context, search string) (int64, error)
+	CountAdminLocations(ctx context.Context, arg CountAdminLocationsParams) (int64, error)
+	CountAdminOrders(ctx context.Context, arg CountAdminOrdersParams) (int64, error)
+	CountAdminPartners(ctx context.Context, arg CountAdminPartnersParams) (int64, error)
+	CountAdminPaymentEvents(ctx context.Context, paymentID uuid.UUID) (int64, error)
+	CountAdminPayments(ctx context.Context, arg CountAdminPaymentsParams) (int64, error)
+	CountAdminUsers(ctx context.Context, search string) (int64, error)
 	CountLocationReviews(ctx context.Context, locationID uuid.UUID) (int64, error)
 	CountOrdersByCustomerID(ctx context.Context, arg CountOrdersByCustomerIDParams) (int64, error)
 	CountOrdersByPartnerID(ctx context.Context, arg CountOrdersByPartnerIDParams) (int64, error)
 	CountPartnerStatsOrders(ctx context.Context, arg CountPartnerStatsOrdersParams) (int64, error)
+	CreateAdminAuditLog(ctx context.Context, arg CreateAdminAuditLogParams) (AdminAuditLog, error)
+	CreateAdminUser(ctx context.Context, arg CreateAdminUserParams) (AdminUser, error)
 	CreateApplication(ctx context.Context, arg CreateApplicationParams) (PartnerApplication, error)
 	// Create a new box
 	CreateBox(ctx context.Context, arg CreateBoxParams) (SurpriseBox, error)
@@ -39,6 +51,7 @@ type Querier interface {
 	CreatePartnerEmployee(ctx context.Context, arg CreatePartnerEmployeeParams) (PartnerEmployee, error)
 	CreatePayment(ctx context.Context, arg CreatePaymentParams) (CreatePaymentRow, error)
 	CreateReview(ctx context.Context, arg CreateReviewParams) (Review, error)
+	DeactivateAdminUser(ctx context.Context, id uuid.UUID) (int64, error)
 	DeactivateLocation(ctx context.Context, id uuid.UUID) error
 	DeleteApplication(ctx context.Context, id uuid.UUID) error
 	// Delete a box
@@ -48,6 +61,8 @@ type Querier interface {
 	DeleteMediaFile(ctx context.Context, id uuid.UUID) error
 	DeletePartnerEmployee(ctx context.Context, id uuid.UUID) error
 	FindActiveOrdersByLocationId(ctx context.Context, locationID uuid.UUID) ([]Order, error)
+	FindAdminByEmail(ctx context.Context, email string) (AdminUser, error)
+	FindAdminByID(ctx context.Context, id uuid.UUID) (AdminUser, error)
 	FindApplicationByID(ctx context.Context, id uuid.UUID) (PartnerApplication, error)
 	// Get a box by ID
 	FindBoxByID(ctx context.Context, id uuid.UUID) (SurpriseBox, error)
@@ -64,6 +79,13 @@ type Querier interface {
 	FindPartnerEmployeeByEmail(ctx context.Context, email string) (PartnerEmployee, error)
 	FindPartnerEmployeeByID(ctx context.Context, id uuid.UUID) (PartnerEmployee, error)
 	GetActiveOrderByCustomerAndBox(ctx context.Context, arg GetActiveOrderByCustomerAndBoxParams) (Order, error)
+	GetAdminBoxByID(ctx context.Context, id uuid.UUID) (GetAdminBoxByIDRow, error)
+	GetAdminCustomerByID(ctx context.Context, id uuid.UUID) (GetAdminCustomerByIDRow, error)
+	GetAdminLocationByID(ctx context.Context, id uuid.UUID) (GetAdminLocationByIDRow, error)
+	GetAdminOrderByID(ctx context.Context, id uuid.UUID) (GetAdminOrderByIDRow, error)
+	GetAdminPartnerByID(ctx context.Context, id uuid.UUID) (GetAdminPartnerByIDRow, error)
+	GetAdminPaymentByID(ctx context.Context, id uuid.UUID) (GetAdminPaymentByIDRow, error)
+	GetAdminStats(ctx context.Context) (GetAdminStatsRow, error)
 	// Get customer profile with stats
 	GetCustomerProfile(ctx context.Context, id uuid.UUID) (GetCustomerProfileRow, error)
 	// Get location details by ID with category info
@@ -89,6 +111,16 @@ type Querier interface {
 	// List active boxes by location ID
 	ListActiveBoxesByLocationID(ctx context.Context, locationID uuid.UUID) ([]SurpriseBox, error)
 	ListActiveOrdersByLocationID(ctx context.Context, arg ListActiveOrdersByLocationIDParams) ([]ListActiveOrdersByLocationIDRow, error)
+	ListAdminApplications(ctx context.Context, arg ListAdminApplicationsParams) ([]PartnerApplication, error)
+	ListAdminAuditLog(ctx context.Context, arg ListAdminAuditLogParams) ([]ListAdminAuditLogRow, error)
+	ListAdminBoxes(ctx context.Context, arg ListAdminBoxesParams) ([]ListAdminBoxesRow, error)
+	ListAdminCustomers(ctx context.Context, arg ListAdminCustomersParams) ([]ListAdminCustomersRow, error)
+	ListAdminLocations(ctx context.Context, arg ListAdminLocationsParams) ([]ListAdminLocationsRow, error)
+	ListAdminOrders(ctx context.Context, arg ListAdminOrdersParams) ([]ListAdminOrdersRow, error)
+	ListAdminPartners(ctx context.Context, arg ListAdminPartnersParams) ([]ListAdminPartnersRow, error)
+	ListAdminPaymentEvents(ctx context.Context, arg ListAdminPaymentEventsParams) ([]PaymentEvent, error)
+	ListAdminPayments(ctx context.Context, arg ListAdminPaymentsParams) ([]ListAdminPaymentsRow, error)
+	ListAdminUsers(ctx context.Context, arg ListAdminUsersParams) ([]AdminUser, error)
 	// Заявки на партнёрство
 	ListApplications(ctx context.Context) ([]PartnerApplication, error)
 	// List boxes by location ID
@@ -109,11 +141,17 @@ type Querier interface {
 	ListPartnerStatsOrders(ctx context.Context, arg ListPartnerStatsOrdersParams) ([]ListPartnerStatsOrdersRow, error)
 	// Партнёры (юридические лица)
 	ListPartners(ctx context.Context) ([]Partner, error)
+	MarkApplicationReviewed(ctx context.Context, arg MarkApplicationReviewedParams) (int64, error)
 	MarkOrderPickedUp(ctx context.Context, arg MarkOrderPickedUpParams) (int64, error)
 	ReserveBox(ctx context.Context, id uuid.UUID) (int64, error)
 	// Location queries for customer app
 	// Search locations
 	SearchLocations(ctx context.Context, arg SearchLocationsParams) ([]SearchLocationsRow, error)
+	UpdateAdminBoxStatus(ctx context.Context, arg UpdateAdminBoxStatusParams) (SurpriseBox, error)
+	UpdateAdminLastLogin(ctx context.Context, id uuid.UUID) error
+	UpdateAdminLocationStatus(ctx context.Context, arg UpdateAdminLocationStatusParams) (Location, error)
+	UpdateAdminPartner(ctx context.Context, arg UpdateAdminPartnerParams) (Partner, error)
+	UpdateAdminUser(ctx context.Context, arg UpdateAdminUserParams) (AdminUser, error)
 	UpdateApplication(ctx context.Context, arg UpdateApplicationParams) error
 	// Update an existing box
 	UpdateBox(ctx context.Context, arg UpdateBoxParams) (SurpriseBox, error)

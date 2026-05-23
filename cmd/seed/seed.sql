@@ -1,4 +1,5 @@
 TRUNCATE TABLE
+    admin_audit_log,
     payment_events,
     payments,
     reviews,
@@ -10,8 +11,29 @@ TRUNCATE TABLE
     partner_legal_info,
     users,
     partners,
-    partner_applications
+    partner_applications,
+    admin_users
 RESTART IDENTITY CASCADE;
+
+INSERT INTO admin_users (
+    id,
+    email,
+    password_hash,
+    name,
+    role,
+    is_active,
+    created_at,
+    updated_at
+) VALUES (
+    '01000000-0000-0000-0000-000000000001',
+    'admin@berezhok.local',
+    '__ADMIN_PASSWORD_HASH__',
+    'Главный администратор',
+    'super_admin',
+    TRUE,
+    NOW() - INTERVAL '90 days',
+    NOW() - INTERVAL '1 day'
+);
 
 INSERT INTO partner_applications (
     id,

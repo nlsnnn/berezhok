@@ -53,6 +53,7 @@ func main() {
 	}
 
 	script := strings.ReplaceAll(string(seedSQL), "__PARTNER_PASSWORD_HASH__", passwordHash)
+	script = strings.ReplaceAll(script, "__ADMIN_PASSWORD_HASH__", passwordHash)
 
 	tx, err := db.Begin(ctx)
 	if err != nil {
@@ -76,6 +77,8 @@ func main() {
 	fmt.Println("  owner@berezhok.local / test12345")
 	fmt.Println("  coffee.owner@berezhok.local / test12345")
 	fmt.Println("  employee@berezhok.local / test12345")
+	fmt.Println("Admin accounts:")
+	fmt.Println("  admin@berezhok.local / test12345")
 	fmt.Println("Customer phones:")
 	fmt.Println("  +79990000001")
 	fmt.Println("  +79990000002")
