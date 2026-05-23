@@ -7,23 +7,23 @@ import (
 	"github.com/nlsnnn/berezhok/internal/modules/order/domain"
 )
 
-type ChatEventAdapter struct {
+type OrderEventAdapter struct {
 	publisher *rabbitmq.OrderPublisher
 }
 
-func NewChatEventAdapter(publisher *rabbitmq.OrderPublisher) *ChatEventAdapter {
-	return &ChatEventAdapter{publisher: publisher}
+func NewOrderEventAdapter(publisher *rabbitmq.OrderPublisher) *OrderEventAdapter {
+	return &OrderEventAdapter{publisher: publisher}
 }
 
-func (a *ChatEventAdapter) PublishOrderCreated(ctx context.Context, projection domain.OrderChatProjection) error {
+func (a *OrderEventAdapter) PublishOrderCreated(ctx context.Context, projection domain.OrderProjection) error {
 	return a.publisher.PublishProjection(ctx, rabbitmq.RoutingKeyOrderCreated, "order.created", toMessage(projection))
 }
 
-func (a *ChatEventAdapter) PublishOrderStatusChanged(ctx context.Context, projection domain.OrderChatProjection) error {
+func (a *OrderEventAdapter) PublishOrderStatusChanged(ctx context.Context, projection domain.OrderProjection) error {
 	return a.publisher.PublishProjection(ctx, rabbitmq.RoutingKeyOrderUpdated, "order.status_changed", toMessage(projection))
 }
 
-func toMessage(projection domain.OrderChatProjection) rabbitmq.OrderProjectionMessage {
+func toMessage(projection domain.OrderProjection) rabbitmq.OrderProjectionMessage {
 	return rabbitmq.OrderProjectionMessage{
 		OrderID:    projection.OrderID,
 		CustomerID: projection.CustomerID,

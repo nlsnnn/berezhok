@@ -35,7 +35,7 @@ func (s *orderServiceStub) GetOrderDetailsByID(ctx context.Context, orderID uuid
 	return nil, nil
 }
 
-func (s *orderServiceStub) GetOrderChatProjection(ctx context.Context, orderID uuid.UUID) (*domain.OrderChatProjection, error) {
+func (s *orderServiceStub) GetOrderProjection(ctx context.Context, orderID uuid.UUID) (*domain.OrderProjection, error) {
 	return nil, nil
 }
 

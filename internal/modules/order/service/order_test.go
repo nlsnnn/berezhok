@@ -23,7 +23,7 @@ type orderRepoStub struct {
 	createOrGetFn       func(ctx context.Context, order *domain.Order) (bool, error)
 	createOrderFn       func(ctx context.Context, order *domain.Order) error
 	reserveBoxFn        func(ctx context.Context, boxID uuid.UUID) (bool, error)
-	getProjectionFn     func(ctx context.Context, orderID uuid.UUID) (*domain.OrderChatProjection, error)
+	getProjectionFn     func(ctx context.Context, orderID uuid.UUID) (*domain.OrderProjection, error)
 }
 
 func (r *orderRepoStub) CreateOrder(ctx context.Context, order *domain.Order) error {
@@ -48,7 +48,7 @@ func (r *orderRepoStub) GetOrderDetailsByID(ctx context.Context, orderID uuid.UU
 	return nil, nil
 }
 
-func (r *orderRepoStub) GetOrderChatProjection(ctx context.Context, orderID uuid.UUID) (*domain.OrderChatProjection, error) {
+func (r *orderRepoStub) GetOrderProjection(ctx context.Context, orderID uuid.UUID) (*domain.OrderProjection, error) {
 	if r.getProjectionFn != nil {
 		return r.getProjectionFn(ctx, orderID)
 	}
@@ -129,12 +129,12 @@ type projectionPublisherStub struct {
 	changedCount int
 }
 
-func (p *projectionPublisherStub) PublishOrderCreated(ctx context.Context, projection domain.OrderChatProjection) error {
+func (p *projectionPublisherStub) PublishOrderCreated(ctx context.Context, projection domain.OrderProjection) error {
 	p.createdCount++
 	return nil
 }
 
-func (p *projectionPublisherStub) PublishOrderStatusChanged(ctx context.Context, projection domain.OrderChatProjection) error {
+func (p *projectionPublisherStub) PublishOrderStatusChanged(ctx context.Context, projection domain.OrderProjection) error {
 	p.changedCount++
 	return nil
 }
@@ -174,11 +174,11 @@ func TestCreateOrderCreatesNewOrderAndPublishesEvent(t *testing.T) {
 			t.Fatal("CreateOrder must create orders through CreateOrGetActiveOrder")
 			return nil
 		},
-		getProjectionFn: func(ctx context.Context, gotOrderID uuid.UUID) (*domain.OrderChatProjection, error) {
+		getProjectionFn: func(ctx context.Context, gotOrderID uuid.UUID) (*domain.OrderProjection, error) {
 			if gotOrderID != orderID {
 				t.Fatalf("expected projection order %s, got %s", orderID, gotOrderID)
 			}
-			return &domain.OrderChatProjection{OrderID: gotOrderID}, nil
+			return &domain.OrderProjection{OrderID: gotOrderID}, nil
 		},
 	}
 	payments := &paymentProviderStub{
@@ -247,7 +247,7 @@ func TestCreateOrderReturnsExistingActiveOrderWithoutRepublishing(t *testing.T) 
 			t.Fatal("duplicate order must not insert another order")
 			return nil
 		},
-		getProjectionFn: func(ctx context.Context, orderID uuid.UUID) (*domain.OrderChatProjection, error) {
+		getProjectionFn: func(ctx context.Context, orderID uuid.UUID) (*domain.OrderProjection, error) {
 			t.Fatal("duplicate order must not publish order.created")
 			return nil, nil
 		},

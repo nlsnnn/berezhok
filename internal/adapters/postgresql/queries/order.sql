@@ -62,7 +62,7 @@ FROM orders o
   JOIN locations l ON l.id = o.location_id
 WHERE o.id = $1;
 
--- name: GetOrderChatProjection :one
+-- name: GetOrderProjection :one
 SELECT o.id AS order_id,
   o.user_id AS customer_id,
   l.partner_id,
