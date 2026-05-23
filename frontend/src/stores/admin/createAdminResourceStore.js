@@ -1,4 +1,4 @@
-import { makeAutoObservable, runInAction } from 'mobx'
+import { action, makeObservable, observable, runInAction } from 'mobx'
 
 const DEFAULT_PAGINATION = {
   total: 0,
@@ -29,7 +29,24 @@ export class AdminResourceStore {
     this.defaultFilters = defaultFilters
     this.pagination = { ...DEFAULT_PAGINATION, limit }
     this.filters = { ...defaultFilters }
-    makeAutoObservable(this, { listFn: false, detailFn: false, defaultFilters: false }, { autoBind: true })
+    makeObservable(this, {
+      items: observable,
+      pagination: observable,
+      filters: observable,
+      current: observable,
+      loading: observable,
+      detailLoading: observable,
+      actionLoading: observable,
+      error: observable,
+      setFilter: action.bound,
+      resetFilters: action.bound,
+      load: action.bound,
+      loadDetail: action.bound,
+      clearCurrent: action.bound,
+      nextPage: action.bound,
+      prevPage: action.bound,
+      runAction: action.bound,
+    })
   }
 
   setFilter(name, value) {
