@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Banknote,
   ClipboardList,
   KeyRound,
   LayoutDashboard,
@@ -79,6 +80,13 @@ export const partnerNavLinks = [
     icon: BarChart3,
     roles: ['owner'],
     matchPaths: ['/partner/stats'],
+  },
+  {
+    to: '/partner/payouts',
+    label: 'Выплаты',
+    icon: Banknote,
+    roles: ['owner'],
+    matchPaths: ['/partner/payouts'],
   },
   {
     to: '/partner/profile',

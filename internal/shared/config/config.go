@@ -9,13 +9,15 @@ import (
 )
 
 type Config struct {
-	Env        string `yaml:"env" env:"ENV" env-default:"local"`
-	Db         `yaml:"db"`
-	HTTPServer `yaml:"http_server"`
-	Redis      `yaml:"redis"`
-	S3         `yaml:"s3"`
-	Yookassa   `yaml:"yookassa"`
-	RabbitMQ   `yaml:"rabbitmq"`
+	Env            string `yaml:"env" env:"ENV" env-default:"local"`
+	Db             `yaml:"db"`
+	HTTPServer     `yaml:"http_server"`
+	Redis          `yaml:"redis"`
+	S3             `yaml:"s3"`
+	Yookassa       `yaml:"yookassa"`
+	YookassaPayout `yaml:"yookassa_payout"`
+	Payouts        `yaml:"payouts"`
+	RabbitMQ       `yaml:"rabbitmq"`
 }
 
 type Db struct {
@@ -50,6 +52,19 @@ type S3 struct {
 type Yookassa struct {
 	AccountID string `env:"YOOKASSA_ACCOUNT_ID"`
 	SecretKey string `env:"YOOKASSA_SECRET_KEY"`
+}
+
+type YookassaPayout struct {
+	AgentID   string `yaml:"agent_id"   env:"YOOKASSA_PAYOUT_AGENT_ID"`
+	SecretKey string `yaml:"secret_key" env:"YOOKASSA_PAYOUT_SECRET_KEY"`
+}
+
+type Payouts struct {
+	CalculationCron string `yaml:"calculation_cron"  env:"PAYOUTS_CALCULATION_CRON"  env-default:"0 3 * * 1"`
+	DispatchCron    string `yaml:"dispatch_cron"     env:"PAYOUTS_DISPATCH_CRON"     env-default:"*/5 * * * *"`
+	PollCron        string `yaml:"poll_cron"         env:"PAYOUTS_POLL_CRON"         env-default:"*/2 * * * *"`
+	MinPayoutAmount string `yaml:"min_payout_amount" env:"PAYOUTS_MIN_AMOUNT"        env-default:"100.00"`
+	PeriodDays      int    `yaml:"period_days"       env:"PAYOUTS_PERIOD_DAYS"       env-default:"7"`
 }
 
 type RabbitMQ struct {

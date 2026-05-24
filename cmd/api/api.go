@@ -44,6 +44,9 @@ import (
 	paymentHandlers "github.com/nlsnnn/berezhok/internal/modules/payment/handlers"
 	paymentRepos "github.com/nlsnnn/berezhok/internal/modules/payment/repository"
 	paymentServices "github.com/nlsnnn/berezhok/internal/modules/payment/service"
+	payoutHandlers "github.com/nlsnnn/berezhok/internal/modules/payout/handlers"
+	payoutRepos "github.com/nlsnnn/berezhok/internal/modules/payout/repository"
+	payoutServices "github.com/nlsnnn/berezhok/internal/modules/payout/service"
 	reviewHandlers "github.com/nlsnnn/berezhok/internal/modules/review/handlers"
 	reviewRepos "github.com/nlsnnn/berezhok/internal/modules/review/repository"
 	reviewServices "github.com/nlsnnn/berezhok/internal/modules/review/service"
@@ -144,6 +147,14 @@ func (app *application) mount() http.Handler {
 
 	// Order module — handlers
 	orderHandler := orderHandlers.NewOrderHandler(orderSvc, app.log, v)
+
+	// Payout module
+	payoutRepo := payoutRepos.NewPayoutRepo(queries, app.pool)
+	payoutAdapter := yookassa.NewPayoutAdapter(yookassa.NewPayoutHandlerClient(app.cfg.YookassaPayout))
+	payoutDestSvc := payoutServices.NewDestinationService(payoutRepo, payoutAdapter)
+	payoutQuerySvc := payoutServices.NewQueryService(payoutRepo)
+	payoutDestHandler := payoutHandlers.NewDestinationHandler(payoutDestSvc, v, app.log)
+	payoutListHandler := payoutHandlers.NewPayoutHandler(payoutQuerySvc, app.log)
 
 	// Review module
 	reviewRepo := reviewRepos.NewReviewRepo(queries)
@@ -291,6 +302,19 @@ func (app *application) mount() http.Handler {
 				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerMediaUpload))
 				// Media
 				r.Post("/media/upload", mediaHandler.Upload)
+			})
+
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerPayoutsView))
+				r.Get("/partner/payouts", payoutListHandler.List)
+				r.Get("/partner/payouts/{id}", payoutListHandler.GetByID)
+			})
+
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerPayoutsManage))
+				r.Get("/partner/payout-destination", payoutDestHandler.Get)
+				r.Put("/partner/payout-destination", payoutDestHandler.Upsert)
+				r.Get("/partner/sbp-banks", payoutDestHandler.GetSBPBanks)
 			})
 		})
 
