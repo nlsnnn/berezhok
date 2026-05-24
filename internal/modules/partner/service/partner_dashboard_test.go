@@ -9,15 +9,23 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
+	partnerErrors "github.com/nlsnnn/berezhok/internal/modules/partner/errors"
 	"github.com/nlsnnn/berezhok/internal/shared/authz"
 )
 
 type dashboardRepoStub struct {
-	dashboardFn func(ctx context.Context, employeeID string) (domain.PartnerDashboard, error)
-	statsFn     func(ctx context.Context, employeeID string, filter domain.StatsFilter) (domain.PartnerStats, error)
+	findByIDFn        func(ctx context.Context, id string) (domain.Partner, error)
+	dashboardFn       func(ctx context.Context, employeeID string) (domain.PartnerDashboard, error)
+	statsFn           func(ctx context.Context, employeeID string, filter domain.StatsFilter) (domain.PartnerStats, error)
+	upsertLegalInfoFn func(ctx context.Context, info domain.LegalInfo) error
+	updateStatusFn    func(ctx context.Context, partnerID string, status domain.PartnerStatus) error
 }
 
 func (r *dashboardRepoStub) FindByID(ctx context.Context, id string) (domain.Partner, error) {
+	if r.findByIDFn != nil {
+		return r.findByIDFn(ctx, id)
+	}
+
 	return domain.Partner{}, nil
 }
 
@@ -58,10 +66,18 @@ func (r *dashboardRepoStub) UpdateEmployeePassword(ctx context.Context, employee
 }
 
 func (r *dashboardRepoStub) UpsertLegalInfo(ctx context.Context, info domain.LegalInfo) error {
+	if r.upsertLegalInfoFn != nil {
+		return r.upsertLegalInfoFn(ctx, info)
+	}
+
 	return nil
 }
 
 func (r *dashboardRepoStub) UpdateStatus(ctx context.Context, partnerID string, status domain.PartnerStatus) error {
+	if r.updateStatusFn != nil {
+		return r.updateStatusFn(ctx, partnerID, status)
+	}
+
 	return nil
 }
 
@@ -116,6 +132,73 @@ func TestPartnerServiceDashboardError(t *testing.T) {
 	_, err := svc.Dashboard(context.Background(), "employee-id")
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected %v, got %v", expectedErr, err)
+	}
+}
+
+func TestPartnerServiceAddLegalInfoRejectsInvalidInnChecksum(t *testing.T) {
+	t.Parallel()
+
+	svc := NewPartnerService(&dashboardRepoStub{}, &dashboardEmployeeRepoStub{})
+
+	err := svc.AddLegalInfo(context.Background(), AddLegalInfoInput{
+		PartnerID:    "11111111-1111-1111-1111-111111111111",
+		Inn:          "7707083894",
+		Ogrn:         "1027700132195",
+		Kpp:          "773601001",
+		LegalAddress: "Moscow, Lenina 1",
+		LegalName:    "OOO Berezhok",
+	})
+	if !errors.Is(err, partnerErrors.ErrInvalidINN) {
+		t.Fatalf("expected ErrInvalidINN, got %v", err)
+	}
+}
+
+func TestPartnerServiceAddLegalInfoSavesPendingWithoutActivatingPartner(t *testing.T) {
+	t.Parallel()
+
+	partnerID := "11111111-1111-1111-1111-111111111111"
+	upsertCalled := false
+	updateStatusCalled := false
+
+	repo := &dashboardRepoStub{
+		findByIDFn: func(ctx context.Context, id string) (domain.Partner, error) {
+			if id != partnerID {
+				t.Fatalf("expected partner id %s, got %s", partnerID, id)
+			}
+
+			return domain.Partner{ID: partnerID, Status: domain.PartnerStatusPendingDocuments}, nil
+		},
+		upsertLegalInfoFn: func(ctx context.Context, info domain.LegalInfo) error {
+			upsertCalled = true
+			if info.VerificationStatus != domain.LegalInfoVerificationPending {
+				t.Fatalf("expected pending verification status, got %s", info.VerificationStatus)
+			}
+
+			return nil
+		},
+		updateStatusFn: func(ctx context.Context, partnerID string, status domain.PartnerStatus) error {
+			updateStatusCalled = true
+			return nil
+		},
+	}
+	svc := NewPartnerService(repo, &dashboardEmployeeRepoStub{})
+
+	err := svc.AddLegalInfo(context.Background(), AddLegalInfoInput{
+		PartnerID:    partnerID,
+		Inn:          "7707083893",
+		Ogrn:         "1027700132195",
+		Kpp:          "773601001",
+		LegalAddress: "Moscow, Lenina 1",
+		LegalName:    "OOO Berezhok",
+	})
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+	if !upsertCalled {
+		t.Fatal("expected legal info to be upserted")
+	}
+	if updateStatusCalled {
+		t.Fatal("expected partner status not to be updated")
 	}
 }
 

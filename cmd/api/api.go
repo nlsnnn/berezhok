@@ -166,7 +166,7 @@ func (app *application) mount() http.Handler {
 	adminAuthSvc := authServices.NewAdminAuthenticator(adminRepo, jwtService)
 	authHandler := authHandlers.NewAuthHandler(v, app.log, partnerAuthSvc, customerAuthSvc, adminAuthSvc)
 	adminApplicationHandler := adminHandlers.NewApplicationHandler(app.log, v, appSvc, adminRepo)
-	adminOpsHandler := adminHandlers.NewOpsHandler(app.log, v, queries, adminRepo)
+	adminOpsHandler := adminHandlers.NewOpsHandler(app.log, v, queries, adminRepo, notificationAdapter)
 
 	// Middlewares
 	authMiddleware := middlewares.NewAuthMiddleware(jwtService)
@@ -326,6 +326,8 @@ func (app *application) mount() http.Handler {
 				r.Post("/admin/applications/{id}/approve", adminApplicationHandler.Approve)
 				r.Post("/admin/applications/{id}/reject", adminApplicationHandler.Reject)
 				r.Patch("/admin/partners/{id}", adminOpsHandler.UpdatePartner)
+				r.Post("/admin/partners/{partner_id}/legal-info/verify", adminOpsHandler.VerifyPartnerLegalInfo)
+				r.Post("/admin/partners/{partner_id}/legal-info/reject", adminOpsHandler.RejectPartnerLegalInfo)
 				r.Patch("/admin/locations/{id}/status", adminOpsHandler.UpdateLocationStatus)
 				r.Patch("/admin/boxes/{id}/status", adminOpsHandler.UpdateBoxStatus)
 			})
