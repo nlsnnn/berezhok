@@ -14,6 +14,33 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const activatePartnerIfPendingDocuments = `-- name: ActivatePartnerIfPendingDocuments :one
+UPDATE partners
+SET status = CASE WHEN status = 'pending_documents' THEN 'active' ELSE status END,
+    updated_at = NOW()
+WHERE id = $1
+RETURNING id, brand_name, logo_url, parent_partner_id, account_type, commission_rate, promo_commission_rate, promo_commission_until, status, created_at, updated_at
+`
+
+func (q *Queries) ActivatePartnerIfPendingDocuments(ctx context.Context, id uuid.UUID) (Partner, error) {
+	row := q.db.QueryRow(ctx, activatePartnerIfPendingDocuments, id)
+	var i Partner
+	err := row.Scan(
+		&i.ID,
+		&i.BrandName,
+		&i.LogoUrl,
+		&i.ParentPartnerID,
+		&i.AccountType,
+		&i.CommissionRate,
+		&i.PromoCommissionRate,
+		&i.PromoCommissionUntil,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const countAdminApplications = `-- name: CountAdminApplications :one
 SELECT COUNT(*)
 FROM partner_applications
@@ -198,15 +225,20 @@ AND (
     OR p.brand_name ILIKE '%' || $2::text || '%'
     OR pli.legal_name ILIKE '%' || $2::text || '%'
 )
+AND (
+    $3::text = ''
+    OR COALESCE(pli.verification_status, '') = $3::text
+)
 `
 
 type CountAdminPartnersParams struct {
-	StatusFilter string `json:"status_filter"`
-	Search       string `json:"search"`
+	StatusFilter      string `json:"status_filter"`
+	Search            string `json:"search"`
+	LegalStatusFilter string `json:"legal_status_filter"`
 }
 
 func (q *Queries) CountAdminPartners(ctx context.Context, arg CountAdminPartnersParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countAdminPartners, arg.StatusFilter, arg.Search)
+	row := q.db.QueryRow(ctx, countAdminPartners, arg.StatusFilter, arg.Search, arg.LegalStatusFilter)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -418,6 +450,27 @@ func (q *Queries) FindAdminByID(ctx context.Context, id uuid.UUID) (AdminUser, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
+	return i, err
+}
+
+const findPartnerOwnerForNotification = `-- name: FindPartnerOwnerForNotification :one
+SELECT email, name
+FROM partner_employees
+WHERE partner_id = $1
+  AND role = 'owner'
+ORDER BY created_at ASC
+LIMIT 1
+`
+
+type FindPartnerOwnerForNotificationRow struct {
+	Email string      `json:"email"`
+	Name  pgtype.Text `json:"name"`
+}
+
+func (q *Queries) FindPartnerOwnerForNotification(ctx context.Context, partnerID uuid.UUID) (FindPartnerOwnerForNotificationRow, error) {
+	row := q.db.QueryRow(ctx, findPartnerOwnerForNotification, partnerID)
+	var i FindPartnerOwnerForNotificationRow
+	err := row.Scan(&i.Email, &i.Name)
 	return i, err
 }
 
@@ -700,6 +753,10 @@ SELECT p.id,
        COALESCE(pli.ogrn, '') AS ogrn,
        COALESCE(pli.kpp, '') AS kpp,
        COALESCE(pli.legal_address, '') AS legal_address,
+       COALESCE(pli.verification_status, '') AS legal_verification_status,
+       COALESCE(pli.verification_comment, '') AS legal_verification_comment,
+       pli.verified_by,
+       pli.verified_at,
        COUNT(DISTINCT l.id)::int AS locations_count,
        COUNT(DISTINCT o.id)::int AS total_orders,
        COALESCE(SUM(o.amount) FILTER (WHERE o.status IN ('completed', 'picked_up')), 0)::numeric AS total_revenue
@@ -712,25 +769,29 @@ GROUP BY p.id, pli.partner_id
 `
 
 type GetAdminPartnerByIDRow struct {
-	ID                   uuid.UUID      `json:"id"`
-	BrandName            string         `json:"brand_name"`
-	LegalName            string         `json:"legal_name"`
-	LogoUrl              pgtype.Text    `json:"logo_url"`
-	ParentPartnerID      pgtype.UUID    `json:"parent_partner_id"`
-	AccountType          pgtype.Text    `json:"account_type"`
-	CommissionRate       pgtype.Numeric `json:"commission_rate"`
-	PromoCommissionRate  pgtype.Numeric `json:"promo_commission_rate"`
-	PromoCommissionUntil pgtype.Date    `json:"promo_commission_until"`
-	Status               string         `json:"status"`
-	CreatedAt            time.Time      `json:"created_at"`
-	UpdatedAt            time.Time      `json:"updated_at"`
-	Inn                  string         `json:"inn"`
-	Ogrn                 string         `json:"ogrn"`
-	Kpp                  string         `json:"kpp"`
-	LegalAddress         string         `json:"legal_address"`
-	LocationsCount       int32          `json:"locations_count"`
-	TotalOrders          int32          `json:"total_orders"`
-	TotalRevenue         pgtype.Numeric `json:"total_revenue"`
+	ID                       uuid.UUID        `json:"id"`
+	BrandName                string           `json:"brand_name"`
+	LegalName                string           `json:"legal_name"`
+	LogoUrl                  pgtype.Text      `json:"logo_url"`
+	ParentPartnerID          pgtype.UUID      `json:"parent_partner_id"`
+	AccountType              pgtype.Text      `json:"account_type"`
+	CommissionRate           pgtype.Numeric   `json:"commission_rate"`
+	PromoCommissionRate      pgtype.Numeric   `json:"promo_commission_rate"`
+	PromoCommissionUntil     pgtype.Date      `json:"promo_commission_until"`
+	Status                   string           `json:"status"`
+	CreatedAt                time.Time        `json:"created_at"`
+	UpdatedAt                time.Time        `json:"updated_at"`
+	Inn                      string           `json:"inn"`
+	Ogrn                     string           `json:"ogrn"`
+	Kpp                      string           `json:"kpp"`
+	LegalAddress             string           `json:"legal_address"`
+	LegalVerificationStatus  string           `json:"legal_verification_status"`
+	LegalVerificationComment string           `json:"legal_verification_comment"`
+	VerifiedBy               pgtype.UUID      `json:"verified_by"`
+	VerifiedAt               pgtype.Timestamp `json:"verified_at"`
+	LocationsCount           int32            `json:"locations_count"`
+	TotalOrders              int32            `json:"total_orders"`
+	TotalRevenue             pgtype.Numeric   `json:"total_revenue"`
 }
 
 func (q *Queries) GetAdminPartnerByID(ctx context.Context, id uuid.UUID) (GetAdminPartnerByIDRow, error) {
@@ -753,6 +814,10 @@ func (q *Queries) GetAdminPartnerByID(ctx context.Context, id uuid.UUID) (GetAdm
 		&i.Ogrn,
 		&i.Kpp,
 		&i.LegalAddress,
+		&i.LegalVerificationStatus,
+		&i.LegalVerificationComment,
+		&i.VerifiedBy,
+		&i.VerifiedAt,
 		&i.LocationsCount,
 		&i.TotalOrders,
 		&i.TotalRevenue,
@@ -1400,6 +1465,8 @@ const listAdminPartners = `-- name: ListAdminPartners :many
 SELECT p.id,
        p.brand_name,
        COALESCE(pli.legal_name, '') AS legal_name,
+       COALESCE(pli.verification_status, '') AS legal_verification_status,
+       COALESCE(pli.verification_comment, '') AS legal_verification_comment,
        p.logo_url,
        p.account_type,
        p.commission_rate,
@@ -1424,39 +1491,47 @@ AND (
     OR p.brand_name ILIKE '%' || $2::text || '%'
     OR pli.legal_name ILIKE '%' || $2::text || '%'
 )
-GROUP BY p.id, pli.legal_name
+AND (
+    $3::text = ''
+    OR COALESCE(pli.verification_status, '') = $3::text
+)
+GROUP BY p.id, pli.legal_name, pli.verification_status, pli.verification_comment
 ORDER BY p.created_at DESC
-LIMIT $4 OFFSET $3
+LIMIT $5 OFFSET $4
 `
 
 type ListAdminPartnersParams struct {
-	StatusFilter string `json:"status_filter"`
-	Search       string `json:"search"`
-	PageOffset   int32  `json:"page_offset"`
-	PageLimit    int32  `json:"page_limit"`
+	StatusFilter      string `json:"status_filter"`
+	Search            string `json:"search"`
+	LegalStatusFilter string `json:"legal_status_filter"`
+	PageOffset        int32  `json:"page_offset"`
+	PageLimit         int32  `json:"page_limit"`
 }
 
 type ListAdminPartnersRow struct {
-	ID                   uuid.UUID      `json:"id"`
-	BrandName            string         `json:"brand_name"`
-	LegalName            string         `json:"legal_name"`
-	LogoUrl              pgtype.Text    `json:"logo_url"`
-	AccountType          pgtype.Text    `json:"account_type"`
-	CommissionRate       pgtype.Numeric `json:"commission_rate"`
-	PromoCommissionRate  pgtype.Numeric `json:"promo_commission_rate"`
-	PromoCommissionUntil pgtype.Date    `json:"promo_commission_until"`
-	Status               string         `json:"status"`
-	CreatedAt            time.Time      `json:"created_at"`
-	UpdatedAt            time.Time      `json:"updated_at"`
-	LocationsCount       int32          `json:"locations_count"`
-	TotalOrders          int32          `json:"total_orders"`
-	TotalRevenue         pgtype.Numeric `json:"total_revenue"`
+	ID                       uuid.UUID      `json:"id"`
+	BrandName                string         `json:"brand_name"`
+	LegalName                string         `json:"legal_name"`
+	LegalVerificationStatus  string         `json:"legal_verification_status"`
+	LegalVerificationComment string         `json:"legal_verification_comment"`
+	LogoUrl                  pgtype.Text    `json:"logo_url"`
+	AccountType              pgtype.Text    `json:"account_type"`
+	CommissionRate           pgtype.Numeric `json:"commission_rate"`
+	PromoCommissionRate      pgtype.Numeric `json:"promo_commission_rate"`
+	PromoCommissionUntil     pgtype.Date    `json:"promo_commission_until"`
+	Status                   string         `json:"status"`
+	CreatedAt                time.Time      `json:"created_at"`
+	UpdatedAt                time.Time      `json:"updated_at"`
+	LocationsCount           int32          `json:"locations_count"`
+	TotalOrders              int32          `json:"total_orders"`
+	TotalRevenue             pgtype.Numeric `json:"total_revenue"`
 }
 
 func (q *Queries) ListAdminPartners(ctx context.Context, arg ListAdminPartnersParams) ([]ListAdminPartnersRow, error) {
 	rows, err := q.db.Query(ctx, listAdminPartners,
 		arg.StatusFilter,
 		arg.Search,
+		arg.LegalStatusFilter,
 		arg.PageOffset,
 		arg.PageLimit,
 	)
@@ -1471,6 +1546,8 @@ func (q *Queries) ListAdminPartners(ctx context.Context, arg ListAdminPartnersPa
 			&i.ID,
 			&i.BrandName,
 			&i.LegalName,
+			&i.LegalVerificationStatus,
+			&i.LegalVerificationComment,
 			&i.LogoUrl,
 			&i.AccountType,
 			&i.CommissionRate,
@@ -1702,6 +1779,43 @@ func (q *Queries) MarkApplicationReviewed(ctx context.Context, arg MarkApplicati
 	return result.RowsAffected(), nil
 }
 
+const rejectPartnerLegalInfo = `-- name: RejectPartnerLegalInfo :one
+UPDATE partner_legal_info
+SET verification_status = 'failed',
+    verification_comment = $2,
+    verified_by = $3,
+    verified_at = NOW(),
+    updated_at = NOW()
+WHERE partner_id = $1
+RETURNING partner_id, inn, ogrn, kpp, legal_address, created_at, updated_at, legal_name, verification_status, verification_comment, verified_by, verified_at
+`
+
+type RejectPartnerLegalInfoParams struct {
+	PartnerID           uuid.UUID   `json:"partner_id"`
+	VerificationComment pgtype.Text `json:"verification_comment"`
+	VerifiedBy          pgtype.UUID `json:"verified_by"`
+}
+
+func (q *Queries) RejectPartnerLegalInfo(ctx context.Context, arg RejectPartnerLegalInfoParams) (PartnerLegalInfo, error) {
+	row := q.db.QueryRow(ctx, rejectPartnerLegalInfo, arg.PartnerID, arg.VerificationComment, arg.VerifiedBy)
+	var i PartnerLegalInfo
+	err := row.Scan(
+		&i.PartnerID,
+		&i.Inn,
+		&i.Ogrn,
+		&i.Kpp,
+		&i.LegalAddress,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LegalName,
+		&i.VerificationStatus,
+		&i.VerificationComment,
+		&i.VerifiedBy,
+		&i.VerifiedAt,
+	)
+	return i, err
+}
+
 const updateAdminBoxStatus = `-- name: UpdateAdminBoxStatus :one
 UPDATE surprise_boxes
 SET status = $2,
@@ -1862,6 +1976,42 @@ func (q *Queries) UpdateAdminUser(ctx context.Context, arg UpdateAdminUserParams
 		&i.LastLoginAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const verifyPartnerLegalInfo = `-- name: VerifyPartnerLegalInfo :one
+UPDATE partner_legal_info
+SET verification_status = 'verified',
+    verification_comment = NULL,
+    verified_by = $2,
+    verified_at = NOW(),
+    updated_at = NOW()
+WHERE partner_id = $1
+RETURNING partner_id, inn, ogrn, kpp, legal_address, created_at, updated_at, legal_name, verification_status, verification_comment, verified_by, verified_at
+`
+
+type VerifyPartnerLegalInfoParams struct {
+	PartnerID  uuid.UUID   `json:"partner_id"`
+	VerifiedBy pgtype.UUID `json:"verified_by"`
+}
+
+func (q *Queries) VerifyPartnerLegalInfo(ctx context.Context, arg VerifyPartnerLegalInfoParams) (PartnerLegalInfo, error) {
+	row := q.db.QueryRow(ctx, verifyPartnerLegalInfo, arg.PartnerID, arg.VerifiedBy)
+	var i PartnerLegalInfo
+	err := row.Scan(
+		&i.PartnerID,
+		&i.Inn,
+		&i.Ogrn,
+		&i.Kpp,
+		&i.LegalAddress,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LegalName,
+		&i.VerificationStatus,
+		&i.VerificationComment,
+		&i.VerifiedBy,
+		&i.VerifiedAt,
 	)
 	return i, err
 }

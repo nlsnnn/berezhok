@@ -14,6 +14,7 @@ import (
 type Querier interface {
 	AcquireOrderCreationLock(ctx context.Context, arg AcquireOrderCreationLockParams) error
 	ActivateLocation(ctx context.Context, id uuid.UUID) error
+	ActivatePartnerIfPendingDocuments(ctx context.Context, id uuid.UUID) (Partner, error)
 	CheckEmailExists(ctx context.Context, email string) (bool, error)
 	CloseLocation(ctx context.Context, id uuid.UUID) error
 	// Count active boxes by location ID
@@ -78,6 +79,7 @@ type Querier interface {
 	FindPartnerByID(ctx context.Context, id uuid.UUID) (Partner, error)
 	FindPartnerEmployeeByEmail(ctx context.Context, email string) (PartnerEmployee, error)
 	FindPartnerEmployeeByID(ctx context.Context, id uuid.UUID) (PartnerEmployee, error)
+	FindPartnerOwnerForNotification(ctx context.Context, partnerID uuid.UUID) (FindPartnerOwnerForNotificationRow, error)
 	GetActiveOrderByCustomerAndBox(ctx context.Context, arg GetActiveOrderByCustomerAndBoxParams) (Order, error)
 	GetAdminBoxByID(ctx context.Context, id uuid.UUID) (GetAdminBoxByIDRow, error)
 	GetAdminCustomerByID(ctx context.Context, id uuid.UUID) (GetAdminCustomerByIDRow, error)
@@ -143,6 +145,7 @@ type Querier interface {
 	ListPartners(ctx context.Context) ([]Partner, error)
 	MarkApplicationReviewed(ctx context.Context, arg MarkApplicationReviewedParams) (int64, error)
 	MarkOrderPickedUp(ctx context.Context, arg MarkOrderPickedUpParams) (int64, error)
+	RejectPartnerLegalInfo(ctx context.Context, arg RejectPartnerLegalInfoParams) (PartnerLegalInfo, error)
 	ReserveBox(ctx context.Context, id uuid.UUID) (int64, error)
 	// Location queries for customer app
 	// Search locations
@@ -167,6 +170,7 @@ type Querier interface {
 	UpdatePartnerStatusByID(ctx context.Context, arg UpdatePartnerStatusByIDParams) error
 	UpdatePaymentStatus(ctx context.Context, arg UpdatePaymentStatusParams) (Payment, error)
 	UpsertPartnerLegalInfo(ctx context.Context, arg UpsertPartnerLegalInfoParams) (PartnerLegalInfo, error)
+	VerifyPartnerLegalInfo(ctx context.Context, arg VerifyPartnerLegalInfoParams) (PartnerLegalInfo, error)
 }
 
 var _ Querier = (*Queries)(nil)

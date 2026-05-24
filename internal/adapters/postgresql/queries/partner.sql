@@ -45,6 +45,10 @@ DO UPDATE SET
     kpp = EXCLUDED.kpp,
     legal_address = EXCLUDED.legal_address,
     legal_name = EXCLUDED.legal_name,
+    verification_status = 'pending',
+    verification_comment = NULL,
+    verified_by = NULL,
+    verified_at = NULL,
     updated_at = NOW()
 RETURNING *;
 

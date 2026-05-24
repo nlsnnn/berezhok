@@ -1630,8 +1630,12 @@ DO UPDATE SET
     kpp = EXCLUDED.kpp,
     legal_address = EXCLUDED.legal_address,
     legal_name = EXCLUDED.legal_name,
+    verification_status = 'pending',
+    verification_comment = NULL,
+    verified_by = NULL,
+    verified_at = NULL,
     updated_at = NOW()
-RETURNING partner_id, inn, ogrn, kpp, legal_address, created_at, updated_at, legal_name
+RETURNING partner_id, inn, ogrn, kpp, legal_address, created_at, updated_at, legal_name, verification_status, verification_comment, verified_by, verified_at
 `
 
 type UpsertPartnerLegalInfoParams struct {
@@ -1662,6 +1666,10 @@ func (q *Queries) UpsertPartnerLegalInfo(ctx context.Context, arg UpsertPartnerL
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.LegalName,
+		&i.VerificationStatus,
+		&i.VerificationComment,
+		&i.VerifiedBy,
+		&i.VerifiedAt,
 	)
 	return i, err
 }
