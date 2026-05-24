@@ -33,3 +33,12 @@ export function getErrorMessage(error) {
     'Неизвестная ошибка'
   )
 }
+
+export function getValidationDetails(error) {
+  const details = error?.response?.data?.error?.details
+  if (!details || typeof details !== 'object' || Array.isArray(details)) {
+    return null
+  }
+
+  return details
+}
