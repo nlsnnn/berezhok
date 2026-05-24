@@ -24,7 +24,7 @@ import (
 
 type applicationService interface {
 	GetByID(ctx context.Context, id string) (partnerDomain.Application, error)
-	List(ctx context.Context) ([]partnerDomain.Application, error)
+	List(ctx context.Context, input partnerDomain.ApplicationListInput) (partnerDomain.ApplicationListResult, error)
 	Approve(ctx context.Context, id string) error
 	Reject(ctx context.Context, id, reason string) error
 	Delete(ctx context.Context, id string) error
@@ -52,23 +52,21 @@ func NewApplicationHandler(log *slog.Logger, validator *validator.Validator, app
 }
 
 func (h *ApplicationHandler) List(w http.ResponseWriter, r *http.Request) {
-	apps, err := h.appSvc.List(r.Context())
+	p := paginationFromRequest(r)
+	result, err := h.appSvc.List(r.Context(), partnerDomain.ApplicationListInput{
+		Search: r.URL.Query().Get("search"),
+		Status: r.URL.Query().Get("status"),
+		Limit:  p.Limit,
+		Offset: p.Offset,
+	})
 	if err != nil {
 		h.log.Error("failed to list applications", sl.Err(err))
 		response.InternalError(w, nil)
 		return
 	}
 
-	items := partnerDTO.MapSlice(apps, partnerDTO.FromApplication)
-	response.Success(w, map[string]any{
-		"items": items,
-		"pagination": map[string]any{
-			"total":    len(items),
-			"limit":    len(items),
-			"offset":   0,
-			"has_more": false,
-		},
-	})
+	items := partnerDTO.MapSlice(result.Items, partnerDTO.FromApplication)
+	response.Success(w, paginated(items, result.Total, p))
 }
 
 func (h *ApplicationHandler) GetByID(w http.ResponseWriter, r *http.Request) {

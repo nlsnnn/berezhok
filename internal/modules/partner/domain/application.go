@@ -31,6 +31,18 @@ type Application struct {
 	CreatedAt       time.Time
 }
 
+type ApplicationListInput struct {
+	Search string
+	Status string
+	Limit  int
+	Offset int
+}
+
+type ApplicationListResult struct {
+	Items []Application
+	Total int
+}
+
 func NewApplication(contactName, contactEmail, contactPhone, businessName, categoryCode, address, description string, coords domain.GeoPoint) (Application, error) {
 	if contactName == "" {
 		return Application{}, errors.ErrInvalidInput

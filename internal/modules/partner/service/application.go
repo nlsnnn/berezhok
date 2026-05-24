@@ -33,7 +33,7 @@ type appService struct {
 
 type appRepo interface {
 	FindByID(ctx context.Context, id string) (domain.Application, error)
-	List(ctx context.Context) ([]domain.Application, error)
+	List(ctx context.Context, input domain.ApplicationListInput) (domain.ApplicationListResult, error)
 	Create(ctx context.Context, app domain.Application) (domain.Application, error)
 	UpdateStatus(ctx context.Context, id string, status domain.ApplicationStatus, rejectionReason string) error
 	Delete(ctx context.Context, id string) error
@@ -107,8 +107,8 @@ func (s *appService) GetByID(ctx context.Context, id string) (domain.Application
 	return s.repo.FindByID(ctx, id)
 }
 
-func (s *appService) List(ctx context.Context) ([]domain.Application, error) {
-	return s.repo.List(ctx)
+func (s *appService) List(ctx context.Context, input domain.ApplicationListInput) (domain.ApplicationListResult, error) {
+	return s.repo.List(ctx, input)
 }
 
 func (s *appService) Delete(ctx context.Context, id string) error {

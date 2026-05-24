@@ -21,10 +21,23 @@ WHERE (
     $1::text = ''
     OR status = $1::text
 )
+AND (
+    $2::text = ''
+    OR contact_name ILIKE '%' || $2::text || '%'
+    OR contact_email ILIKE '%' || $2::text || '%'
+    OR contact_phone ILIKE '%' || $2::text || '%'
+    OR business_name ILIKE '%' || $2::text || '%'
+    OR address ILIKE '%' || $2::text || '%'
+)
 `
 
-func (q *Queries) CountAdminApplications(ctx context.Context, statusFilter string) (int64, error) {
-	row := q.db.QueryRow(ctx, countAdminApplications, statusFilter)
+type CountAdminApplicationsParams struct {
+	StatusFilter string `json:"status_filter"`
+	Search       string `json:"search"`
+}
+
+func (q *Queries) CountAdminApplications(ctx context.Context, arg CountAdminApplicationsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countAdminApplications, arg.StatusFilter, arg.Search)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -859,18 +872,32 @@ WHERE (
     $1::text = ''
     OR status = $1::text
 )
+AND (
+    $2::text = ''
+    OR contact_name ILIKE '%' || $2::text || '%'
+    OR contact_email ILIKE '%' || $2::text || '%'
+    OR contact_phone ILIKE '%' || $2::text || '%'
+    OR business_name ILIKE '%' || $2::text || '%'
+    OR address ILIKE '%' || $2::text || '%'
+)
 ORDER BY created_at DESC
-LIMIT $3 OFFSET $2
+LIMIT $4 OFFSET $3
 `
 
 type ListAdminApplicationsParams struct {
 	StatusFilter string `json:"status_filter"`
+	Search       string `json:"search"`
 	PageOffset   int32  `json:"page_offset"`
 	PageLimit    int32  `json:"page_limit"`
 }
 
 func (q *Queries) ListAdminApplications(ctx context.Context, arg ListAdminApplicationsParams) ([]PartnerApplication, error) {
-	rows, err := q.db.Query(ctx, listAdminApplications, arg.StatusFilter, arg.PageOffset, arg.PageLimit)
+	rows, err := q.db.Query(ctx, listAdminApplications,
+		arg.StatusFilter,
+		arg.Search,
+		arg.PageOffset,
+		arg.PageLimit,
+	)
 	if err != nil {
 		return nil, err
 	}

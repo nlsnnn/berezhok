@@ -11,7 +11,7 @@ import (
 type appSvc interface {
 	Create(ctx context.Context, input service.CreateApplicationInput) (domain.Application, error)
 	GetByID(ctx context.Context, id string) (domain.Application, error)
-	List(ctx context.Context) ([]domain.Application, error)
+	List(ctx context.Context, input domain.ApplicationListInput) (domain.ApplicationListResult, error)
 	Approve(ctx context.Context, id string) error
 	Reject(ctx context.Context, id, reason string) error
 	Delete(ctx context.Context, id string) error

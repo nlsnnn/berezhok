@@ -109,6 +109,14 @@ WHERE (
     sqlc.arg(status_filter)::text = ''
     OR status = sqlc.arg(status_filter)::text
 )
+AND (
+    sqlc.arg(search)::text = ''
+    OR contact_name ILIKE '%' || sqlc.arg(search)::text || '%'
+    OR contact_email ILIKE '%' || sqlc.arg(search)::text || '%'
+    OR contact_phone ILIKE '%' || sqlc.arg(search)::text || '%'
+    OR business_name ILIKE '%' || sqlc.arg(search)::text || '%'
+    OR address ILIKE '%' || sqlc.arg(search)::text || '%'
+)
 ORDER BY created_at DESC
 LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
 
@@ -118,6 +126,14 @@ FROM partner_applications
 WHERE (
     sqlc.arg(status_filter)::text = ''
     OR status = sqlc.arg(status_filter)::text
+)
+AND (
+    sqlc.arg(search)::text = ''
+    OR contact_name ILIKE '%' || sqlc.arg(search)::text || '%'
+    OR contact_email ILIKE '%' || sqlc.arg(search)::text || '%'
+    OR contact_phone ILIKE '%' || sqlc.arg(search)::text || '%'
+    OR business_name ILIKE '%' || sqlc.arg(search)::text || '%'
+    OR address ILIKE '%' || sqlc.arg(search)::text || '%'
 );
 
 -- name: MarkApplicationReviewed :execrows

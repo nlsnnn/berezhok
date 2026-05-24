@@ -21,7 +21,7 @@ type Querier interface {
 	// Count active locations for pagination
 	CountActiveLocations(ctx context.Context, categoryCode pgtype.Text) (int64, error)
 	CountActiveOrdersByLocationID(ctx context.Context, locationID uuid.UUID) (int64, error)
-	CountAdminApplications(ctx context.Context, statusFilter string) (int64, error)
+	CountAdminApplications(ctx context.Context, arg CountAdminApplicationsParams) (int64, error)
 	CountAdminAuditLog(ctx context.Context, arg CountAdminAuditLogParams) (int64, error)
 	CountAdminBoxes(ctx context.Context, arg CountAdminBoxesParams) (int64, error)
 	CountAdminCustomers(ctx context.Context, search string) (int64, error)

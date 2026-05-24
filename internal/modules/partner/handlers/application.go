@@ -9,6 +9,7 @@ import (
 
 	"github.com/nlsnnn/berezhok/internal/lib/logger/sl"
 	"github.com/nlsnnn/berezhok/internal/lib/validator"
+	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 	partnerErrors "github.com/nlsnnn/berezhok/internal/modules/partner/errors"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/handlers/dto"
 	"github.com/nlsnnn/berezhok/internal/shared/response"
@@ -69,14 +70,14 @@ func (a *appHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *appHandler) List(w http.ResponseWriter, r *http.Request) {
-	apps, err := a.appService.List(r.Context())
+	result, err := a.appService.List(r.Context(), domain.ApplicationListInput{})
 	if err != nil {
 		a.log.Error("failed to list applications", sl.Err(err))
 		response.InternalError(w, err)
 		return
 	}
 
-	response.Success(w, dto.MapSlice(apps, dto.FromApplication))
+	response.Success(w, dto.MapSlice(result.Items, dto.FromApplication))
 }
 
 func (a *appHandler) Delete(w http.ResponseWriter, r *http.Request) {
