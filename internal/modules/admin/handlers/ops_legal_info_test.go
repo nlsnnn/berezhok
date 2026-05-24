@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
 	"github.com/nlsnnn/berezhok/internal/lib/validator"
@@ -35,7 +36,10 @@ func TestRejectPartnerLegalInfoRequiresComment(t *testing.T) {
 	adminID := uuid.New()
 	handler := NewOpsHandler(slog.New(slog.NewTextHandler(io.Discard, nil)), validator.New(), nil, fakeApplicationAuditRepo{})
 	request := httptest.NewRequest(http.MethodPost, "/admin/partners/11111111-1111-1111-1111-111111111111/legal-info/reject", bytes.NewReader([]byte(`{"verification_comment":""}`)))
+	routeContext := chi.NewRouteContext()
+	routeContext.URLParams.Add("partner_id", "11111111-1111-1111-1111-111111111111")
 	request = request.WithContext(context.WithValue(request.Context(), contextx.AdminIDKey, adminID))
+	request = request.WithContext(context.WithValue(request.Context(), chi.RouteCtxKey, routeContext))
 	recorder := httptest.NewRecorder()
 
 	handler.RejectPartnerLegalInfo(recorder, request)
