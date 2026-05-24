@@ -29,16 +29,43 @@ func (r *ApplicationRepo) FindByID(ctx context.Context, id string) (domain.Appli
 	return applicationToDomain(a), nil
 }
 
-func (r *ApplicationRepo) List(ctx context.Context) ([]domain.Application, error) {
-	rows, err := r.q.ListApplications(ctx)
+func (r *ApplicationRepo) List(ctx context.Context, input domain.ApplicationListInput) (domain.ApplicationListResult, error) {
+	status := input.Status
+	if status == "all" {
+		status = ""
+	}
+	limit := input.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+	offset := input.Offset
+	if offset < 0 {
+		offset = 0
+	}
+
+	rows, err := r.q.ListAdminApplications(ctx, sqlc.ListAdminApplicationsParams{
+		StatusFilter: status,
+		Search:       input.Search,
+		PageLimit:    int32(limit),
+		PageOffset:   int32(offset),
+	})
 	if err != nil {
-		return nil, err
+		return domain.ApplicationListResult{}, err
 	}
 	result := make([]domain.Application, len(rows))
 	for i, a := range rows {
 		result[i] = applicationToDomain(a)
 	}
-	return result, nil
+
+	total, err := r.q.CountAdminApplications(ctx, sqlc.CountAdminApplicationsParams{
+		StatusFilter: status,
+		Search:       input.Search,
+	})
+	if err != nil {
+		return domain.ApplicationListResult{}, err
+	}
+
+	return domain.ApplicationListResult{Items: result, Total: int(total)}, nil
 }
 
 func (r *ApplicationRepo) Create(ctx context.Context, app domain.Application) (domain.Application, error) {

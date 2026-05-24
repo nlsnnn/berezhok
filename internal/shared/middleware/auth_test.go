@@ -156,3 +156,112 @@ func TestRequirePermissionAllowsManagerBoxes(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", rr.Code)
 	}
 }
+
+func TestRequireAuthStoresAdminContext(t *testing.T) {
+	t.Parallel()
+
+	adminID := uuid.New()
+	mw := NewAuthMiddleware(&tokenServiceStub{
+		validateFn: func(token string) (*auth.TokenClaims, error) {
+			return &auth.TokenClaims{
+				UserID:   adminID,
+				UserType: "admin",
+				Role:     "super_admin",
+			}, nil
+		},
+	})
+
+	handler := mw.RequireAuth("admin")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		payload := map[string]string{}
+
+		gotAdminID, _ := contextx.AdminID(r)
+		payload["admin_id"] = gotAdminID.String()
+
+		actor, _ := contextx.AdminActor(r)
+		payload["actor_role"] = string(actor.Role)
+		payload["actor_admin_id"] = actor.AdminID.String()
+
+		_ = json.NewEncoder(w).Encode(payload)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/me", nil)
+	req.Header.Set("Authorization", "Bearer token")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rr.Code)
+	}
+
+	var payload map[string]string
+	if err := json.Unmarshal(rr.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("failed to decode body: %v", err)
+	}
+
+	if payload["admin_id"] != adminID.String() {
+		t.Fatalf("expected admin_id %s, got %s", adminID, payload["admin_id"])
+	}
+	if payload["actor_role"] != "super_admin" {
+		t.Fatalf("expected actor role super_admin, got %s", payload["actor_role"])
+	}
+	if payload["actor_admin_id"] != adminID.String() {
+		t.Fatalf("expected actor admin_id %s, got %s", adminID, payload["actor_admin_id"])
+	}
+}
+
+func TestRequireAdminPermissionRejectsSupportManage(t *testing.T) {
+	t.Parallel()
+
+	mw := NewAuthMiddleware(&tokenServiceStub{
+		validateFn: func(token string) (*auth.TokenClaims, error) {
+			return &auth.TokenClaims{
+				UserID:   uuid.New(),
+				UserType: "admin",
+				Role:     "support",
+			}, nil
+		},
+	})
+
+	handler := mw.RequireAuth("admin")(mw.RequireAdminPermission(authz.PermissionAdminOpsManage)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})))
+
+	req := httptest.NewRequest(http.MethodPatch, "/admin/partners/id", nil)
+	req.Header.Set("Authorization", "Bearer token")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("expected status 403, got %d", rr.Code)
+	}
+}
+
+func TestRequireAdminPermissionAllowsAdminManage(t *testing.T) {
+	t.Parallel()
+
+	mw := NewAuthMiddleware(&tokenServiceStub{
+		validateFn: func(token string) (*auth.TokenClaims, error) {
+			return &auth.TokenClaims{
+				UserID:   uuid.New(),
+				UserType: "admin",
+				Role:     "admin",
+			}, nil
+		},
+	})
+
+	handler := mw.RequireAuth("admin")(mw.RequireAdminPermission(authz.PermissionAdminOpsManage)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})))
+
+	req := httptest.NewRequest(http.MethodPatch, "/admin/partners/id", nil)
+	req.Header.Set("Authorization", "Bearer token")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rr.Code)
+	}
+}

@@ -16,6 +16,16 @@ const (
 
 type Permission string
 
+type AdminRole string
+
+const (
+	AdminRoleSuperAdmin AdminRole = "super_admin"
+	AdminRoleAdmin      AdminRole = "admin"
+	AdminRoleSupport    AdminRole = "support"
+)
+
+type AdminPermission string
+
 const (
 	PermissionPartnerPasswordChange  Permission = "partner.password.change"
 	PermissionPartnerOrdersView      Permission = "partner.orders.view"
@@ -28,6 +38,11 @@ const (
 	PermissionPartnerLegalInfoManage Permission = "partner.legal_info.manage"
 	PermissionPartnerDashboardView   Permission = "partner.dashboard.view"
 	PermissionPartnerMediaUpload     Permission = "partner.media.upload"
+
+	PermissionAdminOpsView      AdminPermission = "admin.ops.view"
+	PermissionAdminOpsManage    AdminPermission = "admin.ops.manage"
+	PermissionAdminAdminsManage AdminPermission = "admin.admins.manage"
+	PermissionAdminAuditView    AdminPermission = "admin.audit.view"
 )
 
 var (
@@ -63,11 +78,52 @@ var RolePermissions = map[Role]map[Permission]struct{}{
 	},
 }
 
+var AdminRolePermissions = map[AdminRole]map[AdminPermission]struct{}{
+	AdminRoleSuperAdmin: {
+		PermissionAdminOpsView:      {},
+		PermissionAdminOpsManage:    {},
+		PermissionAdminAdminsManage: {},
+		PermissionAdminAuditView:    {},
+	},
+	AdminRoleAdmin: {
+		PermissionAdminOpsView:   {},
+		PermissionAdminOpsManage: {},
+		PermissionAdminAuditView: {},
+	},
+	AdminRoleSupport: {
+		PermissionAdminOpsView:   {},
+		PermissionAdminAuditView: {},
+	},
+}
+
 type PartnerActor struct {
 	PartnerID  uuid.UUID
 	EmployeeID uuid.UUID
 	Role       Role
 	LocationID *uuid.UUID
+}
+
+type AdminActor struct {
+	AdminID uuid.UUID
+	Role    AdminRole
+}
+
+func (a AdminActor) Can(permission AdminPermission) bool {
+	permissions, ok := AdminRolePermissions[a.Role]
+	if !ok {
+		return false
+	}
+
+	_, ok = permissions[permission]
+	return ok
+}
+
+func (a AdminActor) EnsureCan(permission AdminPermission) error {
+	if !a.Can(permission) {
+		return ErrForbidden
+	}
+
+	return nil
 }
 
 func (a PartnerActor) Can(permission Permission) bool {
