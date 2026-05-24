@@ -35,6 +35,7 @@ import PartnerLegalInfoPage from '@/pages/partner/PartnerLegalInfoPage'
 import PartnerOfferPage from '@/pages/partner/PartnerOfferPage'
 import PartnerChatPage from '@/pages/partner/PartnerChatPage'
 import PromoPage from '@/pages/partner/PromoPage'
+import PartnerPayoutsPage from '@/pages/partner/PartnerPayoutsPage'
 
 export default function App() {
   return (
@@ -95,6 +96,9 @@ export default function App() {
               {/* Profile */}
               <Route path="/partner/profile" element={<ProfilePage />} />
               <Route path="/partner/legal-info" element={<PartnerLegalInfoPage />} />
+
+              {/* Payouts */}
+              <Route path="/partner/payouts" element={<PartnerPayoutsPage />} />
             </Route>
 
           <Route path="/partner" element={<Navigate to="/partner/dashboard" replace />} />

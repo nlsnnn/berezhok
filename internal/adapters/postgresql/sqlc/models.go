@@ -347,6 +347,45 @@ type PartnerLegalInfo struct {
 	VerifiedAt          pgtype.Timestamp `json:"verified_at"`
 }
 
+// Выплаты партнёрам (финансовые документы).
+type PartnerPayout struct {
+	ID                    uuid.UUID          `json:"id"`
+	PartnerID             uuid.UUID          `json:"partner_id"`
+	PeriodStart           time.Time          `json:"period_start"`
+	PeriodEnd             time.Time          `json:"period_end"`
+	GrossAmount           pgtype.Numeric     `json:"gross_amount"`
+	CommissionAmount      pgtype.Numeric     `json:"commission_amount"`
+	CommissionRateApplied pgtype.Numeric     `json:"commission_rate_applied"`
+	NetAmount             pgtype.Numeric     `json:"net_amount"`
+	Status                string             `json:"status"`
+	Provider              string             `json:"provider"`
+	ProviderPayoutID      pgtype.Text        `json:"provider_payout_id"`
+	IdempotencyKey        pgtype.Text        `json:"idempotency_key"`
+	ErrorMessage          pgtype.Text        `json:"error_message"`
+	ProcessedAt           pgtype.Timestamptz `json:"processed_at"`
+	CreatedAt             time.Time          `json:"created_at"`
+	UpdatedAt             time.Time          `json:"updated_at"`
+}
+
+// Реквизиты партнёра для приёма выплат (SBP).
+type PartnerPayoutDestination struct {
+	PartnerID     uuid.UUID   `json:"partner_id"`
+	Type          string      `json:"type"`
+	SbpPhone      pgtype.Text `json:"sbp_phone"`
+	SbpBankID     pgtype.Text `json:"sbp_bank_id"`
+	RecipientName pgtype.Text `json:"recipient_name"`
+	CreatedAt     time.Time   `json:"created_at"`
+	UpdatedAt     time.Time   `json:"updated_at"`
+}
+
+// Связка заказов с выплатой (snapshot сумм на момент расчёта).
+type PartnerPayoutOrder struct {
+	PayoutID       uuid.UUID      `json:"payout_id"`
+	OrderID        uuid.UUID      `json:"order_id"`
+	OrderAmount    pgtype.Numeric `json:"order_amount"`
+	CommissionPart pgtype.Numeric `json:"commission_part"`
+}
+
 // Платежи за заказы
 type Payment struct {
 	ID                uuid.UUID           `json:"id"`
