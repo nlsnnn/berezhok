@@ -47,6 +47,12 @@ export const getAdminPartner = (id) =>
 export const updateAdminPartner = (id, payload) =>
   dataOf(adminApi.patch(`/admin/partners/${id}`, payload))
 
+export const verifyAdminPartnerLegalInfo = (id) =>
+  dataOf(adminApi.post(`/admin/partners/${id}/legal-info/verify`))
+
+export const rejectAdminPartnerLegalInfo = (id, verification_comment) =>
+  dataOf(adminApi.post(`/admin/partners/${id}/legal-info/reject`, { verification_comment }))
+
 export const listAdminLocations = (params = {}) =>
   dataOf(adminApi.get('/admin/locations', { params }))
 

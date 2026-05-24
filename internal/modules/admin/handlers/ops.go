@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -30,14 +32,31 @@ const (
 )
 
 type OpsHandler struct {
-	log       *slog.Logger
-	validator *validator.Validator
-	q         *sqlc.Queries
-	auditRepo applicationAuditRepo
+	log                  *slog.Logger
+	validator            *validator.Validator
+	q                    *sqlc.Queries
+	auditRepo            applicationAuditRepo
+	notificationProvider legalInfoNotificationProvider
 }
 
-func NewOpsHandler(log *slog.Logger, validator *validator.Validator, q *sqlc.Queries, auditRepo applicationAuditRepo) *OpsHandler {
-	return &OpsHandler{log: log, validator: validator, q: q, auditRepo: auditRepo}
+func NewOpsHandler(log *slog.Logger, validator *validator.Validator, q *sqlc.Queries, auditRepo applicationAuditRepo, notificationProviders ...legalInfoNotificationProvider) *OpsHandler {
+	var notificationProvider legalInfoNotificationProvider
+	if len(notificationProviders) > 0 {
+		notificationProvider = notificationProviders[0]
+	}
+
+	return &OpsHandler{log: log, validator: validator, q: q, auditRepo: auditRepo, notificationProvider: notificationProvider}
+}
+
+type legalInfoNotificationProvider interface {
+	SendPartnerLegalInfoVerifiedNotification(ctx context.Context, email, name string) error
+	SendPartnerLegalInfoRejectedNotification(ctx context.Context, email, name, reason string) error
+}
+
+type legalInfoReviewQueries interface {
+	VerifyPartnerLegalInfo(ctx context.Context, arg sqlc.VerifyPartnerLegalInfoParams) (sqlc.PartnerLegalInfo, error)
+	ActivatePartnerIfPendingDocuments(ctx context.Context, id uuid.UUID) (sqlc.Partner, error)
+	ActivatePartnerDraftLocations(ctx context.Context, partnerID uuid.UUID) (int64, error)
 }
 
 type createAdminRequest struct {
@@ -62,6 +81,10 @@ type updatePartnerRequest struct {
 
 type updateStatusRequest struct {
 	Status string `json:"status" validate:"required"`
+}
+
+type rejectLegalInfoRequest struct {
+	VerificationComment string `json:"verification_comment" validate:"required"`
 }
 
 func (h *OpsHandler) Me(w http.ResponseWriter, r *http.Request) {
@@ -204,13 +227,13 @@ func (h *OpsHandler) ListAudit(w http.ResponseWriter, r *http.Request) {
 
 func (h *OpsHandler) ListPartners(w http.ResponseWriter, r *http.Request) {
 	p := paginationFromRequest(r)
-	params := sqlc.ListAdminPartnersParams{StatusFilter: r.URL.Query().Get("status"), Search: r.URL.Query().Get("search"), PageLimit: int32(p.Limit), PageOffset: int32(p.Offset)}
+	params := sqlc.ListAdminPartnersParams{StatusFilter: r.URL.Query().Get("status"), Search: r.URL.Query().Get("search"), LegalStatusFilter: legalStatusFilter(r), PageLimit: int32(p.Limit), PageOffset: int32(p.Offset)}
 	items, err := h.q.ListAdminPartners(r.Context(), params)
 	if err != nil {
 		h.writeError(w, "failed to list partners", err)
 		return
 	}
-	total, err := h.q.CountAdminPartners(r.Context(), sqlc.CountAdminPartnersParams{StatusFilter: params.StatusFilter, Search: params.Search})
+	total, err := h.q.CountAdminPartners(r.Context(), sqlc.CountAdminPartnersParams{StatusFilter: params.StatusFilter, Search: params.Search, LegalStatusFilter: params.LegalStatusFilter})
 	if err != nil {
 		h.writeError(w, "failed to count partners", err)
 		return
@@ -258,6 +281,83 @@ func (h *OpsHandler) UpdatePartner(w http.ResponseWriter, r *http.Request) {
 	}
 	h.auditMutation(r, "admin.partner.update", "partner", id, nil)
 	response.Success(w, map[string]any{"id": partner.ID, "status": partner.Status})
+}
+
+func (h *OpsHandler) VerifyPartnerLegalInfo(w http.ResponseWriter, r *http.Request) {
+	adminID, ok := h.adminID(w, r)
+	if !ok {
+		return
+	}
+	partnerID, ok := parseIDParam(w, r, "partner_id")
+	if !ok {
+		return
+	}
+
+	legalInfo, partner, err := verifyPartnerLegalInfo(r.Context(), h.q, partnerID, adminID)
+	if err != nil {
+		h.writeError(w, "failed to verify partner legal info", err)
+		return
+	}
+
+	h.notifyLegalInfoVerified(r, partnerID)
+	h.auditMutation(r, "admin.partner.legal_info.verify", "partner", partnerID, map[string]any{"verification_status": legalInfo.VerificationStatus.String})
+	response.Success(w, map[string]any{"partner_id": partnerID, "verification_status": legalInfo.VerificationStatus.String, "partner_status": partner.Status})
+}
+
+func verifyPartnerLegalInfo(ctx context.Context, q legalInfoReviewQueries, partnerID, adminID uuid.UUID) (sqlc.PartnerLegalInfo, sqlc.Partner, error) {
+	legalInfo, err := q.VerifyPartnerLegalInfo(ctx, sqlc.VerifyPartnerLegalInfoParams{
+		PartnerID:  partnerID,
+		VerifiedBy: pgtype.UUID{Bytes: adminID, Valid: true},
+	})
+	if err != nil {
+		return sqlc.PartnerLegalInfo{}, sqlc.Partner{}, err
+	}
+
+	partner, err := q.ActivatePartnerIfPendingDocuments(ctx, partnerID)
+	if err != nil {
+		return sqlc.PartnerLegalInfo{}, sqlc.Partner{}, err
+	}
+
+	if _, err := q.ActivatePartnerDraftLocations(ctx, partnerID); err != nil {
+		return sqlc.PartnerLegalInfo{}, sqlc.Partner{}, err
+	}
+
+	return legalInfo, partner, nil
+}
+
+func (h *OpsHandler) RejectPartnerLegalInfo(w http.ResponseWriter, r *http.Request) {
+	adminID, ok := h.adminID(w, r)
+	if !ok {
+		return
+	}
+	partnerID, ok := parseIDParam(w, r, "partner_id")
+	if !ok {
+		return
+	}
+	var req rejectLegalInfoRequest
+	if errs := h.validator.DecodeAndValidate(r, &req); errs != nil {
+		response.ValidationError(w, "validation failed", errs)
+		return
+	}
+	req.VerificationComment = strings.TrimSpace(req.VerificationComment)
+	if req.VerificationComment == "" {
+		response.BadRequest(w, "verification_comment is required")
+		return
+	}
+
+	legalInfo, err := h.q.RejectPartnerLegalInfo(r.Context(), sqlc.RejectPartnerLegalInfoParams{
+		PartnerID:           partnerID,
+		VerificationComment: pgtype.Text{String: req.VerificationComment, Valid: true},
+		VerifiedBy:          pgtype.UUID{Bytes: adminID, Valid: true},
+	})
+	if err != nil {
+		h.writeError(w, "failed to reject partner legal info", err)
+		return
+	}
+
+	h.notifyLegalInfoRejected(r, partnerID, req.VerificationComment)
+	h.auditMutation(r, "admin.partner.legal_info.reject", "partner", partnerID, map[string]any{"verification_status": legalInfo.VerificationStatus.String, "verification_comment": req.VerificationComment})
+	response.Success(w, map[string]any{"partner_id": partnerID, "verification_status": legalInfo.VerificationStatus.String, "verification_comment": req.VerificationComment})
 }
 
 func (h *OpsHandler) ListLocations(w http.ResponseWriter, r *http.Request) {
@@ -511,6 +611,43 @@ func (h *OpsHandler) auditMutation(r *http.Request, action, entityType string, e
 	}
 }
 
+func (h *OpsHandler) adminID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
+	adminID, err := contextx.AdminID(r)
+	if err != nil {
+		response.Unauthorized(w, "authentication required")
+		return uuid.Nil, false
+	}
+	return adminID, true
+}
+
+func (h *OpsHandler) notifyLegalInfoVerified(r *http.Request, partnerID uuid.UUID) {
+	if h.notificationProvider == nil {
+		return
+	}
+	owner, err := h.q.FindPartnerOwnerForNotification(r.Context(), partnerID)
+	if err != nil {
+		h.log.Warn("failed to find partner owner for legal info notification", sl.Err(err))
+		return
+	}
+	if err := h.notificationProvider.SendPartnerLegalInfoVerifiedNotification(r.Context(), owner.Email, text(owner.Name)); err != nil {
+		h.log.Warn("failed to send legal info verified notification", sl.Err(err))
+	}
+}
+
+func (h *OpsHandler) notifyLegalInfoRejected(r *http.Request, partnerID uuid.UUID, reason string) {
+	if h.notificationProvider == nil {
+		return
+	}
+	owner, err := h.q.FindPartnerOwnerForNotification(r.Context(), partnerID)
+	if err != nil {
+		h.log.Warn("failed to find partner owner for legal info notification", sl.Err(err))
+		return
+	}
+	if err := h.notificationProvider.SendPartnerLegalInfoRejectedNotification(r.Context(), owner.Email, text(owner.Name), reason); err != nil {
+		h.log.Warn("failed to send legal info rejected notification", sl.Err(err))
+	}
+}
+
 func (h *OpsHandler) writeError(w http.ResponseWriter, message string, err error) {
 	if errors.Is(err, pgx.ErrNoRows) {
 		response.NotFound(w, "not found")
@@ -575,11 +712,11 @@ func adminResponse(admin sqlc.AdminUser) map[string]any {
 }
 
 func partnerListResponse(row sqlc.ListAdminPartnersRow) map[string]any {
-	return map[string]any{"id": row.ID, "brand_name": row.BrandName, "legal_name": row.LegalName, "logo_url": text(row.LogoUrl), "account_type": text(row.AccountType), "commission_rate": numeric(row.CommissionRate), "promo_commission_rate": nullableNumeric(row.PromoCommissionRate), "promo_commission_until": date(row.PromoCommissionUntil), "status": row.Status, "locations_count": row.LocationsCount, "total_orders": row.TotalOrders, "total_revenue": numeric(row.TotalRevenue), "created_at": row.CreatedAt, "updated_at": row.UpdatedAt}
+	return map[string]any{"id": row.ID, "brand_name": row.BrandName, "legal_name": row.LegalName, "legal_verification_status": row.LegalVerificationStatus, "legal_verification_comment": row.LegalVerificationComment, "logo_url": text(row.LogoUrl), "account_type": text(row.AccountType), "commission_rate": numeric(row.CommissionRate), "promo_commission_rate": nullableNumeric(row.PromoCommissionRate), "promo_commission_until": date(row.PromoCommissionUntil), "status": row.Status, "locations_count": row.LocationsCount, "total_orders": row.TotalOrders, "total_revenue": numeric(row.TotalRevenue), "created_at": row.CreatedAt, "updated_at": row.UpdatedAt}
 }
 
 func partnerDetailResponse(row sqlc.GetAdminPartnerByIDRow) map[string]any {
-	return map[string]any{"id": row.ID, "brand_name": row.BrandName, "legal_name": row.LegalName, "logo_url": text(row.LogoUrl), "account_type": text(row.AccountType), "commission_rate": numeric(row.CommissionRate), "promo_commission_rate": nullableNumeric(row.PromoCommissionRate), "promo_commission_until": date(row.PromoCommissionUntil), "status": row.Status, "legal_info": map[string]any{"inn": row.Inn, "ogrn": row.Ogrn, "kpp": row.Kpp, "legal_address": row.LegalAddress}, "stats": map[string]any{"locations_count": row.LocationsCount, "total_orders": row.TotalOrders, "total_revenue": numeric(row.TotalRevenue)}, "created_at": row.CreatedAt, "updated_at": row.UpdatedAt}
+	return map[string]any{"id": row.ID, "brand_name": row.BrandName, "legal_name": row.LegalName, "legal_verification_status": row.LegalVerificationStatus, "legal_verification_comment": row.LegalVerificationComment, "logo_url": text(row.LogoUrl), "account_type": text(row.AccountType), "commission_rate": numeric(row.CommissionRate), "promo_commission_rate": nullableNumeric(row.PromoCommissionRate), "promo_commission_until": date(row.PromoCommissionUntil), "status": row.Status, "legal_info": map[string]any{"inn": row.Inn, "ogrn": row.Ogrn, "kpp": row.Kpp, "legal_address": row.LegalAddress, "verification_status": row.LegalVerificationStatus, "verification_comment": row.LegalVerificationComment, "verified_by": nullableUUID(row.VerifiedBy), "verified_at": timestamp(row.VerifiedAt), "egrul_url": egrulURL(row.Inn)}, "stats": map[string]any{"locations_count": row.LocationsCount, "total_orders": row.TotalOrders, "total_revenue": numeric(row.TotalRevenue)}, "created_at": row.CreatedAt, "updated_at": row.UpdatedAt}
 }
 
 func locationListResponse(row sqlc.ListAdminLocationsRow) map[string]any {
@@ -732,4 +869,19 @@ func optionalUUIDString(value string) string {
 		return ""
 	}
 	return value
+}
+
+func legalStatusFilter(r *http.Request) string {
+	value := r.URL.Query().Get("legal_status")
+	if value == "all" {
+		return ""
+	}
+	return value
+}
+
+func egrulURL(inn string) string {
+	if inn == "" {
+		return ""
+	}
+	return "https://egrul.nalog.ru/index.html?p=" + inn
 }

@@ -11,6 +11,13 @@ export const PARTNER_STATUS_OPTIONS = [
   { value: 'blocked', label: 'Заблокирован' },
 ]
 
+export const LEGAL_VERIFICATION_STATUS_OPTIONS = [
+  ALL_STATUS_OPTION,
+  { value: 'pending', label: 'На проверке' },
+  { value: 'verified', label: 'Подтверждены' },
+  { value: 'failed', label: 'Отклонены' },
+]
+
 export const LOCATION_STATUS_OPTIONS = [
   ALL_STATUS_OPTION,
   { value: 'active', label: 'Активна' },
@@ -57,6 +64,12 @@ export const ADMIN_EDIT_ROLE_OPTIONS = [
 export const PARTNER_STATUS_MAP = {
   ...PARTNER_STATUS,
   suspended: { label: 'Приостановлен', color: 'bg-orange-100 text-orange-800' },
+}
+
+export const LEGAL_VERIFICATION_STATUS_MAP = {
+  pending: { label: 'Юр. данные на проверке', color: 'bg-yellow-100 text-yellow-800' },
+  verified: { label: 'Юр. данные подтверждены', color: 'bg-green-100 text-green-800' },
+  failed: { label: 'Юр. данные отклонены', color: 'bg-red-100 text-red-800' },
 }
 
 export const LOCATION_STATUS_MAP = {
