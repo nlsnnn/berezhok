@@ -1,5 +1,5 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, LogOut, PanelLeftOpen, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, LogOut, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useStores } from '@/context/StoresContext'
 import { getAdminRoleLabel } from '@/lib/admin'
@@ -12,7 +12,6 @@ import {
 } from '@/components/admin/layout/adminNav'
 
 const SIDEBAR_KEY = 'admin_sidebar_collapsed'
-const SIDEBAR_HIDDEN_KEY = 'admin_sidebar_hidden'
 
 function SidebarLink({ to, label, icon: Icon, collapsed, onClick }) {
   return (
@@ -33,7 +32,7 @@ function SidebarLink({ to, label, icon: Icon, collapsed, onClick }) {
   )
 }
 
-function SidebarContent({ links, user, onClose, collapsed = false, onToggle, onHide, showCollapse = false }) {
+function SidebarContent({ links, user, onClose, collapsed = false, onToggle, showCollapse = false }) {
   const { adminAuthStore } = useStores()
   const navigate = useNavigate()
 
@@ -77,17 +76,7 @@ function SidebarContent({ links, user, onClose, collapsed = false, onToggle, onH
       </div>
 
       {showCollapse && (
-        <div className="space-y-2 border-t border-cream-200 p-3">
-          {!collapsed && (
-            <button
-              type="button"
-              onClick={onHide}
-              className="btn-ghost w-full justify-start gap-3 text-sm focus:outline-none focus:ring-0"
-            >
-              <X size={16} className="shrink-0" />
-              <span>Скрыть панель</span>
-            </button>
-          )}
+        <div className="border-t border-cream-200 p-3">
           <button
             onClick={onToggle}
             onMouseDown={(event) => event.preventDefault()}
@@ -155,16 +144,11 @@ export default function AdminSidebar() {
   const { pathname } = useLocation()
   const [open, setOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(SIDEBAR_KEY) === 'true')
-  const [hidden, setHidden] = useState(() => localStorage.getItem(SIDEBAR_HIDDEN_KEY) === 'true')
   const role = adminAuthStore.user?.role || 'support'
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_KEY, String(collapsed))
   }, [collapsed])
-
-  useEffect(() => {
-    localStorage.setItem(SIDEBAR_HIDDEN_KEY, String(hidden))
-  }, [hidden])
 
   const desktopLinks = getAllowedAdminLinks(role)
   const mobilePrimaryLinks = getPrimaryAdminLinks(role)
@@ -172,27 +156,15 @@ export default function AdminSidebar() {
 
   return (
     <>
-      {hidden ? (
-        <button
-          type="button"
-          className="btn-secondary fixed left-4 top-4 z-40 hidden px-4 shadow-md md:inline-flex"
-          onClick={() => setHidden(false)}
-        >
-          <PanelLeftOpen size={16} />
-          Меню
-        </button>
-      ) : (
-        <aside className={cn('hidden shrink-0 transition-all duration-300 ease-in-out md:block', collapsed ? 'w-16' : 'w-72')}>
-          <SidebarContent
-            links={desktopLinks}
-            user={adminAuthStore.user}
-            collapsed={collapsed}
-            onToggle={() => setCollapsed(!collapsed)}
-            onHide={() => setHidden(true)}
-            showCollapse
-          />
-        </aside>
-      )}
+      <aside className={cn('hidden shrink-0 transition-all duration-300 ease-in-out md:block', collapsed ? 'w-16' : 'w-72')}>
+        <SidebarContent
+          links={desktopLinks}
+          user={adminAuthStore.user}
+          collapsed={collapsed}
+          onToggle={() => setCollapsed(!collapsed)}
+          showCollapse
+        />
+      </aside>
 
       <MobileBottomNav
         links={mobilePrimaryLinks}
