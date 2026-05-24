@@ -7,6 +7,7 @@ package sqlc
 import (
 	"database/sql/driver"
 	"fmt"
+	"net/netip"
 	"time"
 
 	"github.com/google/uuid"
@@ -194,6 +195,31 @@ func (ns NullPaymentStatus) Value() (driver.Value, error) {
 	return string(ns.PaymentStatus), nil
 }
 
+// Аудит действий администраторов
+type AdminAuditLog struct {
+	ID          uuid.UUID   `json:"id"`
+	AdminUserID uuid.UUID   `json:"admin_user_id"`
+	Action      string      `json:"action"`
+	EntityType  pgtype.Text `json:"entity_type"`
+	EntityID    pgtype.UUID `json:"entity_id"`
+	Details     []byte      `json:"details"`
+	IpAddress   *netip.Addr `json:"ip_address"`
+	CreatedAt   time.Time   `json:"created_at"`
+}
+
+// Администраторы платформы
+type AdminUser struct {
+	ID           uuid.UUID          `json:"id"`
+	Email        string             `json:"email"`
+	PasswordHash string             `json:"password_hash"`
+	Name         string             `json:"name"`
+	Role         string             `json:"role"`
+	IsActive     bool               `json:"is_active"`
+	LastLoginAt  pgtype.Timestamptz `json:"last_login_at"`
+	CreatedAt    time.Time          `json:"created_at"`
+	UpdatedAt    time.Time          `json:"updated_at"`
+}
+
 // Заведения (точки партнёров)
 type Location struct {
 	ID            uuid.UUID        `json:"id"`
@@ -287,6 +313,7 @@ type PartnerApplication struct {
 	CreatedAt       time.Time          `json:"created_at"`
 	Latitude        pgtype.Float8      `json:"latitude"`
 	Longitude       pgtype.Float8      `json:"longitude"`
+	ReviewedBy      pgtype.UUID        `json:"reviewed_by"`
 }
 
 // Сотрудники партнёров

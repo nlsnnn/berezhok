@@ -8,6 +8,7 @@ import (
 
 	"github.com/nlsnnn/berezhok/internal/lib/logger/sl"
 	"github.com/nlsnnn/berezhok/internal/lib/validator"
+	adminDomain "github.com/nlsnnn/berezhok/internal/modules/admin/domain"
 	"github.com/nlsnnn/berezhok/internal/modules/auth"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 	"github.com/nlsnnn/berezhok/internal/shared/response"
@@ -22,9 +23,14 @@ type customerAuth interface {
 	SendCode(ctx context.Context, phone string) error
 }
 
+type adminAuth interface {
+	Authenticate(ctx context.Context, email, password string) (*auth.TokenClaims, error)
+}
+
 type authHandler struct {
 	partnerAuthenticator  partAuth
 	customerAuthenticator customerAuth
+	adminAuthenticator    adminAuth
 	validator             *validator.Validator
 	log                   *slog.Logger
 }
@@ -34,10 +40,12 @@ func NewAuthHandler(
 	log *slog.Logger,
 	partnerAuthenticator partAuth,
 	customerAuthenticator customerAuth,
+	adminAuthenticator adminAuth,
 ) *authHandler {
 	return &authHandler{
 		partnerAuthenticator:  partnerAuthenticator,
 		customerAuthenticator: customerAuthenticator,
+		adminAuthenticator:    adminAuthenticator,
 		validator:             validator,
 		log:                   log,
 	}
@@ -77,6 +85,42 @@ func (h *authHandler) PartnerLogin(w http.ResponseWriter, r *http.Request) {
 		Role:       claims.Role,
 		Token:      claims.Access,
 		MustChange: claims.UserData.(domain.Employee).MustChangePassword,
+	})
+}
+
+func (h *authHandler) AdminLogin(w http.ResponseWriter, r *http.Request) {
+	const op = "auth.handlers.AdminLogin"
+	log := h.log.With(slog.String("operation", op))
+	log.Info("admin login attempt")
+
+	var req LoginEmailPasswordRequest
+
+	if errs := h.validator.DecodeAndValidate(r, &req); errs != nil {
+		log.Error("validation failed", sl.Errs(errs))
+		response.ValidationError(w, "validation failed", errs)
+		return
+	}
+
+	claims, err := h.adminAuthenticator.Authenticate(r.Context(), req.Email, req.Password)
+	if err != nil {
+		if errors.Is(err, auth.ErrInvalidCredentials) {
+			log.Warn("invalid credentials", sl.Err(err))
+			response.Unauthorized(w, "invalid credentials")
+			return
+		}
+
+		log.Error("authentication failed", sl.Err(err))
+		response.Error(w, "authentication failed", http.StatusUnauthorized)
+		return
+	}
+
+	admin := claims.UserData.(adminDomain.AdminUser)
+	response.Success(w, LoginAdminResponse{
+		UserID: claims.UserID.String(),
+		Email:  admin.Email,
+		Name:   admin.Name,
+		Role:   claims.Role,
+		Token:  claims.Access,
 	})
 }
 

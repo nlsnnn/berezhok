@@ -28,3 +28,11 @@ type LoginPartnerResponse struct {
 	Token      string  `json:"token"`
 	MustChange bool    `json:"must_change_password"`
 }
+
+type LoginAdminResponse struct {
+	UserID string `json:"user_id"`
+	Email  string `json:"email"`
+	Name   string `json:"name"`
+	Role   string `json:"role"`
+	Token  string `json:"token"`
+}

@@ -83,7 +83,7 @@ INSERT INTO partner_applications (
     contact_name, contact_email, contact_phone, business_name, category_code,
     address, description, status, latitude, longitude
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, contact_name, contact_email, contact_phone, business_name, category_code, address, description, status, reviewed_at, rejection_reason, created_at, latitude, longitude
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, contact_name, contact_email, contact_phone, business_name, category_code, address, description, status, reviewed_at, rejection_reason, created_at, latitude, longitude, reviewed_by
 `
 
 type CreateApplicationParams struct {
@@ -128,6 +128,7 @@ func (q *Queries) CreateApplication(ctx context.Context, arg CreateApplicationPa
 		&i.CreatedAt,
 		&i.Latitude,
 		&i.Longitude,
+		&i.ReviewedBy,
 	)
 	return i, err
 }
@@ -303,7 +304,7 @@ func (q *Queries) DeletePartnerEmployee(ctx context.Context, id uuid.UUID) error
 }
 
 const findApplicationByID = `-- name: FindApplicationByID :one
-SELECT id, contact_name, contact_email, contact_phone, business_name, category_code, address, description, status, reviewed_at, rejection_reason, created_at, latitude, longitude FROM partner_applications WHERE id = $1
+SELECT id, contact_name, contact_email, contact_phone, business_name, category_code, address, description, status, reviewed_at, rejection_reason, created_at, latitude, longitude, reviewed_by FROM partner_applications WHERE id = $1
 `
 
 func (q *Queries) FindApplicationByID(ctx context.Context, id uuid.UUID) (PartnerApplication, error) {
@@ -324,6 +325,7 @@ func (q *Queries) FindApplicationByID(ctx context.Context, id uuid.UUID) (Partne
 		&i.CreatedAt,
 		&i.Latitude,
 		&i.Longitude,
+		&i.ReviewedBy,
 	)
 	return i, err
 }
@@ -1111,7 +1113,7 @@ func (q *Queries) GetPartnerStatsTopLocations(ctx context.Context, arg GetPartne
 }
 
 const listApplications = `-- name: ListApplications :many
-SELECT id, contact_name, contact_email, contact_phone, business_name, category_code, address, description, status, reviewed_at, rejection_reason, created_at, latitude, longitude FROM partner_applications
+SELECT id, contact_name, contact_email, contact_phone, business_name, category_code, address, description, status, reviewed_at, rejection_reason, created_at, latitude, longitude, reviewed_by FROM partner_applications
 `
 
 // Заявки на партнёрство
@@ -1139,6 +1141,7 @@ func (q *Queries) ListApplications(ctx context.Context) ([]PartnerApplication, e
 			&i.CreatedAt,
 			&i.Latitude,
 			&i.Longitude,
+			&i.ReviewedBy,
 		); err != nil {
 			return nil, err
 		}

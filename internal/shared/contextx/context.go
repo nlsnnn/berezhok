@@ -17,10 +17,12 @@ const (
 	UserTypeKey     key = "user_type"
 	UserRoleKey     key = "user_role"
 	CustomerIDKey   key = "customer_id"
+	AdminIDKey      key = "admin_id"
 	PartnerIDKey    key = "partner_id"
 	EmployeeIDKey   key = "employee_id"
 	LocationIDKey   key = "location_id"
 	PartnerActorKey key = "partner_actor"
+	AdminActorKey   key = "admin_actor"
 )
 
 func UserID(r *http.Request) (uuid.UUID, error) {
@@ -45,6 +47,14 @@ func CustomerID(r *http.Request) (uuid.UUID, error) {
 
 func CustomerIDFromContext(ctx context.Context) (uuid.UUID, error) {
 	return getIDFromCtx(ctx, CustomerIDKey)
+}
+
+func AdminID(r *http.Request) (uuid.UUID, error) {
+	return getIDFromCtx(r.Context(), AdminIDKey)
+}
+
+func AdminIDFromContext(ctx context.Context) (uuid.UUID, error) {
+	return getIDFromCtx(ctx, AdminIDKey)
 }
 
 func PartnerID(r *http.Request) (uuid.UUID, error) {
@@ -82,6 +92,25 @@ func PartnerActorFromContext(ctx context.Context) (authz.PartnerActor, error) {
 	actor, ok := val.(authz.PartnerActor)
 	if !ok {
 		return authz.PartnerActor{}, sharedErrors.ErrNotFoundContextValue
+	}
+	return actor, nil
+}
+
+func AdminActor(r *http.Request) (authz.AdminActor, error) {
+	return AdminActorFromContext(r.Context())
+}
+
+func AdminActorFromContext(ctx context.Context) (authz.AdminActor, error) {
+	if ctx == nil {
+		return authz.AdminActor{}, sharedErrors.ErrNotFoundContextValue
+	}
+	val := ctx.Value(AdminActorKey)
+	if val == nil {
+		return authz.AdminActor{}, sharedErrors.ErrNotFoundContextValue
+	}
+	actor, ok := val.(authz.AdminActor)
+	if !ok {
+		return authz.AdminActor{}, sharedErrors.ErrNotFoundContextValue
 	}
 	return actor, nil
 }

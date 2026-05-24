@@ -1,60 +1,79 @@
-import { makeAutoObservable, runInAction } from 'mobx'
-import { approveApplication, listApplications, rejectApplication } from '@/api/applications'
+import {
+  approveAdminApplication,
+  deleteAdminApplication,
+  getAdminApplication,
+  listAdminApplications,
+  rejectAdminApplication,
+} from '@/api/admin'
+import { AdminResourceStore } from '@/stores/admin/createAdminResourceStore'
 
-class AdminApplicationsStore {
-  items = []
-  loading = false
-  actionLoading = false
-  error = null
-
+class AdminApplicationsStore extends AdminResourceStore {
   constructor() {
-    makeAutoObservable(this, {}, { autoBind: true })
-  }
-
-  async load() {
-    this.loading = true
-    this.error = null
-    try {
-      const data = await listApplications()
-      const items = Array.isArray(data?.items) ? data.items : data
-      runInAction(() => {
-        this.items = items || []
-      })
-    } catch (error) {
-      runInAction(() => {
-        this.error = error
-      })
-    } finally {
-      runInAction(() => {
-        this.loading = false
-      })
-    }
+    super({
+      listFn: listAdminApplications,
+      detailFn: getAdminApplication,
+      defaultFilters: {
+        search: '',
+        status: 'all',
+      },
+    })
   }
 
   async approve(id) {
-    this.actionLoading = true
-    try {
-      const data = await approveApplication(id)
-      await this.load()
+    return this.runAction(async () => {
+      const data = await approveAdminApplication(id)
+      await this.load({ offset: this.pagination.offset })
       return data
-    } finally {
-      runInAction(() => {
-        this.actionLoading = false
-      })
-    }
+    })
+  }
+
+  async approveMany(ids) {
+    return this.runAction(async () => {
+      const results = []
+      for (const id of ids) {
+        results.push(await approveAdminApplication(id))
+      }
+      await this.load({ offset: this.pagination.offset })
+      return results
+    })
   }
 
   async reject(id, reason) {
-    this.actionLoading = true
-    try {
-      const data = await rejectApplication(id, reason)
-      await this.load()
+    return this.runAction(async () => {
+      const data = await rejectAdminApplication(id, reason)
+      await this.load({ offset: this.pagination.offset })
       return data
-    } finally {
-      runInAction(() => {
-        this.actionLoading = false
-      })
-    }
+    })
+  }
+
+  async rejectMany(ids, reason) {
+    return this.runAction(async () => {
+      const results = []
+      for (const id of ids) {
+        results.push(await rejectAdminApplication(id, reason))
+      }
+      await this.load({ offset: this.pagination.offset })
+      return results
+    })
+  }
+
+  async delete(id) {
+    return this.runAction(async () => {
+      const data = await deleteAdminApplication(id)
+      await this.load({ offset: this.pagination.offset })
+      return data
+    })
+  }
+
+  async deleteMany(ids) {
+    return this.runAction(async () => {
+      const results = []
+      for (const id of ids) {
+        results.push(await deleteAdminApplication(id))
+      }
+      await this.load({ offset: this.pagination.offset })
+      return results
+    })
   }
 }
 
