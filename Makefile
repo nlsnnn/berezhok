@@ -6,6 +6,7 @@ run:
 front:
 	cd frontend && npm run dev
 
+
 seed:
 	go run ./cmd/seed
 
@@ -26,3 +27,12 @@ migrate-down-all:
 
 pre-commit:
 	pre-commit run --all-files
+
+pay-calc:
+	go run ./cmd/payout-worker --run-calculation
+
+pay-disp:
+	go run ./cmd/payout-worker --run-dispatch
+
+pay-poll:
+	go run ./cmd/payout-worker --run-poll

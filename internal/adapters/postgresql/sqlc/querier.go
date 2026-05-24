@@ -16,6 +16,7 @@ type Querier interface {
 	ActivateLocation(ctx context.Context, id uuid.UUID) error
 	ActivatePartnerDraftLocations(ctx context.Context, partnerID uuid.UUID) (int64, error)
 	ActivatePartnerIfPendingDocuments(ctx context.Context, id uuid.UUID) (Partner, error)
+	AddPayoutOrder(ctx context.Context, arg AddPayoutOrderParams) error
 	CheckEmailExists(ctx context.Context, email string) (bool, error)
 	CloseLocation(ctx context.Context, id uuid.UUID) error
 	// Count active boxes by location ID
@@ -37,6 +38,7 @@ type Querier interface {
 	CountOrdersByCustomerID(ctx context.Context, arg CountOrdersByCustomerIDParams) (int64, error)
 	CountOrdersByPartnerID(ctx context.Context, arg CountOrdersByPartnerIDParams) (int64, error)
 	CountPartnerStatsOrders(ctx context.Context, arg CountPartnerStatsOrdersParams) (int64, error)
+	CountPayoutsByPartner(ctx context.Context, partnerID uuid.UUID) (int64, error)
 	CreateAdminAuditLog(ctx context.Context, arg CreateAdminAuditLogParams) (AdminAuditLog, error)
 	CreateAdminUser(ctx context.Context, arg CreateAdminUserParams) (AdminUser, error)
 	CreateApplication(ctx context.Context, arg CreateApplicationParams) (PartnerApplication, error)
@@ -52,6 +54,8 @@ type Querier interface {
 	CreatePartner(ctx context.Context, arg CreatePartnerParams) (Partner, error)
 	CreatePartnerEmployee(ctx context.Context, arg CreatePartnerEmployeeParams) (PartnerEmployee, error)
 	CreatePayment(ctx context.Context, arg CreatePaymentParams) (CreatePaymentRow, error)
+	// Создание выплаты и связки с заказами
+	CreatePayout(ctx context.Context, arg CreatePayoutParams) (PartnerPayout, error)
 	CreateReview(ctx context.Context, arg CreateReviewParams) (Review, error)
 	DeactivateAdminUser(ctx context.Context, id uuid.UUID) (int64, error)
 	DeactivateLocation(ctx context.Context, id uuid.UUID) error
@@ -111,9 +115,14 @@ type Querier interface {
 	GetPartnerStatsTopLocations(ctx context.Context, arg GetPartnerStatsTopLocationsParams) ([]GetPartnerStatsTopLocationsRow, error)
 	GetPaymentByID(ctx context.Context, id uuid.UUID) (Payment, error)
 	GetPaymentByOrderID(ctx context.Context, orderID uuid.UUID) (Payment, error)
+	GetPayoutByID(ctx context.Context, id uuid.UUID) (PartnerPayout, error)
+	// Реквизиты получателя выплат
+	GetPayoutDestination(ctx context.Context, partnerID uuid.UUID) (PartnerPayoutDestination, error)
 	// List active boxes by location ID
 	ListActiveBoxesByLocationID(ctx context.Context, locationID uuid.UUID) ([]SurpriseBox, error)
 	ListActiveOrdersByLocationID(ctx context.Context, arg ListActiveOrdersByLocationIDParams) ([]ListActiveOrdersByLocationIDRow, error)
+	// Активные партнёры с тарифной информацией для воркера расчёта
+	ListActivePartnersForPayout(ctx context.Context) ([]ListActivePartnersForPayoutRow, error)
 	ListAdminApplications(ctx context.Context, arg ListAdminApplicationsParams) ([]PartnerApplication, error)
 	ListAdminAuditLog(ctx context.Context, arg ListAdminAuditLogParams) ([]ListAdminAuditLogRow, error)
 	ListAdminBoxes(ctx context.Context, arg ListAdminBoxesParams) ([]ListAdminBoxesRow, error)
@@ -144,13 +153,26 @@ type Querier interface {
 	ListPartnerStatsOrders(ctx context.Context, arg ListPartnerStatsOrdersParams) ([]ListPartnerStatsOrdersRow, error)
 	// Партнёры (юридические лица)
 	ListPartners(ctx context.Context) ([]Partner, error)
+	ListPayoutOrders(ctx context.Context, payoutID uuid.UUID) ([]PartnerPayoutOrder, error)
+	// История выплат партнёра
+	ListPayoutsByPartner(ctx context.Context, arg ListPayoutsByPartnerParams) ([]PartnerPayout, error)
+	ListProcessingPayouts(ctx context.Context, limit int32) ([]ListProcessingPayoutsRow, error)
+	// Завершённые заказы партнёра за период, ещё не включённые ни в одну выплату
+	ListUnsettledCompletedOrders(ctx context.Context, arg ListUnsettledCompletedOrdersParams) ([]ListUnsettledCompletedOrdersRow, error)
+	// Диспатч: захват pending-выплат с блокировкой
+	LockPendingPayoutsForDispatch(ctx context.Context, limit int32) ([]uuid.UUID, error)
 	MarkApplicationReviewed(ctx context.Context, arg MarkApplicationReviewedParams) (int64, error)
 	MarkOrderPickedUp(ctx context.Context, arg MarkOrderPickedUpParams) (int64, error)
+	MarkPayoutCompleted(ctx context.Context, arg MarkPayoutCompletedParams) error
+	MarkPayoutFailed(ctx context.Context, arg MarkPayoutFailedParams) error
+	MarkPayoutProcessing(ctx context.Context, id uuid.UUID) error
 	RejectPartnerLegalInfo(ctx context.Context, arg RejectPartnerLegalInfoParams) (PartnerLegalInfo, error)
 	ReserveBox(ctx context.Context, id uuid.UUID) (int64, error)
+	ResetPayoutToPending(ctx context.Context, id uuid.UUID) error
 	// Location queries for customer app
 	// Search locations
 	SearchLocations(ctx context.Context, arg SearchLocationsParams) ([]SearchLocationsRow, error)
+	SetProviderPayoutID(ctx context.Context, arg SetProviderPayoutIDParams) error
 	UpdateAdminBoxStatus(ctx context.Context, arg UpdateAdminBoxStatusParams) (SurpriseBox, error)
 	UpdateAdminLastLogin(ctx context.Context, id uuid.UUID) error
 	UpdateAdminLocationStatus(ctx context.Context, arg UpdateAdminLocationStatusParams) (Location, error)
@@ -171,6 +193,7 @@ type Querier interface {
 	UpdatePartnerStatusByID(ctx context.Context, arg UpdatePartnerStatusByIDParams) error
 	UpdatePaymentStatus(ctx context.Context, arg UpdatePaymentStatusParams) (Payment, error)
 	UpsertPartnerLegalInfo(ctx context.Context, arg UpsertPartnerLegalInfoParams) (PartnerLegalInfo, error)
+	UpsertPayoutDestination(ctx context.Context, arg UpsertPayoutDestinationParams) (PartnerPayoutDestination, error)
 	VerifyPartnerLegalInfo(ctx context.Context, arg VerifyPartnerLegalInfoParams) (PartnerLegalInfo, error)
 }
 

@@ -38,6 +38,8 @@ const (
 	PermissionPartnerLegalInfoManage Permission = "partner.legal_info.manage"
 	PermissionPartnerDashboardView   Permission = "partner.dashboard.view"
 	PermissionPartnerMediaUpload     Permission = "partner.media.upload"
+	PermissionPartnerPayoutsView     Permission = "partner.payouts.view"
+	PermissionPartnerPayoutsManage   Permission = "partner.payouts.manage"
 
 	PermissionAdminOpsView      AdminPermission = "admin.ops.view"
 	PermissionAdminOpsManage    AdminPermission = "admin.ops.manage"
@@ -63,6 +65,8 @@ var RolePermissions = map[Role]map[Permission]struct{}{
 		PermissionPartnerLegalInfoManage: {},
 		PermissionPartnerDashboardView:   {},
 		PermissionPartnerMediaUpload:     {},
+		PermissionPartnerPayoutsView:     {},
+		PermissionPartnerPayoutsManage:   {},
 	},
 	RoleManager: {
 		PermissionPartnerPasswordChange: {},

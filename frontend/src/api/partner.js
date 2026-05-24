@@ -73,6 +73,22 @@ export const getOrderByPickupCode = (pickupCode) =>
 export const pickupOrder = (orderId) =>
   api.post(`/partner/orders/${orderId}/pickup`).then((r) => r.data.data);
 
+// Payouts
+export const getPayoutDestination = () =>
+  api.get('/partner/payout-destination').then((r) => r.data.data)
+
+export const savePayoutDestination = (data) =>
+  api.put('/partner/payout-destination', data).then((r) => r.data.data)
+
+export const listPayouts = (params = {}) =>
+  api.get('/partner/payouts', { params }).then((r) => r.data.data)
+
+export const getPayoutById = (id) =>
+  api.get(`/partner/payouts/${id}`).then((r) => r.data.data)
+
+export const getSBPBanks = () =>
+  api.get('/partner/sbp-banks').then((r) => r.data.data)
+
 // Media
 export const uploadMedia = (file) => {
   const formData = new FormData();
