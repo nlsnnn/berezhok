@@ -53,6 +53,12 @@ type legalInfoNotificationProvider interface {
 	SendPartnerLegalInfoRejectedNotification(ctx context.Context, email, name, reason string) error
 }
 
+type legalInfoReviewQueries interface {
+	VerifyPartnerLegalInfo(ctx context.Context, arg sqlc.VerifyPartnerLegalInfoParams) (sqlc.PartnerLegalInfo, error)
+	ActivatePartnerIfPendingDocuments(ctx context.Context, id uuid.UUID) (sqlc.Partner, error)
+	ActivatePartnerDraftLocations(ctx context.Context, partnerID uuid.UUID) (int64, error)
+}
+
 type createAdminRequest struct {
 	Email    string `json:"email" validate:"required,email"`
 	Password string `json:"password" validate:"required,min=8"`
@@ -287,23 +293,36 @@ func (h *OpsHandler) VerifyPartnerLegalInfo(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	legalInfo, err := h.q.VerifyPartnerLegalInfo(r.Context(), sqlc.VerifyPartnerLegalInfoParams{
-		PartnerID:  partnerID,
-		VerifiedBy: pgtype.UUID{Bytes: adminID, Valid: true},
-	})
+	legalInfo, partner, err := verifyPartnerLegalInfo(r.Context(), h.q, partnerID, adminID)
 	if err != nil {
 		h.writeError(w, "failed to verify partner legal info", err)
-		return
-	}
-	partner, err := h.q.ActivatePartnerIfPendingDocuments(r.Context(), partnerID)
-	if err != nil {
-		h.writeError(w, "failed to activate partner after legal info verification", err)
 		return
 	}
 
 	h.notifyLegalInfoVerified(r, partnerID)
 	h.auditMutation(r, "admin.partner.legal_info.verify", "partner", partnerID, map[string]any{"verification_status": legalInfo.VerificationStatus.String})
 	response.Success(w, map[string]any{"partner_id": partnerID, "verification_status": legalInfo.VerificationStatus.String, "partner_status": partner.Status})
+}
+
+func verifyPartnerLegalInfo(ctx context.Context, q legalInfoReviewQueries, partnerID, adminID uuid.UUID) (sqlc.PartnerLegalInfo, sqlc.Partner, error) {
+	legalInfo, err := q.VerifyPartnerLegalInfo(ctx, sqlc.VerifyPartnerLegalInfoParams{
+		PartnerID:  partnerID,
+		VerifiedBy: pgtype.UUID{Bytes: adminID, Valid: true},
+	})
+	if err != nil {
+		return sqlc.PartnerLegalInfo{}, sqlc.Partner{}, err
+	}
+
+	partner, err := q.ActivatePartnerIfPendingDocuments(ctx, partnerID)
+	if err != nil {
+		return sqlc.PartnerLegalInfo{}, sqlc.Partner{}, err
+	}
+
+	if _, err := q.ActivatePartnerDraftLocations(ctx, partnerID); err != nil {
+		return sqlc.PartnerLegalInfo{}, sqlc.Partner{}, err
+	}
+
+	return legalInfo, partner, nil
 }
 
 func (h *OpsHandler) RejectPartnerLegalInfo(w http.ResponseWriter, r *http.Request) {

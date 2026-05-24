@@ -266,6 +266,13 @@ SET status = CASE WHEN status = 'pending_documents' THEN 'active' ELSE status EN
 WHERE id = $1
 RETURNING *;
 
+-- name: ActivatePartnerDraftLocations :execrows
+UPDATE locations
+SET status = 'active',
+    updated_at = NOW()
+WHERE partner_id = $1
+  AND status = 'draft';
+
 -- name: FindPartnerOwnerForNotification :one
 SELECT email, name
 FROM partner_employees

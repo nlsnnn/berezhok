@@ -14,6 +14,7 @@ import (
 type Querier interface {
 	AcquireOrderCreationLock(ctx context.Context, arg AcquireOrderCreationLockParams) error
 	ActivateLocation(ctx context.Context, id uuid.UUID) error
+	ActivatePartnerDraftLocations(ctx context.Context, partnerID uuid.UUID) (int64, error)
 	ActivatePartnerIfPendingDocuments(ctx context.Context, id uuid.UUID) (Partner, error)
 	CheckEmailExists(ctx context.Context, email string) (bool, error)
 	CloseLocation(ctx context.Context, id uuid.UUID) error

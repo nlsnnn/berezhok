@@ -14,6 +14,22 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const activatePartnerDraftLocations = `-- name: ActivatePartnerDraftLocations :execrows
+UPDATE locations
+SET status = 'active',
+    updated_at = NOW()
+WHERE partner_id = $1
+  AND status = 'draft'
+`
+
+func (q *Queries) ActivatePartnerDraftLocations(ctx context.Context, partnerID uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, activatePartnerDraftLocations, partnerID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const activatePartnerIfPendingDocuments = `-- name: ActivatePartnerIfPendingDocuments :one
 UPDATE partners
 SET status = CASE WHEN status = 'pending_documents' THEN 'active' ELSE status END,

@@ -11,7 +11,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
 	"github.com/nlsnnn/berezhok/internal/lib/validator"
 	"github.com/nlsnnn/berezhok/internal/shared/contextx"
 )
@@ -47,4 +49,47 @@ func TestRejectPartnerLegalInfoRequiresComment(t *testing.T) {
 	if recorder.Code != http.StatusBadRequest {
 		t.Fatalf("expected status 400, got %d", recorder.Code)
 	}
+}
+
+func TestVerifyPartnerLegalInfoActivatesDraftLocations(t *testing.T) {
+	t.Parallel()
+
+	partnerID := uuid.New()
+	adminID := uuid.New()
+	queries := &fakeLegalInfoReviewQueries{}
+
+	_, _, err := verifyPartnerLegalInfo(context.Background(), queries, partnerID, adminID)
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+	if !queries.legalInfoVerified {
+		t.Fatal("expected legal info to be verified")
+	}
+	if !queries.partnerActivated {
+		t.Fatal("expected partner to be activated")
+	}
+	if !queries.locationsActivated {
+		t.Fatal("expected draft locations to be activated")
+	}
+}
+
+type fakeLegalInfoReviewQueries struct {
+	legalInfoVerified  bool
+	partnerActivated   bool
+	locationsActivated bool
+}
+
+func (q *fakeLegalInfoReviewQueries) VerifyPartnerLegalInfo(ctx context.Context, arg sqlc.VerifyPartnerLegalInfoParams) (sqlc.PartnerLegalInfo, error) {
+	q.legalInfoVerified = true
+	return sqlc.PartnerLegalInfo{PartnerID: arg.PartnerID, VerificationStatus: pgtype.Text{String: "verified", Valid: true}}, nil
+}
+
+func (q *fakeLegalInfoReviewQueries) ActivatePartnerIfPendingDocuments(ctx context.Context, id uuid.UUID) (sqlc.Partner, error) {
+	q.partnerActivated = true
+	return sqlc.Partner{ID: id, Status: "active"}, nil
+}
+
+func (q *fakeLegalInfoReviewQueries) ActivatePartnerDraftLocations(ctx context.Context, partnerID uuid.UUID) (int64, error) {
+	q.locationsActivated = true
+	return 1, nil
 }
