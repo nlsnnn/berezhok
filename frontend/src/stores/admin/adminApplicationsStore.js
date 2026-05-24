@@ -27,6 +27,17 @@ class AdminApplicationsStore extends AdminResourceStore {
     })
   }
 
+  async approveMany(ids) {
+    return this.runAction(async () => {
+      const results = []
+      for (const id of ids) {
+        results.push(await approveAdminApplication(id))
+      }
+      await this.load({ offset: this.pagination.offset })
+      return results
+    })
+  }
+
   async reject(id, reason) {
     return this.runAction(async () => {
       const data = await rejectAdminApplication(id, reason)
@@ -35,11 +46,33 @@ class AdminApplicationsStore extends AdminResourceStore {
     })
   }
 
+  async rejectMany(ids, reason) {
+    return this.runAction(async () => {
+      const results = []
+      for (const id of ids) {
+        results.push(await rejectAdminApplication(id, reason))
+      }
+      await this.load({ offset: this.pagination.offset })
+      return results
+    })
+  }
+
   async delete(id) {
     return this.runAction(async () => {
       const data = await deleteAdminApplication(id)
       await this.load({ offset: this.pagination.offset })
       return data
+    })
+  }
+
+  async deleteMany(ids) {
+    return this.runAction(async () => {
+      const results = []
+      for (const id of ids) {
+        results.push(await deleteAdminApplication(id))
+      }
+      await this.load({ offset: this.pagination.offset })
+      return results
     })
   }
 }

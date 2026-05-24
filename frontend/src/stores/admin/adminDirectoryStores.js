@@ -38,6 +38,17 @@ class AdminPartnersStore extends AdminResourceStore {
       return data
     })
   }
+
+  updateStatusMany(ids, status) {
+    return this.runAction(async () => {
+      const results = []
+      for (const id of ids) {
+        results.push(await updateAdminPartner(id, { status }))
+      }
+      await this.load({ offset: this.pagination.offset })
+      return results
+    })
+  }
 }
 
 class AdminLocationsStore extends AdminResourceStore {
@@ -53,6 +64,17 @@ class AdminLocationsStore extends AdminResourceStore {
       return data
     })
   }
+
+  updateStatusMany(ids, status) {
+    return this.runAction(async () => {
+      const results = []
+      for (const id of ids) {
+        results.push(await updateAdminLocationStatus(id, status))
+      }
+      await this.load({ offset: this.pagination.offset })
+      return results
+    })
+  }
 }
 
 class AdminBoxesStore extends AdminResourceStore {
@@ -66,6 +88,17 @@ class AdminBoxesStore extends AdminResourceStore {
       await this.load({ offset: this.pagination.offset })
       await this.loadDetail(id)
       return data
+    })
+  }
+
+  updateStatusMany(ids, status) {
+    return this.runAction(async () => {
+      const results = []
+      for (const id of ids) {
+        results.push(await updateAdminBoxStatus(id, status))
+      }
+      await this.load({ offset: this.pagination.offset })
+      return results
     })
   }
 }
@@ -116,6 +149,17 @@ class AdminAdminsStore extends AdminResourceStore {
       const data = await deactivateAdmin(id)
       await this.load({ offset: this.pagination.offset })
       return data
+    })
+  }
+
+  deactivateMany(ids) {
+    return this.runAction(async () => {
+      const results = []
+      for (const id of ids) {
+        results.push(await deactivateAdmin(id))
+      }
+      await this.load({ offset: this.pagination.offset })
+      return results
     })
   }
 }

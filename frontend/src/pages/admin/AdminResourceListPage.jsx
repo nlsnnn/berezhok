@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { observer } from 'mobx-react-lite'
 import { toast } from 'sonner'
 import { Eye, RefreshCw } from 'lucide-react'
+import AdminBulkActions from '@/components/admin/AdminBulkActions'
 import AdminDataState from '@/components/admin/AdminDataState'
 import AdminDetailModal, { DetailGrid, DetailItem } from '@/components/admin/AdminDetailModal'
 import AdminLayout from '@/components/admin/layout/AdminLayout'
@@ -10,6 +11,7 @@ import AdminToolbar from '@/components/admin/AdminToolbar'
 import Button from '@/components/ui/actions/Button'
 import StatusBadge from '@/components/ui/feedback/StatusBadge'
 import { getStatusMeta } from '@/lib/adminResources'
+import { toggleAllPageIds, toggleSelectedId } from '@/lib/adminSelection'
 import { formatDateTime, getErrorMessage } from '@/lib/utils'
 
 function AdminResourceListPageBase({
@@ -27,13 +29,19 @@ function AdminResourceListPageBase({
   detailTitle = title,
   renderDetailExtra,
   renderActions,
+  bulkActions = [],
   search = true,
 }) {
   const [selectedId, setSelectedId] = useState(null)
+  const [selectedIds, setSelectedIds] = useState([])
 
   useEffect(() => {
     store.load().catch(() => {})
   }, [store])
+
+  const pageIds = store.items.map((item) => item.id)
+  const selectedPageIds = selectedIds.filter((id) => pageIds.includes(id))
+  const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedPageIds.includes(id))
 
   const openDetail = async (id) => {
     setSelectedId(id)
@@ -92,6 +100,22 @@ function AdminResourceListPageBase({
           onRetry={() => store.load()}
         >
           <section className="space-y-4">
+            <AdminBulkActions
+              selectedIds={selectedPageIds}
+              pageIds={pageIds}
+              allPageSelected={allPageSelected}
+              onToggleAll={() => setSelectedIds((current) => toggleAllPageIds(current, pageIds))}
+              onClear={() => setSelectedIds((current) => current.filter((id) => !pageIds.includes(id)))}
+              actions={bulkActions.map((action) => ({
+                ...action,
+                onClick: async (ids) => {
+                  await action.onClick(ids)
+                  setSelectedIds([])
+                },
+              }))}
+              loading={store.loading || store.actionLoading}
+            />
+
             {store.items.map((item) => {
               const status = getStatus?.(item)
               const statusMeta = getStatusMeta(status, statusMap)
@@ -99,6 +123,15 @@ function AdminResourceListPageBase({
               return (
                 <article key={item.id} className="card cursor-pointer transition-shadow hover:shadow-md" onClick={() => openDetail(item.id)}>
                   <div className="flex flex-wrap items-start justify-between gap-4">
+                    <label className="flex items-center pt-1" onClick={(event) => event.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-cream-300 text-brand-600"
+                        checked={selectedPageIds.includes(item.id)}
+                        onChange={() => setSelectedIds((current) => toggleSelectedId(current, item.id))}
+                        aria-label="Выбрать строку"
+                      />
+                    </label>
                     <div className="min-w-0 flex-1">
                       <div className="mb-2 flex flex-wrap items-center gap-3">
                         {status && <StatusBadge status={status} customLabel={statusMeta.label} customColor={statusMeta.color || statusMeta.className} />}

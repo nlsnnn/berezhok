@@ -98,6 +98,14 @@ function StatusActions({ item, store, options, canAct, successText }) {
 export const AdminPartnersPage = observer(function AdminPartnersPage() {
   const { adminPartnersStore, adminAuthStore } = useStores()
   const canAct = canMutateOperations(adminAuthStore.user)
+  const bulkStatus = async (ids, status, message) => {
+    try {
+      await adminPartnersStore.updateStatusMany(ids, status)
+      toast.success(message)
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    }
+  }
 
   return (
     <AdminResourceListPage
@@ -125,6 +133,15 @@ export const AdminPartnersPage = observer(function AdminPartnersPage() {
         { label: 'Промо до', value: (item) => item.promo_commission_until },
         { label: 'Создан', value: (item) => formatDateTime(item.created_at) },
       ]}
+      bulkActions={
+        canAct
+          ? [
+              { label: 'Активировать', onClick: (ids) => bulkStatus(ids, 'active', 'Партнёры активированы') },
+              { label: 'Приостановить', variant: 'secondary', onClick: (ids) => bulkStatus(ids, 'suspended', 'Партнёры приостановлены') },
+              { label: 'Заблокировать', variant: 'danger', onClick: (ids) => bulkStatus(ids, 'blocked', 'Партнёры заблокированы') },
+            ]
+          : []
+      }
       renderActions={({ item }) => <PartnerActions item={item} store={adminPartnersStore} canAct={canAct} />}
     />
   )
@@ -133,6 +150,14 @@ export const AdminPartnersPage = observer(function AdminPartnersPage() {
 export const AdminLocationsPage = observer(function AdminLocationsPage() {
   const { adminLocationsStore, adminAuthStore } = useStores()
   const canAct = canMutateOperations(adminAuthStore.user)
+  const bulkStatus = async (ids, status, message) => {
+    try {
+      await adminLocationsStore.updateStatusMany(ids, status)
+      toast.success(message)
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    }
+  }
 
   return (
     <AdminResourceListPage
@@ -156,6 +181,15 @@ export const AdminLocationsPage = observer(function AdminLocationsPage() {
         { label: 'Статус', value: (item) => LOCATION_STATUS_MAP[item.status]?.label || item.status },
         { label: 'Создана', value: (item) => formatDateTime(item.created_at) },
       ]}
+      bulkActions={
+        canAct
+          ? [
+              { label: 'Активировать', onClick: (ids) => bulkStatus(ids, 'active', 'Точки активированы') },
+              { label: 'Выключить', variant: 'secondary', onClick: (ids) => bulkStatus(ids, 'inactive', 'Точки выключены') },
+              { label: 'Заблокировать', variant: 'danger', onClick: (ids) => bulkStatus(ids, 'blocked', 'Точки заблокированы') },
+            ]
+          : []
+      }
       renderActions={({ item }) => (
         <StatusActions item={item} store={adminLocationsStore} options={LOCATION_STATUS_OPTIONS} canAct={canAct} successText="Статус точки обновлён" />
       )}
@@ -166,6 +200,14 @@ export const AdminLocationsPage = observer(function AdminLocationsPage() {
 export const AdminBoxesPage = observer(function AdminBoxesPage() {
   const { adminBoxesStore, adminAuthStore } = useStores()
   const canAct = canMutateOperations(adminAuthStore.user)
+  const bulkStatus = async (ids, status, message) => {
+    try {
+      await adminBoxesStore.updateStatusMany(ids, status)
+      toast.success(message)
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    }
+  }
 
   return (
     <AdminResourceListPage
@@ -190,6 +232,15 @@ export const AdminBoxesPage = observer(function AdminBoxesPage() {
         { label: 'Цена', value: (item) => money(item.price) },
         { label: 'Создан', value: (item) => formatDateTime(item.created_at) },
       ]}
+      bulkActions={
+        canAct
+          ? [
+              { label: 'Активировать', onClick: (ids) => bulkStatus(ids, 'active', 'Боксы активированы') },
+              { label: 'Снять с продажи', variant: 'secondary', onClick: (ids) => bulkStatus(ids, 'inactive', 'Боксы выключены') },
+              { label: 'Распроданы', variant: 'danger', onClick: (ids) => bulkStatus(ids, 'sold_out', 'Боксы отмечены распроданными') },
+            ]
+          : []
+      }
       renderActions={({ item }) => (
         <StatusActions item={item} store={adminBoxesStore} options={BOX_STATUS_OPTIONS} canAct={canAct} successText="Статус бокса обновлён" />
       )}

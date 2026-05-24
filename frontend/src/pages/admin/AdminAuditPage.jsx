@@ -1,17 +1,21 @@
 import { useEffect } from 'react'
+import { useState } from 'react'
 import { observer } from 'mobx-react-lite'
 import { toast } from 'sonner'
 import { RefreshCw } from 'lucide-react'
+import AdminBulkActions from '@/components/admin/AdminBulkActions'
 import AdminDataState from '@/components/admin/AdminDataState'
 import AdminLayout from '@/components/admin/layout/AdminLayout'
 import AdminPagination from '@/components/admin/AdminPagination'
 import Button from '@/components/ui/actions/Button'
 import Input from '@/components/ui/form/Input'
 import { useStores } from '@/context/StoresContext'
+import { toggleAllPageIds, toggleSelectedId } from '@/lib/adminSelection'
 import { formatDateTime, getErrorMessage } from '@/lib/utils'
 
 function AdminAuditPageBase() {
   const { adminAuditStore } = useStores()
+  const [selectedIds, setSelectedIds] = useState([])
 
   useEffect(() => {
     adminAuditStore.load().catch(() => {})
@@ -26,6 +30,11 @@ function AdminAuditPageBase() {
     adminAuditStore.resetFilters()
     adminAuditStore.load().catch((error) => toast.error(getErrorMessage(error)))
   }
+
+  const getEventId = (event) => event.id || `${event.created_at}-${event.action}-${event.entity_id}`
+  const pageIds = adminAuditStore.items.map(getEventId)
+  const selectedPageIds = selectedIds.filter((id) => pageIds.includes(id))
+  const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedPageIds.includes(id))
 
   return (
     <AdminLayout
@@ -64,9 +73,27 @@ function AdminAuditPageBase() {
           onRetry={() => adminAuditStore.load()}
         >
           <section className="space-y-4">
+            <AdminBulkActions
+              selectedIds={selectedPageIds}
+              pageIds={pageIds}
+              allPageSelected={allPageSelected}
+              onToggleAll={() => setSelectedIds((current) => toggleAllPageIds(current, pageIds))}
+              onClear={() => setSelectedIds((current) => current.filter((id) => !pageIds.includes(id)))}
+              loading={adminAuditStore.loading}
+            />
+
             {adminAuditStore.items.map((event) => (
-              <article key={event.id || `${event.created_at}-${event.action}`} className="card">
+              <article key={getEventId(event)} className="card">
                 <div className="flex flex-wrap items-start justify-between gap-4">
+                  <label className="flex items-center pt-1">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-cream-300 text-brand-600"
+                      checked={selectedPageIds.includes(getEventId(event))}
+                      onChange={() => setSelectedIds((current) => toggleSelectedId(current, getEventId(event)))}
+                      aria-label="Выбрать событие аудита"
+                    />
+                  </label>
                   <div>
                     <h2 className="text-base font-semibold text-brand-900">{event.action || 'Действие'}</h2>
                     <p className="mt-1 text-sm text-brand-600">{event.entity_type || 'Сущность'} · {event.entity_id || '—'}</p>

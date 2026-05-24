@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom'
 import { observer } from 'mobx-react-lite'
 import { toast } from 'sonner'
 import { Edit2, Plus, RefreshCw, ShieldOff } from 'lucide-react'
+import AdminBulkActions from '@/components/admin/AdminBulkActions'
 import AdminDataState from '@/components/admin/AdminDataState'
 import AdminLayout from '@/components/admin/layout/AdminLayout'
 import AdminPagination from '@/components/admin/AdminPagination'
@@ -14,6 +15,7 @@ import StatusBadge from '@/components/ui/feedback/StatusBadge'
 import { useStores } from '@/context/StoresContext'
 import { canManageAdmins, getAdminRoleLabel } from '@/lib/admin'
 import { ADMIN_ACTIVE_STATUS_MAP, ADMIN_EDIT_ROLE_OPTIONS, ADMIN_ROLE_OPTIONS, getStatusMeta } from '@/lib/adminResources'
+import { toggleAllPageIds, toggleSelectedId } from '@/lib/adminSelection'
 import { formatDateTime, getErrorMessage } from '@/lib/utils'
 
 const emptyForm = {
@@ -93,6 +95,7 @@ function AdminAdminsPageBase() {
   const { adminAdminsStore, adminAuthStore } = useStores()
   const [modalOpen, setModalOpen] = useState(false)
   const [selected, setSelected] = useState(null)
+  const [selectedIds, setSelectedIds] = useState([])
 
   useEffect(() => {
     if (canManageAdmins(adminAuthStore.user)) {
@@ -154,6 +157,22 @@ function AdminAdminsPageBase() {
     }
   }
 
+  const deactivateSelected = async (ids) => {
+    if (!window.confirm(`Деактивировать выбранных администраторов: ${ids.length}?`)) return
+
+    try {
+      await adminAdminsStore.deactivateMany(ids)
+      toast.success('Выбранные администраторы деактивированы')
+      setSelectedIds([])
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    }
+  }
+
+  const pageIds = adminAdminsStore.items.map((admin) => admin.id || admin.user_id).filter(Boolean)
+  const selectedPageIds = selectedIds.filter((id) => pageIds.includes(id))
+  const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedPageIds.includes(id))
+
   return (
     <AdminLayout
       title="Администраторы"
@@ -179,13 +198,40 @@ function AdminAdminsPageBase() {
         onRetry={() => adminAdminsStore.load()}
       >
         <section className="space-y-4">
+          <AdminBulkActions
+            selectedIds={selectedPageIds}
+            pageIds={pageIds}
+            allPageSelected={allPageSelected}
+            onToggleAll={() => setSelectedIds((current) => toggleAllPageIds(current, pageIds))}
+            onClear={() => setSelectedIds((current) => current.filter((id) => !pageIds.includes(id)))}
+            actions={[
+              {
+                label: 'Деактивировать',
+                icon: <ShieldOff size={16} />,
+                variant: 'danger',
+                onClick: deactivateSelected,
+              },
+            ]}
+            loading={adminAdminsStore.loading || adminAdminsStore.actionLoading}
+          />
+
           {adminAdminsStore.items.map((admin) => {
+            const adminId = admin.id || admin.user_id
             const status = admin.is_active === false ? 'inactive' : 'active'
             const statusMeta = getStatusMeta(status, ADMIN_ACTIVE_STATUS_MAP)
 
             return (
-              <article key={admin.id || admin.user_id} className="card">
+              <article key={adminId} className="card">
                 <div className="flex flex-wrap items-start justify-between gap-4">
+                  <label className="flex items-center pt-1">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-cream-300 text-brand-600"
+                      checked={selectedPageIds.includes(adminId)}
+                      onChange={() => setSelectedIds((current) => toggleSelectedId(current, adminId))}
+                      aria-label="Выбрать администратора"
+                    />
+                  </label>
                   <div>
                     <div className="mb-2 flex flex-wrap items-center gap-3">
                       <StatusBadge status={status} customLabel={statusMeta.label} customColor={statusMeta.color} />
