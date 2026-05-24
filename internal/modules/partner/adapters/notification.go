@@ -8,9 +8,11 @@ import (
 
 const (
 	// Notification templates
-	TemplatePartnerApproved = "application-approved-1"
-	TemplatePartnerRejected = "partner_rejected"
-	TemplateEmployeeInvite  = "application-approved-1"
+	TemplatePartnerApproved   = "application-approved-1"
+	TemplatePartnerRejected   = "partner_rejected"
+	TemplateEmployeeInvite    = "application-approved-1"
+	TemplateLegalInfoVerified = "partner_legal_info_verified"
+	TemplateLegalInfoRejected = "partner_legal_info_rejected"
 )
 
 type NotificationAdapter struct {
@@ -41,5 +43,18 @@ func (a *NotificationAdapter) SendEmployeeInviteNotification(ctx context.Context
 	return a.publisher.SendEmail(ctx, email, TemplateEmployeeInvite, map[string]string{
 		"name":     name,
 		"password": password,
+	})
+}
+
+func (a *NotificationAdapter) SendPartnerLegalInfoVerifiedNotification(ctx context.Context, email, name string) error {
+	return a.publisher.SendEmail(ctx, email, TemplateLegalInfoVerified, map[string]string{
+		"name": name,
+	})
+}
+
+func (a *NotificationAdapter) SendPartnerLegalInfoRejectedNotification(ctx context.Context, email, name, reason string) error {
+	return a.publisher.SendEmail(ctx, email, TemplateLegalInfoRejected, map[string]string{
+		"name":   name,
+		"reason": reason,
 	})
 }

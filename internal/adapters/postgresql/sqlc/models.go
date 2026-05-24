@@ -333,14 +333,18 @@ type PartnerEmployee struct {
 
 // Юридическая информация партнёров
 type PartnerLegalInfo struct {
-	PartnerID    uuid.UUID        `json:"partner_id"`
-	Inn          string           `json:"inn"`
-	Ogrn         pgtype.Text      `json:"ogrn"`
-	Kpp          pgtype.Text      `json:"kpp"`
-	LegalAddress string           `json:"legal_address"`
-	CreatedAt    pgtype.Timestamp `json:"created_at"`
-	UpdatedAt    pgtype.Timestamp `json:"updated_at"`
-	LegalName    string           `json:"legal_name"`
+	PartnerID           uuid.UUID        `json:"partner_id"`
+	Inn                 string           `json:"inn"`
+	Ogrn                pgtype.Text      `json:"ogrn"`
+	Kpp                 pgtype.Text      `json:"kpp"`
+	LegalAddress        string           `json:"legal_address"`
+	CreatedAt           pgtype.Timestamp `json:"created_at"`
+	UpdatedAt           pgtype.Timestamp `json:"updated_at"`
+	LegalName           string           `json:"legal_name"`
+	VerificationStatus  pgtype.Text      `json:"verification_status"`
+	VerificationComment pgtype.Text      `json:"verification_comment"`
+	VerifiedBy          pgtype.UUID      `json:"verified_by"`
+	VerifiedAt          pgtype.Timestamp `json:"verified_at"`
 }
 
 // Платежи за заказы

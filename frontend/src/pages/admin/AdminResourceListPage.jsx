@@ -21,6 +21,7 @@ function AdminResourceListPageBase({
   emptyText,
   statusOptions = [],
   statusMap = {},
+  extraFilters = [],
   getTitle,
   getDescription,
   getStatus,
@@ -86,6 +87,11 @@ function AdminResourceListPageBase({
             status={store.filters.status || 'all'}
             onStatusChange={(value) => store.setFilter('status', value)}
             statusOptions={statusOptions}
+            extraFilters={extraFilters.map((filter) => ({
+              ...filter,
+              value: store.filters[filter.name] || filter.fallback || 'all',
+              onChange: (value) => store.setFilter(filter.name, value),
+            }))}
             onApply={handleApplyFilters}
             onReset={handleResetFilters}
             loading={store.loading}

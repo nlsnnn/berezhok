@@ -138,8 +138,7 @@ func (s *partService) Stats(ctx context.Context, actor authz.PartnerActor, filte
 }
 
 func (s *partService) AddLegalInfo(ctx context.Context, input AddLegalInfoInput) error {
-	// TODO: move validation to handler (?)
-	if !isDigitsOnly(input.Inn) || (len(input.Inn) != 10 && len(input.Inn) != 12) {
+	if !isValidINN(input.Inn) {
 		return errors.ErrInvalidINN
 	}
 
@@ -161,18 +160,19 @@ func (s *partService) AddLegalInfo(ctx context.Context, input AddLegalInfoInput)
 	}
 
 	err = s.repo.UpsertLegalInfo(ctx, domain.LegalInfo{
-		PartnerID:    input.PartnerID,
-		Inn:          input.Inn,
-		Ogrn:         input.Ogrn,
-		Kpp:          input.Kpp,
-		LegalAddress: input.LegalAddress,
-		LegalName:    input.LegalName,
+		PartnerID:          input.PartnerID,
+		Inn:                input.Inn,
+		Ogrn:               input.Ogrn,
+		Kpp:                input.Kpp,
+		LegalAddress:       input.LegalAddress,
+		LegalName:          input.LegalName,
+		VerificationStatus: domain.LegalInfoVerificationPending,
 	})
 	if err != nil {
 		return err
 	}
 
-	return s.repo.UpdateStatus(ctx, input.PartnerID, domain.PartnerStatusActive)
+	return nil
 }
 
 func (s *partService) CanActivateBoxes(ctx context.Context, partnerID uuid.UUID) (bool, error) {
@@ -192,6 +192,33 @@ func isDigitsOnly(value string) bool {
 	}
 
 	return true
+}
+
+func isValidINN(value string) bool {
+	if !isDigitsOnly(value) || (len(value) != 10 && len(value) != 12) {
+		return false
+	}
+
+	digits := make([]int, len(value))
+	for i, ch := range value {
+		digits[i] = int(ch - '0')
+	}
+
+	if len(digits) == 10 {
+		return innChecksum(digits[:9], []int{2, 4, 10, 3, 5, 9, 4, 6, 8}) == digits[9]
+	}
+
+	return innChecksum(digits[:10], []int{7, 2, 4, 10, 3, 5, 9, 4, 6, 8}) == digits[10] &&
+		innChecksum(digits[:11], []int{3, 7, 2, 4, 10, 3, 5, 9, 4, 6, 8}) == digits[11]
+}
+
+func innChecksum(digits, coefficients []int) int {
+	sum := 0
+	for i, coefficient := range coefficients {
+		sum += digits[i] * coefficient
+	}
+
+	return (sum % 11) % 10
 }
 
 func NormalizeStatsFilter(filter domain.StatsFilter) (domain.StatsFilter, error) {

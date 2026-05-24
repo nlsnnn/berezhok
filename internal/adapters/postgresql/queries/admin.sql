@@ -146,6 +146,8 @@ WHERE id = $1;
 SELECT p.id,
        p.brand_name,
        COALESCE(pli.legal_name, '') AS legal_name,
+       COALESCE(pli.verification_status, '') AS legal_verification_status,
+       COALESCE(pli.verification_comment, '') AS legal_verification_comment,
        p.logo_url,
        p.account_type,
        p.commission_rate,
@@ -170,7 +172,11 @@ AND (
     OR p.brand_name ILIKE '%' || sqlc.arg(search)::text || '%'
     OR pli.legal_name ILIKE '%' || sqlc.arg(search)::text || '%'
 )
-GROUP BY p.id, pli.legal_name
+AND (
+    sqlc.arg(legal_status_filter)::text = ''
+    OR COALESCE(pli.verification_status, '') = sqlc.arg(legal_status_filter)::text
+)
+GROUP BY p.id, pli.legal_name, pli.verification_status, pli.verification_comment
 ORDER BY p.created_at DESC
 LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
 
@@ -186,6 +192,10 @@ AND (
     sqlc.arg(search)::text = ''
     OR p.brand_name ILIKE '%' || sqlc.arg(search)::text || '%'
     OR pli.legal_name ILIKE '%' || sqlc.arg(search)::text || '%'
+)
+AND (
+    sqlc.arg(legal_status_filter)::text = ''
+    OR COALESCE(pli.verification_status, '') = sqlc.arg(legal_status_filter)::text
 );
 
 -- name: GetAdminPartnerByID :one
@@ -205,6 +215,10 @@ SELECT p.id,
        COALESCE(pli.ogrn, '') AS ogrn,
        COALESCE(pli.kpp, '') AS kpp,
        COALESCE(pli.legal_address, '') AS legal_address,
+       COALESCE(pli.verification_status, '') AS legal_verification_status,
+       COALESCE(pli.verification_comment, '') AS legal_verification_comment,
+       pli.verified_by,
+       pli.verified_at,
        COUNT(DISTINCT l.id)::int AS locations_count,
        COUNT(DISTINCT o.id)::int AS total_orders,
        COALESCE(SUM(o.amount) FILTER (WHERE o.status IN ('completed', 'picked_up')), 0)::numeric AS total_revenue
@@ -224,6 +238,48 @@ SET status = COALESCE(sqlc.narg(status), status),
     updated_at = NOW()
 WHERE id = sqlc.arg(id)
 RETURNING *;
+
+-- name: VerifyPartnerLegalInfo :one
+UPDATE partner_legal_info
+SET verification_status = 'verified',
+    verification_comment = NULL,
+    verified_by = $2,
+    verified_at = NOW(),
+    updated_at = NOW()
+WHERE partner_id = $1
+RETURNING *;
+
+-- name: RejectPartnerLegalInfo :one
+UPDATE partner_legal_info
+SET verification_status = 'failed',
+    verification_comment = $2,
+    verified_by = $3,
+    verified_at = NOW(),
+    updated_at = NOW()
+WHERE partner_id = $1
+RETURNING *;
+
+-- name: ActivatePartnerIfPendingDocuments :one
+UPDATE partners
+SET status = CASE WHEN status = 'pending_documents' THEN 'active' ELSE status END,
+    updated_at = NOW()
+WHERE id = $1
+RETURNING *;
+
+-- name: ActivatePartnerDraftLocations :execrows
+UPDATE locations
+SET status = 'active',
+    updated_at = NOW()
+WHERE partner_id = $1
+  AND status = 'draft';
+
+-- name: FindPartnerOwnerForNotification :one
+SELECT email, name
+FROM partner_employees
+WHERE partner_id = $1
+  AND role = 'owner'
+ORDER BY created_at ASC
+LIMIT 1;
 
 -- name: ListAdminLocations :many
 SELECT l.id,

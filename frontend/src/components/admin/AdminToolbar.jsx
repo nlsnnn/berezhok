@@ -9,12 +9,13 @@ export default function AdminToolbar({
   status,
   onStatusChange,
   statusOptions = [],
+  extraFilters = [],
   onApply,
   onReset,
   loading,
 }) {
   return (
-    <form className="card grid gap-4 lg:grid-cols-[1fr_220px_auto_auto]" onSubmit={onApply}>
+    <form className="card grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px_220px_auto_auto]" onSubmit={onApply}>
       <label className="space-y-2">
         <span className="text-sm font-medium text-brand-700">Поиск</span>
         <div className="relative">
@@ -35,6 +36,19 @@ export default function AdminToolbar({
           </Select>
         </label>
       )}
+
+      {extraFilters.map((filter) => (
+        <label key={filter.name} className="space-y-2">
+          <span className="text-sm font-medium text-brand-700">{filter.label}</span>
+          <Select value={filter.value} onChange={(event) => filter.onChange(event.target.value)}>
+            {filter.options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+        </label>
+      ))}
 
       <div className="flex items-end">
         <Button type="submit" className="w-full" disabled={loading}>
