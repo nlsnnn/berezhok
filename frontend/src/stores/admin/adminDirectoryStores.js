@@ -17,17 +17,19 @@ import {
   listAdminPayments,
   listAdmins,
   listAuditEvents,
+  rejectAdminPartnerLegalInfo,
   updateAdmin,
   updateAdminBoxStatus,
   updateAdminLocationStatus,
   updateAdminPartner,
+  verifyAdminPartnerLegalInfo,
 } from '@/api/admin'
 import { AdminResourceStore } from '@/stores/admin/createAdminResourceStore'
 import { makeAutoObservable, runInAction } from 'mobx'
 
 class AdminPartnersStore extends AdminResourceStore {
   constructor() {
-    super({ listFn: listAdminPartners, detailFn: getAdminPartner, defaultFilters: { search: '', status: 'all' } })
+    super({ listFn: listAdminPartners, detailFn: getAdminPartner, defaultFilters: { search: '', status: 'all', legal_status: 'all' } })
   }
 
   update(id, payload) {
@@ -47,6 +49,24 @@ class AdminPartnersStore extends AdminResourceStore {
       }
       await this.load({ offset: this.pagination.offset })
       return results
+    })
+  }
+
+  verifyLegalInfo(id) {
+    return this.runAction(async () => {
+      const data = await verifyAdminPartnerLegalInfo(id)
+      await this.load({ offset: this.pagination.offset })
+      await this.loadDetail(id)
+      return data
+    })
+  }
+
+  rejectLegalInfo(id, verificationComment) {
+    return this.runAction(async () => {
+      const data = await rejectAdminPartnerLegalInfo(id, verificationComment)
+      await this.load({ offset: this.pagination.offset })
+      await this.loadDetail(id)
+      return data
     })
   }
 }

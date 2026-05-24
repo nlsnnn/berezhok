@@ -1,17 +1,18 @@
 import { useState } from 'react'
 import { observer } from 'mobx-react-lite'
 import { toast } from 'sonner'
-import { BadgeRussianRuble, Mail, MapPin, Package, Phone, ShoppingBag, Store, User } from 'lucide-react'
+import { BadgeRussianRuble, CheckCircle, ExternalLink, FileCheck, Mail, MapPin, Phone, ShoppingBag, Store, User, XCircle } from 'lucide-react'
 import AdminResourceListPage from '@/pages/admin/AdminResourceListPage'
 import Button from '@/components/ui/actions/Button'
 import Input from '@/components/ui/form/Input'
 import Select from '@/components/ui/form/Select'
-import { DetailGrid, DetailItem } from '@/components/admin/AdminDetailModal'
 import { useStores } from '@/context/StoresContext'
 import { canMutateOperations } from '@/lib/admin'
 import {
   BOX_STATUS_MAP,
   BOX_STATUS_OPTIONS,
+  LEGAL_VERIFICATION_STATUS_MAP,
+  LEGAL_VERIFICATION_STATUS_OPTIONS,
   LOCATION_STATUS_MAP,
   LOCATION_STATUS_OPTIONS,
   ORDER_STATUS_OPTIONS,
@@ -23,6 +24,85 @@ import {
   percent,
 } from '@/lib/adminResources'
 import { formatDateTime, getErrorMessage } from '@/lib/utils'
+
+function legalInfo(item) {
+  return item.legal_info || {}
+}
+
+function legalStatus(item) {
+  return legalInfo(item).verification_status || item.legal_verification_status || ''
+}
+
+function legalComment(item) {
+  return legalInfo(item).verification_comment || item.legal_verification_comment || ''
+}
+
+function egrulUrl(item) {
+  const info = legalInfo(item)
+  if (info.egrul_url) return info.egrul_url
+  if (!info.inn) return ''
+  return `https://egrul.nalog.ru/index.html?p=${info.inn}`
+}
+
+function LegalReviewActions({ item, store, canAct }) {
+  const [comment, setComment] = useState('')
+  const [commentTouched, setCommentTouched] = useState(false)
+  const status = legalStatus(item)
+
+  if (!canAct || status !== 'pending') return null
+
+  const verify = async () => {
+    try {
+      await store.verifyLegalInfo(item.id)
+      toast.success('Юридические данные подтверждены')
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    }
+  }
+
+  const reject = async () => {
+    setCommentTouched(true)
+    const trimmed = comment.trim()
+    if (!trimmed) return
+
+    try {
+      await store.rejectLegalInfo(item.id, trimmed)
+      setComment('')
+      setCommentTouched(false)
+      toast.success('Юридические данные отклонены')
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    }
+  }
+
+  const showCommentError = commentTouched && !comment.trim()
+
+  return (
+    <div className="w-full space-y-3">
+      <div className="flex flex-wrap gap-3">
+        <Button type="button" onClick={verify} disabled={store.actionLoading}>
+          <CheckCircle size={16} />
+          Подтвердить юр. данные
+        </Button>
+        <Button type="button" variant="danger" onClick={reject} disabled={store.actionLoading}>
+          <XCircle size={16} />
+          Отклонить
+        </Button>
+      </div>
+      <label className="block max-w-xl space-y-2">
+        <span className="text-sm font-medium text-brand-700">Причина отклонения</span>
+        <textarea
+          className="input-base min-h-24 w-full resize-y"
+          value={comment}
+          onBlur={() => setCommentTouched(true)}
+          onChange={(event) => setComment(event.target.value)}
+          aria-invalid={showCommentError}
+        />
+        {showCommentError && <span className="text-sm text-red-600">Укажите причину отклонения</span>}
+      </label>
+    </div>
+  )
+}
 
 function PartnerActions({ item, store, canAct }) {
   const [status, setStatus] = useState(item.status || 'active')
@@ -47,19 +127,22 @@ function PartnerActions({ item, store, canAct }) {
   }
 
   return (
-    <div className="grid w-full gap-3 md:grid-cols-4">
-      <Select value={status} onChange={(event) => setStatus(event.target.value)}>
-        {PARTNER_STATUS_OPTIONS.filter((option) => option.value !== 'all').map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </Select>
-      <Input type="number" step="0.01" value={commissionRate} onChange={(event) => setCommissionRate(event.target.value)} placeholder="Комиссия" />
-      <Input type="number" step="0.01" value={promoCommissionRate} onChange={(event) => setPromoCommissionRate(event.target.value)} placeholder="Промо" />
-      <Input type="date" value={promoCommissionUntil} onChange={(event) => setPromoCommissionUntil(event.target.value)} />
-      <div className="md:col-span-4">
-        <Button onClick={submit} disabled={store.actionLoading}>Сохранить изменения</Button>
+    <div className="w-full space-y-5">
+      <LegalReviewActions item={item} store={store} canAct={canAct} />
+      <div className="grid w-full gap-3 md:grid-cols-4">
+        <Select value={status} onChange={(event) => setStatus(event.target.value)}>
+          {PARTNER_STATUS_OPTIONS.filter((option) => option.value !== 'all').map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </Select>
+        <Input type="number" step="0.01" value={commissionRate} onChange={(event) => setCommissionRate(event.target.value)} placeholder="Комиссия" />
+        <Input type="number" step="0.01" value={promoCommissionRate} onChange={(event) => setPromoCommissionRate(event.target.value)} placeholder="Промо" />
+        <Input type="date" value={promoCommissionUntil} onChange={(event) => setPromoCommissionUntil(event.target.value)} />
+        <div className="md:col-span-4">
+          <Button onClick={submit} disabled={store.actionLoading}>Сохранить изменения</Button>
+        </div>
       </div>
     </div>
   )
@@ -115,19 +198,44 @@ export const AdminPartnersPage = observer(function AdminPartnersPage() {
       emptyText="Партнёров по текущим фильтрам нет"
       statusOptions={PARTNER_STATUS_OPTIONS}
       statusMap={PARTNER_STATUS_MAP}
-      getTitle={(item) => item.business_name || item.name || item.email || item.id}
-      getDescription={(item) => item.email || item.contact_email}
+      extraFilters={[
+        { name: 'legal_status', label: 'Юр. проверка', options: LEGAL_VERIFICATION_STATUS_OPTIONS },
+      ]}
+      getTitle={(item) => item.brand_name || item.legal_name || item.business_name || item.name || item.id}
+      getDescription={(item) => item.legal_name || item.email || item.contact_email}
       getStatus={(item) => item.status}
       getMeta={(item) => [
         { icon: Mail, label: 'Email', value: item.email || item.contact_email },
         { icon: Phone, label: 'Телефон', value: item.phone || item.contact_phone },
         { icon: BadgeRussianRuble, label: 'Комиссия', value: percent(item.commission_rate) },
+        { icon: FileCheck, label: 'Юр. проверка', value: LEGAL_VERIFICATION_STATUS_MAP[legalStatus(item)]?.label },
       ]}
       detailFields={[
-        { label: 'Название', value: (item) => item.business_name || item.name },
+        { label: 'Название', value: (item) => item.brand_name || item.business_name || item.name },
+        { label: 'Юр. название', value: (item) => item.legal_name },
         { label: 'Email', value: (item) => item.email || item.contact_email },
         { label: 'Телефон', value: (item) => item.phone || item.contact_phone },
         { label: 'Статус', value: (item) => PARTNER_STATUS_MAP[item.status]?.label || item.status },
+        { label: 'Юр. проверка', value: (item) => LEGAL_VERIFICATION_STATUS_MAP[legalStatus(item)]?.label || legalStatus(item) },
+        { label: 'ИНН', value: (item) => legalInfo(item).inn },
+        { label: 'ОГРН', value: (item) => legalInfo(item).ogrn },
+        { label: 'КПП', value: (item) => legalInfo(item).kpp },
+        { label: 'Юр. адрес', value: (item) => legalInfo(item).legal_address, wide: true },
+        { label: 'Причина отклонения', value: (item) => legalComment(item), wide: true },
+        {
+          label: 'Проверка ФНС',
+          value: (item) => {
+            const url = egrulUrl(item)
+            if (!url) return ''
+            return (
+              <a className="inline-flex items-center gap-1 text-brand-700 underline-offset-4 hover:underline" href={url} target="_blank" rel="noreferrer">
+                Открыть ЕГРЮЛ
+                <ExternalLink size={14} />
+              </a>
+            )
+          },
+          wide: true,
+        },
         { label: 'Комиссия', value: (item) => percent(item.commission_rate) },
         { label: 'Промо-комиссия', value: (item) => percent(item.promo_commission_rate) },
         { label: 'Промо до', value: (item) => item.promo_commission_until },
