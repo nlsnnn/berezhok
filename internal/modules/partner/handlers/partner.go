@@ -74,6 +74,34 @@ func (h *partnerHandler) ChangePassword(w http.ResponseWriter, r *http.Request) 
 	response.Success(w, map[string]string{"message": "password changed successfully"})
 }
 
+func (h *partnerHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
+	const op = "partner.handler.UpdateProfile"
+	log := h.log.With(slog.String("op", op))
+
+	userID, err := contextx.UserID(r)
+	if err != nil {
+		log.Error("user_id not found in context", sl.Err(err))
+		response.InternalError(w, nil)
+		return
+	}
+
+	var req dto.UpdateProfileRequest
+
+	if errs := h.validator.DecodeAndValidate(r, &req); errs != nil {
+		log.Error("validation failed", slog.Any("errors", errs))
+		response.ValidationError(w, "validation failed", errs)
+		return
+	}
+
+	if err = h.partService.UpdateEmployeeName(r.Context(), userID.String(), req.Name); err != nil {
+		log.Error("failed to update profile", sl.Err(err))
+		response.InternalError(w, nil)
+		return
+	}
+
+	response.Success(w, map[string]string{"message": "profile updated successfully"})
+}
+
 func (h *partnerHandler) Profile(w http.ResponseWriter, r *http.Request) {
 	const op = "partner.handler.Profile"
 	log := h.log.With(slog.String("op", op))

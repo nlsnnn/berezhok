@@ -58,6 +58,7 @@ type partnerRepo interface {
 	GetDashboard(ctx context.Context, employeeID string) (domain.PartnerDashboard, error)
 	GetStats(ctx context.Context, employeeID string, filter domain.StatsFilter) (domain.PartnerStats, error)
 	UpdateEmployeePassword(ctx context.Context, employeeID, newHash string) error
+	UpdateEmployeeName(ctx context.Context, employeeID, name string) error
 	UpsertLegalInfo(ctx context.Context, info domain.LegalInfo) error
 	UpdateStatus(ctx context.Context, partnerID string, status domain.PartnerStatus) error
 }
@@ -111,6 +112,10 @@ func (s *partService) ChangePassword(ctx context.Context, input ChangePasswordIn
 	}
 
 	return s.repo.UpdateEmployeePassword(ctx, input.UserID, newHash)
+}
+
+func (s *partService) UpdateEmployeeName(ctx context.Context, employeeID, name string) error {
+	return s.repo.UpdateEmployeeName(ctx, employeeID, name)
 }
 
 func (s *partService) Profile(ctx context.Context, userID string) (domain.PartnerProfile, error) {

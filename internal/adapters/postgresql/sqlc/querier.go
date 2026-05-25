@@ -189,6 +189,7 @@ type Querier interface {
 	UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) (Order, error)
 	UpdatePartner(ctx context.Context, arg UpdatePartnerParams) error
 	UpdatePartnerEmployee(ctx context.Context, arg UpdatePartnerEmployeeParams) error
+	UpdatePartnerEmployeeName(ctx context.Context, arg UpdatePartnerEmployeeNameParams) error
 	UpdatePartnerEmployeePassword(ctx context.Context, arg UpdatePartnerEmployeePasswordParams) error
 	UpdatePartnerStatusByID(ctx context.Context, arg UpdatePartnerStatusByIDParams) error
 	UpdatePaymentStatus(ctx context.Context, arg UpdatePaymentStatusParams) (Payment, error)

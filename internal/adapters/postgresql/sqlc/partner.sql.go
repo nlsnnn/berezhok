@@ -1602,6 +1602,22 @@ func (q *Queries) UpdatePartnerEmployeePassword(ctx context.Context, arg UpdateP
 	return err
 }
 
+const updatePartnerEmployeeName = `-- name: UpdatePartnerEmployeeName :exec
+UPDATE partner_employees
+SET name = $1
+WHERE id = $2
+`
+
+type UpdatePartnerEmployeeNameParams struct {
+	Name pgtype.Text `json:"name"`
+	ID   uuid.UUID   `json:"id"`
+}
+
+func (q *Queries) UpdatePartnerEmployeeName(ctx context.Context, arg UpdatePartnerEmployeeNameParams) error {
+	_, err := q.db.Exec(ctx, updatePartnerEmployeeName, arg.Name, arg.ID)
+	return err
+}
+
 const updatePartnerStatusByID = `-- name: UpdatePartnerStatusByID :exec
 UPDATE partners
 SET status = $2, updated_at = NOW()

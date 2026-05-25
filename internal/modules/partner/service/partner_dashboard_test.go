@@ -65,6 +65,10 @@ func (r *dashboardRepoStub) UpdateEmployeePassword(ctx context.Context, employee
 	return nil
 }
 
+func (r *dashboardRepoStub) UpdateEmployeeName(ctx context.Context, employeeID, name string) error {
+	return nil
+}
+
 func (r *dashboardRepoStub) UpsertLegalInfo(ctx context.Context, info domain.LegalInfo) error {
 	if r.upsertLegalInfoFn != nil {
 		return r.upsertLegalInfoFn(ctx, info)

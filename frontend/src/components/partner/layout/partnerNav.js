@@ -2,7 +2,6 @@ import {
   BarChart3,
   Banknote,
   ClipboardList,
-  KeyRound,
   LayoutDashboard,
   MapPin,
   Menu,
@@ -87,13 +86,6 @@ export const partnerNavLinks = [
     icon: UserCircle,
     roles: ['owner'],
     matchPaths: ['/partner/profile', '/partner/legal-info'],
-  },
-  {
-    to: '/partner/change-password',
-    label: 'Пароль',
-    icon: KeyRound,
-    roles: ['owner', 'employee'],
-    matchPaths: ['/partner/change-password'],
   },
 ]
 

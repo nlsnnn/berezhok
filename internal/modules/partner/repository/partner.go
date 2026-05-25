@@ -399,6 +399,14 @@ func (r *PartnerRepo) UpdateEmployeePassword(ctx context.Context, employeeID, ne
 	})
 }
 
+func (r *PartnerRepo) UpdateEmployeeName(ctx context.Context, employeeID, name string) error {
+	uid := uuid.MustParse(employeeID)
+	return r.q.UpdatePartnerEmployeeName(ctx, sqlc.UpdatePartnerEmployeeNameParams{
+		ID:   uid,
+		Name: pgtype.Text{String: name, Valid: true},
+	})
+}
+
 func (r *PartnerRepo) UpsertLegalInfo(ctx context.Context, info domain.LegalInfo) error {
 	partnerID := uuid.MustParse(info.PartnerID)
 
