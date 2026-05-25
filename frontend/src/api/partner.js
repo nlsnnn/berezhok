@@ -6,6 +6,9 @@ export const partnerLogin = (email, password) =>
 export const getPartnerProfile = () =>
   api.get("/partner/profile").then((r) => r.data.data);
 
+export const updatePartnerProfile = (data) =>
+  api.patch("/partner/profile", data).then((r) => r.data.data);
+
 export const getPartnerDashboard = () =>
   api.get("/partner/dashboard").then((r) => r.data.data);
 

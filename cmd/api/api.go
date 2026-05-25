@@ -65,7 +65,7 @@ func (app *application) mount() http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins: []string{"http://localhost", "http://localhost:5173", "http://localhost:3000", "http://localhost:8000", "http://localhost:60301"},
+		AllowedOrigins: []string{"http://localhost", "http://localhost:5173", "http://localhost:3000", "http://localhost:8000", "http://localhost:64234"},
 		AllowedMethods: []string{"GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders: []string{"Link"},
@@ -255,6 +255,7 @@ func (app *application) mount() http.Handler {
 			r.Group(func(r chi.Router) {
 				r.Use(authMiddleware.RequirePermission(authz.PermissionPartnerProfileManage))
 				r.Get("/partner/profile", partHandler.Profile)
+				r.Patch("/partner/profile", partHandler.UpdateProfile)
 			})
 
 			r.Group(func(r chi.Router) {

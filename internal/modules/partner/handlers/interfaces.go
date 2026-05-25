@@ -19,6 +19,7 @@ type appSvc interface {
 
 type partnerSvc interface {
 	ChangePassword(ctx context.Context, input service.ChangePasswordInput) error
+	UpdateEmployeeName(ctx context.Context, employeeID, name string) error
 	Profile(ctx context.Context, userID string) (domain.PartnerProfile, error)
 	Dashboard(ctx context.Context, userID string) (domain.PartnerDashboard, error)
 	Stats(ctx context.Context, actor authz.PartnerActor, filter domain.StatsFilter) (domain.PartnerStats, error)

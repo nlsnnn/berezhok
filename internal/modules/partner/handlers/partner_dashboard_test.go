@@ -30,6 +30,10 @@ func (s *partnerSvcDashboardStub) ChangePassword(ctx context.Context, input serv
 	return nil
 }
 
+func (s *partnerSvcDashboardStub) UpdateEmployeeName(ctx context.Context, employeeID, name string) error {
+	return nil
+}
+
 func (s *partnerSvcDashboardStub) Profile(ctx context.Context, userID string) (domain.PartnerProfile, error) {
 	return domain.PartnerProfile{}, nil
 }

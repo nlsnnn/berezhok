@@ -434,6 +434,11 @@ UPDATE partner_employees
 SET password_hash = $1, must_change_password = $2
 WHERE id = $3;
 
+-- name: UpdatePartnerEmployeeName :exec
+UPDATE partner_employees
+SET name = $1
+WHERE id = $2;
+
 -- name: DeletePartnerEmployee :exec
 DELETE FROM partner_employees WHERE id = $1;
 
