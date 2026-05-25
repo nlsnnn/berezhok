@@ -291,6 +291,7 @@ func (app *application) mount() http.Handler {
 				r.Post("/partner/locations", locationHandler.Create)
 				// Pins
 				r.Get("/partner/pins", pinsHandler.ListAvailable)
+				r.Get("/partner/locations/{id}/pins", pinsHandler.GetLocationPins)
 				r.Put("/partner/locations/{id}/pins", pinsHandler.UpdateLocationPins)
 			})
 

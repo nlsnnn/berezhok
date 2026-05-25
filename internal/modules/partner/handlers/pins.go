@@ -40,6 +40,29 @@ func (h *pinsHandler) ListAvailable(w http.ResponseWriter, r *http.Request) {
 	response.Success(w, result)
 }
 
+// GetLocationPins handles GET /partner/locations/{id}/pins
+func (h *pinsHandler) GetLocationPins(w http.ResponseWriter, r *http.Request) {
+	locationIDStr := chi.URLParam(r, "id")
+	locationID, err := uuid.Parse(locationIDStr)
+	if err != nil {
+		response.BadRequest(w, "invalid location id")
+		return
+	}
+
+	pins, err := h.svc.GetForLocation(r.Context(), locationID)
+	if err != nil {
+		h.log.Error("failed to get location pins", sl.Err(err))
+		response.InternalError(w, nil)
+		return
+	}
+
+	result := make([]dto.LocationPinResponse, len(pins))
+	for i, p := range pins {
+		result[i] = dto.LocationPinResponse{Code: p.Code, NameRu: p.NameRu}
+	}
+	response.Success(w, result)
+}
+
 // UpdateLocationPins handles PUT /partner/locations/{id}/pins
 func (h *pinsHandler) UpdateLocationPins(w http.ResponseWriter, r *http.Request) {
 	const op = "partner.handler.pins.UpdateLocationPins"

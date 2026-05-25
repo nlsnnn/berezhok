@@ -20,6 +20,7 @@ import {
   AdminPaymentsPage,
 } from '@/pages/admin/AdminDirectoryPages'
 import AdminStatsPage from '@/pages/admin/AdminStatsPage'
+import AdminPinsPage from '@/pages/admin/AdminPinsPage'
 import PartnerLoginPage from '@/pages/partner/PartnerLoginPage'
 import PartnerDashboard from '@/pages/partner/PartnerDashboard'
 import ChangePasswordPage from '@/pages/partner/ChangePasswordPage'
@@ -65,6 +66,7 @@ export default function App() {
               <Route path="/admin/stats" element={<AdminStatsPage />} />
               <Route path="/admin/audit" element={<AdminAuditPage />} />
               <Route path="/admin/admins" element={<AdminAdminsPage />} />
+              <Route path="/admin/pins" element={<AdminPinsPage />} />
             </Route>
 
             {/* Partner — protected */}
