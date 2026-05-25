@@ -3,6 +3,8 @@ import { Toaster } from 'sonner'
 import { AuthProvider } from '@/context/AuthContext'
 import RequireAuth from '@/components/RequireAuth'
 import RequireAdminAuth from '@/components/RequireAdminAuth'
+import InstallPrompt from '@/components/InstallPrompt'
+import OfflineIndicator from '@/components/OfflineIndicator'
 
 import LandingPage from '@/pages/landing/LandingPage'
 import AdminApplicationsPage from '@/pages/admin/AdminApplicationsPage'
@@ -41,6 +43,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <OfflineIndicator />
+        <InstallPrompt />
         <Toaster position="top-right" richColors closeButton />
         <Routes>
           <Route path="/" element={<LandingPage />} />
