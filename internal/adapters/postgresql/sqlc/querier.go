@@ -178,6 +178,7 @@ type Querier interface {
 	UpdateAdminLocationStatus(ctx context.Context, arg UpdateAdminLocationStatusParams) (Location, error)
 	UpdateAdminPartner(ctx context.Context, arg UpdateAdminPartnerParams) (Partner, error)
 	UpdateAdminUser(ctx context.Context, arg UpdateAdminUserParams) (AdminUser, error)
+	ReviewApplication(ctx context.Context, arg ReviewApplicationParams) error
 	UpdateApplication(ctx context.Context, arg UpdateApplicationParams) error
 	// Update an existing box
 	UpdateBox(ctx context.Context, arg UpdateBoxParams) (SurpriseBox, error)

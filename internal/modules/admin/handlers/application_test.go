@@ -36,17 +36,16 @@ func (f *fakeApplicationService) List(_ context.Context, input partnerDomain.App
 	}, nil
 }
 
-func (f *fakeApplicationService) Approve(context.Context, string) error { return nil }
-func (f *fakeApplicationService) Reject(context.Context, string, string) error {
+func (f *fakeApplicationService) ApproveAsAdmin(_ context.Context, _ string, _ uuid.UUID) error {
+	return nil
+}
+
+func (f *fakeApplicationService) RejectAsAdmin(_ context.Context, _, _ string, _ uuid.UUID) error {
 	return nil
 }
 func (f *fakeApplicationService) Delete(context.Context, string) error { return nil }
 
 type fakeApplicationAuditRepo struct{}
-
-func (f fakeApplicationAuditRepo) MarkApplicationReviewed(context.Context, uuid.UUID, uuid.UUID) error {
-	return nil
-}
 
 func (f fakeApplicationAuditRepo) CreateAuditLog(context.Context, domain.AuditLog) (domain.AuditLog, error) {
 	return domain.AuditLog{}, nil

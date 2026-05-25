@@ -1411,6 +1411,32 @@ func (q *Queries) ListPartners(ctx context.Context) ([]Partner, error) {
 	return items, nil
 }
 
+const reviewApplication = `-- name: ReviewApplication :exec
+UPDATE partner_applications
+SET status           = $1,
+    reviewed_at      = NOW(),
+    rejection_reason = $2,
+    reviewed_by      = $3
+WHERE id = $4
+`
+
+type ReviewApplicationParams struct {
+	Status          string      `json:"status"`
+	RejectionReason pgtype.Text `json:"rejection_reason"`
+	ReviewedBy      pgtype.UUID `json:"reviewed_by"`
+	ID              uuid.UUID   `json:"id"`
+}
+
+func (q *Queries) ReviewApplication(ctx context.Context, arg ReviewApplicationParams) error {
+	_, err := q.db.Exec(ctx, reviewApplication,
+		arg.Status,
+		arg.RejectionReason,
+		arg.ReviewedBy,
+		arg.ID,
+	)
+	return err
+}
+
 const updateApplication = `-- name: UpdateApplication :exec
 UPDATE partner_applications
 SET status = $1, reviewed_at = $2, rejection_reason = $3

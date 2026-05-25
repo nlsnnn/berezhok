@@ -12,6 +12,18 @@ import (
 	sharedDomain "github.com/nlsnnn/berezhok/internal/shared/domain"
 )
 
+// ReviewApplication atomically updates status, reviewed_at, rejection_reason and reviewed_by
+// in a single SQL statement, preventing the partial-update race condition.
+func (r *ApplicationRepo) ReviewApplication(ctx context.Context, id string, status domain.ApplicationStatus, rejectionReason string, adminID uuid.UUID) error {
+	uid := uuid.MustParse(id)
+	return r.q.ReviewApplication(ctx, sqlc.ReviewApplicationParams{
+		ID:              uid,
+		Status:          string(status),
+		RejectionReason: pgtype.Text{String: rejectionReason, Valid: rejectionReason != ""},
+		ReviewedBy:      pgtype.UUID{Bytes: adminID, Valid: true},
+	})
+}
+
 type ApplicationRepo struct {
 	q *sqlc.Queries
 }

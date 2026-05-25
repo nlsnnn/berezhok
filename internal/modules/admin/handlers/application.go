@@ -25,13 +25,12 @@ import (
 type applicationService interface {
 	GetByID(ctx context.Context, id string) (partnerDomain.Application, error)
 	List(ctx context.Context, input partnerDomain.ApplicationListInput) (partnerDomain.ApplicationListResult, error)
-	Approve(ctx context.Context, id string) error
-	Reject(ctx context.Context, id, reason string) error
+	ApproveAsAdmin(ctx context.Context, id string, adminID uuid.UUID) error
+	RejectAsAdmin(ctx context.Context, id, reason string, adminID uuid.UUID) error
 	Delete(ctx context.Context, id string) error
 }
 
 type applicationAuditRepo interface {
-	MarkApplicationReviewed(ctx context.Context, applicationID, adminID uuid.UUID) error
 	CreateAuditLog(ctx context.Context, input domain.AuditLog) (domain.AuditLog, error)
 }
 
@@ -83,8 +82,8 @@ func (h *ApplicationHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ApplicationHandler) Approve(w http.ResponseWriter, r *http.Request) {
-	h.review(w, r, "admin.application.approve", func(ctx context.Context, id string) error {
-		return h.appSvc.Approve(ctx, id)
+	h.review(w, r, "admin.application.approve", func(ctx context.Context, id string, adminID uuid.UUID) error {
+		return h.appSvc.ApproveAsAdmin(ctx, id, adminID)
 	})
 }
 
@@ -96,8 +95,8 @@ func (h *ApplicationHandler) Reject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.review(w, r, "admin.application.reject", func(ctx context.Context, id string) error {
-		return h.appSvc.Reject(ctx, id, req.RejectionReason)
+	h.review(w, r, "admin.application.reject", func(ctx context.Context, id string, adminID uuid.UUID) error {
+		return h.appSvc.RejectAsAdmin(ctx, id, req.RejectionReason, adminID)
 	})
 }
 
@@ -122,24 +121,18 @@ func (h *ApplicationHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	response.Success(w, map[string]string{"message": "application deleted successfully"})
 }
 
-func (h *ApplicationHandler) review(w http.ResponseWriter, r *http.Request, action string, fn func(context.Context, string) error) {
+func (h *ApplicationHandler) review(w http.ResponseWriter, r *http.Request, action string, fn func(context.Context, string, uuid.UUID) error) {
 	id, applicationID, adminID, ok := h.adminActionContext(w, r)
 	if !ok {
 		return
 	}
 
-	if err := fn(r.Context(), id); err != nil {
+	if err := fn(r.Context(), id, adminID); err != nil {
 		if errors.Is(err, partnerErrors.ErrInvalidStatusTransition) {
 			response.BadRequest(w, "only pending applications can be reviewed")
 			return
 		}
 		h.log.Error("failed to review application", sl.Err(err))
-		response.InternalError(w, nil)
-		return
-	}
-
-	if err := h.auditRepo.MarkApplicationReviewed(r.Context(), applicationID, adminID); err != nil {
-		h.log.Error("failed to mark application reviewed by admin", sl.Err(err))
 		response.InternalError(w, nil)
 		return
 	}

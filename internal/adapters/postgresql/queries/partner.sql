@@ -17,6 +17,14 @@ UPDATE partner_applications
 SET status = $1, reviewed_at = $2, rejection_reason = $3
 WHERE id = $4;
 
+-- name: ReviewApplication :exec
+UPDATE partner_applications
+SET status           = $1,
+    reviewed_at      = NOW(),
+    rejection_reason = $2,
+    reviewed_by      = $3
+WHERE id = $4;
+
 -- name: DeleteApplication :exec
 DELETE FROM partner_applications WHERE id = $1;
 
