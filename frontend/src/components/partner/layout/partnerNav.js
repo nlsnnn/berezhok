@@ -60,13 +60,6 @@ export const partnerNavLinks = [
     icon: MessageSquare,
     roles: ['owner', 'employee'],
   },
-{
-    to: '/partner/promo',
-    label: 'Промо',
-    icon: Gift,
-    roles: ['owner'],
-    matchPaths: ['/partner/promo'],
-  },
   {
     to: '/partner/employees',
     label: 'Сотрудники',
