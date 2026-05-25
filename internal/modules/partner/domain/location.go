@@ -10,10 +10,11 @@ import (
 type LocationStatus string
 
 const (
-	LocationStatusActive   LocationStatus = "active"
-	LocationStatusInactive LocationStatus = "inactive"
-	LocationStatusClosed   LocationStatus = "closed"
-	LocationStatusDraft    LocationStatus = "draft"
+	LocationStatusActive        LocationStatus = "active"
+	LocationStatusInactive      LocationStatus = "inactive"
+	LocationStatusClosed        LocationStatus = "closed"
+	LocationStatusDraft         LocationStatus = "draft"
+	LocationStatusPendingReview LocationStatus = "pending_review"
 )
 
 type Location struct {

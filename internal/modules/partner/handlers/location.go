@@ -7,6 +7,7 @@ import (
 
 	"github.com/nlsnnn/berezhok/internal/lib/logger/sl"
 	"github.com/nlsnnn/berezhok/internal/lib/validator"
+	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 	partnerErrors "github.com/nlsnnn/berezhok/internal/modules/partner/errors"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/handlers/dto"
 	"github.com/nlsnnn/berezhok/internal/shared/contextx"
@@ -55,7 +56,10 @@ func (h *locationHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	location, err := h.svc.Create(r.Context(), req.ToInput(partnerID.String()))
+	input := req.ToInput(partnerID.String())
+	input.Status = domain.LocationStatusPendingReview
+
+	location, err := h.svc.Create(r.Context(), input)
 	if err != nil {
 		switch {
 		case errors.Is(err, partnerErrors.ErrPartnerNotFound):

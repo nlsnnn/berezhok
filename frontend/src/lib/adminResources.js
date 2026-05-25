@@ -20,6 +20,7 @@ export const LEGAL_VERIFICATION_STATUS_OPTIONS = [
 
 export const LOCATION_STATUS_OPTIONS = [
   ALL_STATUS_OPTION,
+  { value: 'pending_review', label: 'На модерации' },
   { value: 'active', label: 'Активна' },
   { value: 'inactive', label: 'Неактивна' },
   { value: 'blocked', label: 'Заблокирована' },
@@ -73,6 +74,7 @@ export const LEGAL_VERIFICATION_STATUS_MAP = {
 }
 
 export const LOCATION_STATUS_MAP = {
+  pending_review: { label: 'На модерации', color: 'bg-yellow-100 text-yellow-800' },
   active: { label: 'Активна', color: 'bg-green-100 text-green-800' },
   inactive: { label: 'Неактивна', color: 'bg-gray-100 text-gray-800' },
   blocked: { label: 'Заблокирована', color: 'bg-red-100 text-red-800' },
