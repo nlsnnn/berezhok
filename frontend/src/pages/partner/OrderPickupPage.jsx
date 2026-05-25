@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { observer } from 'mobx-react-lite'
-import { BadgeCheck, Camera, Clock3, Keyboard, PackageCheck, QrCode, StopCircle, User } from 'lucide-react'
+import { BadgeCheck, Camera, Clock3, Keyboard, PackageCheck, QrCode, StopCircle, SwitchCamera, User } from 'lucide-react'
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
 import { toast } from 'sonner'
 import { formatDateTime, getErrorMessage } from '@/lib/utils'
@@ -20,6 +20,8 @@ function OrderPickupPageBase() {
   const [pickupCode, setPickupCode] = useState('')
   const [isScannerActive, setIsScannerActive] = useState(false)
   const [scannerError, setScannerError] = useState('')
+  const [cameras, setCameras] = useState([])
+  const [selectedCameraId, setSelectedCameraId] = useState(null)
 
   const order = ordersStore.current
 
@@ -77,42 +79,65 @@ function OrderPickupPageBase() {
     handleLookup(code)
   }, [handleLookup, stopScanner])
 
-  const startScanner = useCallback(async () => {
-    if (isScannerActive) return
+  const doStartCamera = useCallback(async (cameraId) => {
     setScannerError('')
-
+    hasScannedRef.current = false
     try {
-      const cameras = await Html5Qrcode.getCameras()
-      if (!cameras?.length) {
-        setScannerError('Камера не найдена на устройстве')
-        return
-      }
-
-      const backCamera = cameras.find((camera) => /back|rear|environment|traseira|trasera/i.test(camera.label))
-      const cameraConfig = backCamera ? { deviceId: { exact: backCamera.id } } : { facingMode: 'environment' }
-
       const scanner = new Html5Qrcode(SCANNER_ID)
       scannerRef.current = scanner
-
       await scanner.start(
-        cameraConfig,
+        { deviceId: { exact: cameraId } },
         { fps: 10, qrbox: { width: 240, height: 240 }, formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] },
         handleScanSuccess,
         () => {}
       )
-
       setIsScannerActive(true)
     } catch (error) {
-      try {
-        if (scannerRef.current) await scannerRef.current.clear()
-      } catch {
-        // noop
-      }
+      try { if (scannerRef.current) await scannerRef.current.clear() } catch { /* noop */ }
       scannerRef.current = null
       setIsScannerActive(false)
       setScannerError(error?.message || 'Не удалось запустить камеру')
     }
-  }, [handleScanSuccess, isScannerActive])
+  }, [handleScanSuccess])
+
+  const startScanner = useCallback(async () => {
+    if (isScannerActive) return
+
+    let activeCameraId = selectedCameraId
+    if (!activeCameraId) {
+      try {
+        const devices = await Html5Qrcode.getCameras()
+        if (!devices?.length) {
+          setScannerError('Камера не найдена на устройстве')
+          return
+        }
+        setCameras(devices)
+        const back = devices.find((c) => /back|rear|environment|traseira|trasera/i.test(c.label))
+        activeCameraId = (back ?? devices[0]).id
+        setSelectedCameraId(activeCameraId)
+      } catch (error) {
+        setScannerError(error?.message || 'Не удалось получить список камер')
+        return
+      }
+    }
+
+    await doStartCamera(activeCameraId)
+  }, [isScannerActive, selectedCameraId, doStartCamera])
+
+  const handleCameraChange = useCallback(async (newCameraId) => {
+    setSelectedCameraId(newCameraId)
+    if (!isScannerActive) return
+
+    const scanner = scannerRef.current
+    if (scanner) {
+      try { if (scanner.isScanning) await scanner.stop() } catch { /* noop */ }
+      try { await scanner.clear() } catch { /* noop */ }
+    }
+    scannerRef.current = null
+    setIsScannerActive(false)
+
+    await doStartCamera(newCameraId)
+  }, [isScannerActive, doStartCamera])
 
   useEffect(() => {
     return () => {
@@ -151,6 +176,22 @@ function OrderPickupPageBase() {
             <div className="rounded-xl border border-cream-200 bg-white p-4">
               <div id={SCANNER_ID} className="min-h-[280px] w-full overflow-hidden rounded-lg bg-cream-100" />
             </div>
+            {cameras.length > 1 && (
+              <div className="flex items-center gap-2">
+                <SwitchCamera size={16} className="text-brand-500 shrink-0" />
+                <select
+                  value={selectedCameraId || ''}
+                  onChange={(e) => handleCameraChange(e.target.value)}
+                  className="flex-1 rounded-lg border border-cream-200 bg-white px-3 py-1.5 text-sm text-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-400"
+                >
+                  {cameras.map((cam) => (
+                    <option key={cam.id} value={cam.id}>
+                      {cam.label || `Камера ${cam.id.slice(0, 8)}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             {scannerError && <p className="text-sm text-red-600">{scannerError}</p>}
             <div className="flex gap-3 flex-wrap">
               <Button onClick={startScanner} disabled={isScannerActive} className="gap-2">

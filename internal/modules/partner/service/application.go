@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
+
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/errors"
 	"github.com/nlsnnn/berezhok/internal/shared/auth"
@@ -36,6 +38,7 @@ type appRepo interface {
 	List(ctx context.Context, input domain.ApplicationListInput) (domain.ApplicationListResult, error)
 	Create(ctx context.Context, app domain.Application) (domain.Application, error)
 	UpdateStatus(ctx context.Context, id string, status domain.ApplicationStatus, rejectionReason string) error
+	ReviewApplication(ctx context.Context, id string, status domain.ApplicationStatus, rejectionReason string, adminID uuid.UUID) error
 	Delete(ctx context.Context, id string) error
 }
 
@@ -174,4 +177,65 @@ func (s *appService) Reject(ctx context.Context, id, reason string) error {
 	}
 
 	return s.repo.UpdateStatus(ctx, id, domain.ApplicationStatusRejected, reason)
+}
+
+// ApproveAsAdmin atomically approves the application and records the reviewing admin in one UPDATE.
+func (s *appService) ApproveAsAdmin(ctx context.Context, id string, adminID uuid.UUID) error {
+	app, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if !app.CanTransitionTo(domain.ApplicationStatusApproved) {
+		return errors.ErrInvalidStatusTransition
+	}
+
+	password := generator.GeneratePassword()
+	passwordHash, err := auth.Hash(password)
+	if err != nil {
+		return err
+	}
+
+	partner, err := s.partnerSvc.Create(ctx, app.BusinessName)
+	if err != nil {
+		return err
+	}
+
+	if _, err := s.employeeSvc.Create(ctx, partner.ID, "", app.ContactEmail, passwordHash, app.ContactName, domain.EmployeeRoleOwner); err != nil {
+		return err
+	}
+
+	if _, err := s.locationProvider.Create(ctx, CreateLocationInput{
+		PartnerID:    partner.ID,
+		CategoryCode: app.CategoryCode,
+		Name:         app.BusinessName,
+		Address:      app.Address,
+		Latitude:     app.Coords.Latitude,
+		Longitude:    app.Coords.Longitude,
+		Status:       domain.LocationStatusDraft,
+	}); err != nil {
+		return err
+	}
+
+	if err := s.notificationProvider.SendPartnerApprovalNotification(ctx, app.ContactEmail, app.ContactName, password); err != nil {
+		fmt.Printf("Failed to send approval notification: %s\n", err)
+	}
+
+	fmt.Printf("Partner approved. Contact: %s, Password: %s\n", app.ContactEmail, password)
+
+	return s.repo.ReviewApplication(ctx, id, domain.ApplicationStatusApproved, "", adminID)
+}
+
+// RejectAsAdmin atomically rejects the application and records the reviewing admin in one UPDATE.
+func (s *appService) RejectAsAdmin(ctx context.Context, id, reason string, adminID uuid.UUID) error {
+	app, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if !app.CanTransitionTo(domain.ApplicationStatusRejected) {
+		return errors.ErrInvalidStatusTransition
+	}
+
+	return s.repo.ReviewApplication(ctx, id, domain.ApplicationStatusRejected, reason, adminID)
 }
