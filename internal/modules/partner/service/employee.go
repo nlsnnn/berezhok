@@ -170,6 +170,8 @@ func (s *empService) CreateManaged(ctx context.Context, input CreateManagedEmplo
 		return domain.ManagedEmployee{}, err
 	}
 
+	fmt.Printf("Employee created. Email: %s, Password: %s\n", input.Email, password)
+
 	return managedEmployeeFromDomain(employee, location.Name), nil
 }
 

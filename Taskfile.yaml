@@ -46,9 +46,14 @@ tasks:
       - go test ./internal/... -v
 
   seed:
-    desc: "Заполняет БД тестовыми данными"
+    desc: "Заполняет БД тестовыми данными (требует Go локально)"
     cmds:
       - go run ./cmd/seed
+
+  seed:docker:
+    desc: "Заполняет БД тестовыми данными через Docker (Go не нужен)"
+    cmds:
+      - docker compose --profile seed run --rm seed
 
   e2e_tests:
     desc: "Запускает E2E тесты API"
