@@ -1,0 +1,26 @@
+http:
+  middlewares:
+    api-ratelimit:
+      rateLimit:
+        average: 100
+        burst: 50
+        period: 1s
+
+    secure-headers:
+      headers:
+        frameDeny: true
+        contentTypeNosniff: true
+        browserXssFilter: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+        customResponseHeaders:
+          X-Powered-By: ""
+
+    chat-api-rewrite:
+      replacePathRegex:
+        regex: "^/chat-api(.*)"
+        replacement: "/api$1"
+
+    chat-ws-rewrite:
+      replacePathRegex:
+        regex: "^/chat-ws(.*)"
+        replacement: "/ws$1"
