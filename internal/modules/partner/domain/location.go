@@ -40,6 +40,12 @@ type LocationCategory struct {
 	Sort    int
 }
 
+type LocationPin struct {
+	Code   string
+	NameRu string
+	Sort   int
+}
+
 func NewLocation(partnerID, name, address string, category LocationCategory, status LocationStatus, coords sharedDomain.GeoPoint) (Location, error) {
 	if partnerID == "" {
 		return Location{}, fmt.Errorf("partner ID is required")

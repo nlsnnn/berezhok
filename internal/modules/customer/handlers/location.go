@@ -69,6 +69,10 @@ func (h *locationHandler) SearchLocations(w http.ResponseWriter, r *http.Request
 	// Convert to response DTO
 	items := make([]dto.LocationSearchResponse, len(result.Locations))
 	for i, loc := range result.Locations {
+		pins := make([]dto.LocationPinResponse, len(loc.Pins))
+		for j, p := range loc.Pins {
+			pins[j] = dto.LocationPinResponse{Code: p.Code, NameRu: p.NameRu}
+		}
 		items[i] = dto.LocationSearchResponse{
 			ID:   loc.ID.String(),
 			Name: loc.Name,
@@ -85,6 +89,7 @@ func (h *locationHandler) SearchLocations(w http.ResponseWriter, r *http.Request
 			LogoURL:          loc.LogoURL,
 			Rating:           nil,
 			ActiveBoxesCount: loc.ActiveBoxes,
+			Pins:             pins,
 		}
 	}
 
@@ -135,6 +140,11 @@ func (h *locationHandler) GetLocationDetails(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
+	detailPins := make([]dto.LocationPinResponse, len(details.Location.Pins))
+	for i, p := range details.Location.Pins {
+		detailPins[i] = dto.LocationPinResponse{Code: p.Code, NameRu: p.NameRu}
+	}
+
 	resp := dto.LocationDetailsResponse{
 		ID:   details.Location.ID.String(),
 		Name: details.Location.Name,
@@ -154,6 +164,7 @@ func (h *locationHandler) GetLocationDetails(w http.ResponseWriter, r *http.Requ
 		CoverImageURL: details.Location.CoverImageURL,
 		Gallery:       details.Location.GalleryURLs,
 		Rating:        nil, // Stub for now
+		Pins:          detailPins,
 		ActiveBoxes:   activeBoxes,
 	}
 

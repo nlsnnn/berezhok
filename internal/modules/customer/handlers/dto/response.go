@@ -14,33 +14,41 @@ type ProfileResponse struct {
 	SavedAmount  float64   `json:"saved_amount"`
 }
 
+// LocationPinResponse represents a location pin (tag)
+type LocationPinResponse struct {
+	Code   string `json:"code"`
+	NameRu string `json:"name_ru"`
+}
+
 // LocationSearchResponse represents location in search results
 type LocationSearchResponse struct {
-	ID               string              `json:"id"`
-	Name             string              `json:"name"`
-	Category         CategoryResponse    `json:"category"`
-	Address          string              `json:"address"`
-	Distance         *float64            `json:"distance,omitempty"` // in meters, optional for now
-	Coordinates      CoordinatesResponse `json:"coordinates"`
-	Rating           *RatingResponse     `json:"rating,omitempty"`
-	LogoURL          string              `json:"logo_url,omitempty"`
-	ActiveBoxesCount int                 `json:"active_boxes_count"`
+	ID               string                `json:"id"`
+	Name             string                `json:"name"`
+	Category         CategoryResponse      `json:"category"`
+	Address          string                `json:"address"`
+	Distance         *float64              `json:"distance,omitempty"` // in meters, optional for now
+	Coordinates      CoordinatesResponse   `json:"coordinates"`
+	Rating           *RatingResponse       `json:"rating,omitempty"`
+	LogoURL          string                `json:"logo_url,omitempty"`
+	ActiveBoxesCount int                   `json:"active_boxes_count"`
+	Pins             []LocationPinResponse `json:"pins,omitempty"`
 }
 
 // LocationDetailsResponse represents full location details
 type LocationDetailsResponse struct {
-	ID            string              `json:"id"`
-	Name          string              `json:"name"`
-	Category      CategoryResponse    `json:"category"`
-	Address       string              `json:"address"`
-	Coordinates   CoordinatesResponse `json:"coordinates"`
-	Phone         string              `json:"phone,omitempty"`
-	WorkingHours  map[string]string   `json:"working_hours,omitempty"`
-	LogoURL       string              `json:"logo_url,omitempty"`
-	CoverImageURL string              `json:"cover_image_url,omitempty"`
-	Gallery       []string            `json:"gallery,omitempty"`
-	Rating        *RatingResponse     `json:"rating,omitempty"`
-	ActiveBoxes   []BoxResponse       `json:"active_boxes"`
+	ID            string                `json:"id"`
+	Name          string                `json:"name"`
+	Category      CategoryResponse      `json:"category"`
+	Address       string                `json:"address"`
+	Coordinates   CoordinatesResponse   `json:"coordinates"`
+	Phone         string                `json:"phone,omitempty"`
+	WorkingHours  map[string]string     `json:"working_hours,omitempty"`
+	LogoURL       string                `json:"logo_url,omitempty"`
+	CoverImageURL string                `json:"cover_image_url,omitempty"`
+	Gallery       []string              `json:"gallery,omitempty"`
+	Rating        *RatingResponse       `json:"rating,omitempty"`
+	Pins          []LocationPinResponse `json:"pins,omitempty"`
+	ActiveBoxes   []BoxResponse         `json:"active_boxes"`
 }
 
 // CategoryResponse represents location category

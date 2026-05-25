@@ -61,6 +61,13 @@ SELECT
     lc.color as category_color,
     ST_X(l.location::geometry) as longitude,
     ST_Y(l.location::geometry) as latitude,
+    COALESCE(
+        (SELECT json_agg(json_build_object('code', lp.code, 'name_ru', lp.name_ru) ORDER BY lp.sort_order)
+         FROM location_selected_pins lsp
+         JOIN location_pins lp ON lp.code = lsp.pin_code
+         WHERE lsp.location_id = l.id),
+        '[]'::json
+    ) AS pins,
     l.created_at,
     l.updated_at
 FROM locations l
@@ -85,6 +92,7 @@ type GetLocationDetailsByIDRow struct {
 	CategoryColor   pgtype.Text      `json:"category_color"`
 	Longitude       interface{}      `json:"longitude"`
 	Latitude        interface{}      `json:"latitude"`
+	Pins            interface{}      `json:"pins"`
 	CreatedAt       pgtype.Timestamp `json:"created_at"`
 	UpdatedAt       pgtype.Timestamp `json:"updated_at"`
 }
@@ -110,6 +118,7 @@ func (q *Queries) GetLocationDetailsByID(ctx context.Context, id uuid.UUID) (Get
 		&i.CategoryColor,
 		&i.Longitude,
 		&i.Latitude,
+		&i.Pins,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -136,6 +145,13 @@ SELECT
     ST_X(l.location::geometry) as longitude,
     ST_Y(l.location::geometry) as latitude,
     COALESCE((SELECT COUNT(*) FROM surprise_boxes sb WHERE sb.location_id = l.id AND sb.status = 'active' AND sb.quantity_available > 0), 0)::int as active_boxes_count,
+    COALESCE(
+        (SELECT json_agg(json_build_object('code', lp.code, 'name_ru', lp.name_ru) ORDER BY lp.sort_order)
+         FROM location_selected_pins lsp
+         JOIN location_pins lp ON lp.code = lsp.pin_code
+         WHERE lsp.location_id = l.id),
+        '[]'::json
+    ) AS pins,
     l.created_at,
     l.updated_at
 FROM locations l
@@ -170,6 +186,7 @@ type SearchLocationsRow struct {
 	Longitude        interface{}      `json:"longitude"`
 	Latitude         interface{}      `json:"latitude"`
 	ActiveBoxesCount int32            `json:"active_boxes_count"`
+	Pins             interface{}      `json:"pins"`
 	CreatedAt        pgtype.Timestamp `json:"created_at"`
 	UpdatedAt        pgtype.Timestamp `json:"updated_at"`
 }
@@ -203,6 +220,7 @@ func (q *Queries) SearchLocations(ctx context.Context, arg SearchLocationsParams
 			&i.Longitude,
 			&i.Latitude,
 			&i.ActiveBoxesCount,
+			&i.Pins,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {

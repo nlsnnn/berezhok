@@ -247,6 +247,18 @@ type LocationCategory struct {
 	SortOrder pgtype.Int4 `json:"sort_order"`
 }
 
+type LocationPin struct {
+	Code      string    `json:"code"`
+	NameRu    string    `json:"name_ru"`
+	SortOrder int32     `json:"sort_order"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type LocationSelectedPin struct {
+	LocationID uuid.UUID `json:"location_id"`
+	PinCode    string    `json:"pin_code"`
+}
+
 type MediaFile struct {
 	ID               uuid.UUID        `json:"id"`
 	Filename         string           `json:"filename"`

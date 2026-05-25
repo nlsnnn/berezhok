@@ -47,3 +47,7 @@ type CreateEmployeeRequest struct {
 type UpdateProfileRequest struct {
 	Name string `json:"name" validate:"required,min=2,max=100"`
 }
+
+type UpdateLocationPinsRequest struct {
+	PinCodes []string `json:"pin_codes" validate:"required"`
+}

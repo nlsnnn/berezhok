@@ -648,6 +648,60 @@ func (h *OpsHandler) notifyLegalInfoRejected(r *http.Request, partnerID uuid.UUI
 	}
 }
 
+type createLocationPinRequest struct {
+	Code      string `json:"code" validate:"required,alphanum,min=2,max=50"`
+	NameRu    string `json:"name_ru" validate:"required,min=2,max=100"`
+	SortOrder int    `json:"sort_order" validate:"gte=0"`
+}
+
+func (h *OpsHandler) ListLocationPins(w http.ResponseWriter, r *http.Request) {
+	pins, err := h.q.ListLocationPins(r.Context())
+	if err != nil {
+		h.writeError(w, "failed to list pins", err)
+		return
+	}
+	result := make([]map[string]any, len(pins))
+	for i, p := range pins {
+		result[i] = map[string]any{"code": p.Code, "name_ru": p.NameRu, "sort_order": p.SortOrder}
+	}
+	response.Success(w, result)
+}
+
+func (h *OpsHandler) CreateLocationPin(w http.ResponseWriter, r *http.Request) {
+	var req createLocationPinRequest
+	if errs := h.validator.DecodeAndValidate(r, &req); errs != nil {
+		response.ValidationError(w, "validation failed", errs)
+		return
+	}
+
+	pin, err := h.q.CreateLocationPin(r.Context(), sqlc.CreateLocationPinParams{
+		Code:      req.Code,
+		NameRu:    req.NameRu,
+		SortOrder: int32(req.SortOrder),
+	})
+	if err != nil {
+		h.writeError(w, "failed to create pin", err)
+		return
+	}
+
+	response.Created(w, map[string]any{"code": pin.Code, "name_ru": pin.NameRu, "sort_order": pin.SortOrder})
+}
+
+func (h *OpsHandler) DeleteLocationPin(w http.ResponseWriter, r *http.Request) {
+	code := chi.URLParam(r, "code")
+	if code == "" {
+		response.BadRequest(w, "code is required")
+		return
+	}
+
+	if err := h.q.DeleteLocationPin(r.Context(), code); err != nil {
+		h.writeError(w, "failed to delete pin", err)
+		return
+	}
+
+	response.Success(w, map[string]string{"message": "pin deleted"})
+}
+
 func (h *OpsHandler) writeError(w http.ResponseWriter, message string, err error) {
 	if errors.Is(err, pgx.ErrNoRows) {
 		response.NotFound(w, "not found")

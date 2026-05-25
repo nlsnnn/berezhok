@@ -48,6 +48,7 @@ type Querier interface {
 	CreateCustomer(ctx context.Context, phone string) (uuid.UUID, error)
 	CreateEvent(ctx context.Context, arg CreateEventParams) (PaymentEvent, error)
 	CreateLocation(ctx context.Context, arg CreateLocationParams) (Location, error)
+	CreateLocationPin(ctx context.Context, arg CreateLocationPinParams) (LocationPin, error)
 	// Create a new media file record
 	CreateMediaFile(ctx context.Context, arg CreateMediaFileParams) (MediaFile, error)
 	CreateOrder(ctx context.Context, arg CreateOrderParams) (Order, error)
@@ -63,6 +64,8 @@ type Querier interface {
 	// Delete a box
 	DeleteBox(ctx context.Context, id uuid.UUID) error
 	DeleteLocation(ctx context.Context, id uuid.UUID) error
+	DeleteLocationPin(ctx context.Context, code string) error
+	DeleteLocationSelectedPins(ctx context.Context, locationID uuid.UUID) error
 	// Delete media file record
 	DeleteMediaFile(ctx context.Context, id uuid.UUID) error
 	DeletePartnerEmployee(ctx context.Context, id uuid.UUID) error
@@ -99,6 +102,7 @@ type Querier interface {
 	GetLocationDetailsByID(ctx context.Context, id uuid.UUID) (GetLocationDetailsByIDRow, error)
 	GetLocationOrderByID(ctx context.Context, arg GetLocationOrderByIDParams) (GetLocationOrderByIDRow, error)
 	GetLocationOrderByPickupCode(ctx context.Context, arg GetLocationOrderByPickupCodeParams) (GetLocationOrderByPickupCodeRow, error)
+	GetLocationSelectedPins(ctx context.Context, locationID uuid.UUID) ([]GetLocationSelectedPinsRow, error)
 	GetOrderByID(ctx context.Context, id uuid.UUID) (Order, error)
 	GetOrderDetailsByID(ctx context.Context, id uuid.UUID) (GetOrderDetailsByIDRow, error)
 	GetOrderProjection(ctx context.Context, id uuid.UUID) (GetOrderProjectionRow, error)
@@ -118,6 +122,7 @@ type Querier interface {
 	GetPayoutByID(ctx context.Context, id uuid.UUID) (PartnerPayout, error)
 	// Реквизиты получателя выплат
 	GetPayoutDestination(ctx context.Context, partnerID uuid.UUID) (PartnerPayoutDestination, error)
+	InsertLocationSelectedPin(ctx context.Context, arg InsertLocationSelectedPinParams) error
 	// List active boxes by location ID
 	ListActiveBoxesByLocationID(ctx context.Context, locationID uuid.UUID) ([]SurpriseBox, error)
 	ListActiveOrdersByLocationID(ctx context.Context, arg ListActiveOrdersByLocationIDParams) ([]ListActiveOrdersByLocationIDRow, error)
@@ -140,6 +145,7 @@ type Querier interface {
 	// List boxes by partner ID
 	ListBoxesByPartnerID(ctx context.Context, partnerID uuid.UUID) ([]SurpriseBox, error)
 	ListEmployeesByPartnerID(ctx context.Context, partnerID uuid.UUID) ([]PartnerEmployee, error)
+	ListLocationPins(ctx context.Context) ([]ListLocationPinsRow, error)
 	ListLocationReviews(ctx context.Context, arg ListLocationReviewsParams) ([]ListLocationReviewsRow, error)
 	// Локации партнёров
 	ListLocations(ctx context.Context) ([]Location, error)
@@ -169,6 +175,7 @@ type Querier interface {
 	RejectPartnerLegalInfo(ctx context.Context, arg RejectPartnerLegalInfoParams) (PartnerLegalInfo, error)
 	ReserveBox(ctx context.Context, id uuid.UUID) (int64, error)
 	ResetPayoutToPending(ctx context.Context, id uuid.UUID) error
+	ReviewApplication(ctx context.Context, arg ReviewApplicationParams) error
 	// Location queries for customer app
 	// Search locations
 	SearchLocations(ctx context.Context, arg SearchLocationsParams) ([]SearchLocationsRow, error)
@@ -178,7 +185,6 @@ type Querier interface {
 	UpdateAdminLocationStatus(ctx context.Context, arg UpdateAdminLocationStatusParams) (Location, error)
 	UpdateAdminPartner(ctx context.Context, arg UpdateAdminPartnerParams) (Partner, error)
 	UpdateAdminUser(ctx context.Context, arg UpdateAdminUserParams) (AdminUser, error)
-	ReviewApplication(ctx context.Context, arg ReviewApplicationParams) error
 	UpdateApplication(ctx context.Context, arg UpdateApplicationParams) error
 	// Update an existing box
 	UpdateBox(ctx context.Context, arg UpdateBoxParams) (SurpriseBox, error)

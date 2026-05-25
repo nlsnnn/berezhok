@@ -60,6 +60,11 @@ type LocationResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type LocationPinResponse struct {
+	Code   string `json:"code"`
+	NameRu string `json:"name_ru"`
+}
+
 type PartnerDashboardResponse struct {
 	Partner   DashboardPartnerResponse    `json:"partner"`
 	Employee  DashboardEmployeeResponse   `json:"employee"`
