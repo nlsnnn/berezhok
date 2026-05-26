@@ -29,6 +29,12 @@ export const createLocation = (data) =>
 export const listLocations = () =>
   api.get("/partner/locations").then((r) => r.data.data);
 
+export const getLocationById = (locationId) =>
+  api.get(`/partner/locations/${locationId}`).then((r) => r.data.data);
+
+export const updateLocation = (locationId, data) =>
+  api.put(`/partner/locations/${locationId}`, data).then((r) => r.data.data);
+
 export const listAvailablePins = () =>
   api.get("/partner/pins").then((r) => r.data.data);
 

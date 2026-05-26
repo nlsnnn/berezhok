@@ -1470,6 +1470,7 @@ SET
     cover_image_url = COALESCE($6, cover_image_url),
     working_hours = COALESCE($7, working_hours),
     gallery_urls = COALESCE($8, gallery_urls),
+    phone = COALESCE($9, phone),
     updated_at = NOW()
 WHERE id = $1
 RETURNING id, partner_id, category_code, name, address, location, phone, logo_url, cover_image_url, gallery_urls, working_hours, status, created_at, updated_at
@@ -1484,6 +1485,7 @@ type UpdateLocationParams struct {
 	CoverImageUrl pgtype.Text `json:"cover_image_url"`
 	WorkingHours  []byte      `json:"working_hours"`
 	GalleryUrls   []string    `json:"gallery_urls"`
+	Phone         pgtype.Text `json:"phone"`
 }
 
 func (q *Queries) UpdateLocation(ctx context.Context, arg UpdateLocationParams) (Location, error) {
@@ -1496,6 +1498,7 @@ func (q *Queries) UpdateLocation(ctx context.Context, arg UpdateLocationParams) 
 		arg.CoverImageUrl,
 		arg.WorkingHours,
 		arg.GalleryUrls,
+		arg.Phone,
 	)
 	var i Location
 	err := row.Scan(

@@ -476,6 +476,7 @@ SET
     cover_image_url = COALESCE($6, cover_image_url),
     working_hours = COALESCE($7, working_hours),
     gallery_urls = COALESCE($8, gallery_urls),
+    phone = COALESCE($9, phone),
     updated_at = NOW()
 WHERE id = $1
 RETURNING *;

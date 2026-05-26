@@ -51,3 +51,10 @@ type UpdateProfileRequest struct {
 type UpdateLocationPinsRequest struct {
 	PinCodes []string `json:"pin_codes" validate:"required"`
 }
+
+type UpdateLocationRequest struct {
+	Phone         *string            `json:"phone" validate:"omitempty,e164"`
+	LogoURL       *string            `json:"logo_url" validate:"omitempty,url"`
+	CoverImageURL *string            `json:"cover_image_url" validate:"omitempty,url"`
+	WorkingHours  *map[string]string `json:"working_hours" validate:"omitempty"`
+}

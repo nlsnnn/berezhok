@@ -289,6 +289,8 @@ func (app *application) mount() http.Handler {
 				// Location
 				r.Get("/partner/locations", locationHandler.List)
 				r.Post("/partner/locations", locationHandler.Create)
+				r.Get("/partner/locations/{id}", locationHandler.GetByID)
+				r.Put("/partner/locations/{id}", locationHandler.Update)
 				// Pins
 				r.Get("/partner/pins", pinsHandler.ListAvailable)
 				r.Get("/partner/locations/{id}/pins", pinsHandler.GetLocationPins)

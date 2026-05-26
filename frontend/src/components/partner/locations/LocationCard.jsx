@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { observer } from 'mobx-react-lite'
-import { MapPin, Package, Tag, ChevronDown, ChevronUp, Check } from 'lucide-react'
+import { MapPin, Package, Tag, ChevronDown, ChevronUp, Check, Settings } from 'lucide-react'
 import { useStores } from '@/context/StoresContext'
 import LocationPinsSelector from './LocationPinsSelector'
 import Spinner from '@/components/ui/feedback/Spinner'
@@ -51,9 +51,18 @@ function LocationCardBase({ location, boxCount = 0 }) {
                 <Package size={15} />
                 <span>{boxCount} боксов</span>
               </div>
-              <Link to="/partner/boxes" className="text-sm font-medium text-brand-600 hover:text-brand-800">
-                Смотреть боксы
-              </Link>
+              <div className="flex items-center gap-3">
+                <Link
+                  to={`/partner/locations/${location.id}/edit`}
+                  className="flex items-center gap-1 text-sm font-medium text-brand-600 hover:text-brand-800"
+                >
+                  <Settings size={14} />
+                  Настроить
+                </Link>
+                <Link to="/partner/boxes" className="text-sm font-medium text-brand-600 hover:text-brand-800">
+                  Смотреть боксы
+                </Link>
+              </div>
             </div>
           </div>
         </div>

@@ -31,6 +31,8 @@ type partnerSvc interface {
 type locationSvc interface {
 	Create(ctx context.Context, input service.CreateLocationInput) (domain.Location, error)
 	ListByPartner(ctx context.Context, partnerID string) ([]domain.Location, error)
+	GetByID(ctx context.Context, partnerID, locationID uuid.UUID) (domain.Location, error)
+	Update(ctx context.Context, input service.UpdateLocationInput) (domain.Location, error)
 }
 
 type employeeSvc interface {

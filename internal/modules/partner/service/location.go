@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/google/uuid"
 
@@ -21,12 +22,12 @@ type CreateLocationInput struct {
 }
 
 type UpdateLocationInput struct {
-	ID            string
-	Name          string
-	Address       string
-	CategoryCode  string
-	LogoURL       string
-	CoverImageURL string
+	ID            uuid.UUID
+	PartnerID     uuid.UUID
+	Phone         *string
+	LogoURL       *string
+	CoverImageURL *string
+	WorkingHours  *map[string]string
 }
 
 type locationService struct {
@@ -38,6 +39,7 @@ type locationRepo interface {
 	FindByPartnerID(ctx context.Context, partnerID string) ([]domain.Location, error)
 	FindCategoryByCode(ctx context.Context, code string) (domain.LocationCategory, error)
 	FindByID(ctx context.Context, id uuid.UUID) (domain.Location, error)
+	Update(ctx context.Context, input UpdateLocationInput) (domain.Location, error)
 	Delete(ctx context.Context, id string) error
 }
 
@@ -70,6 +72,38 @@ func (s *locationService) Create(ctx context.Context, input CreateLocationInput)
 	}
 
 	return s.repo.Create(ctx, location)
+}
+
+func (s *locationService) GetByID(ctx context.Context, partnerID, locationID uuid.UUID) (domain.Location, error) {
+	location, err := s.repo.FindByID(ctx, locationID)
+	if err != nil {
+		return domain.Location{}, err
+	}
+
+	if location.PartnerID != partnerID.String() {
+		return domain.Location{}, errors.ErrLocationNotOwnedByPartner
+	}
+
+	return location, nil
+}
+
+func (s *locationService) Update(ctx context.Context, input UpdateLocationInput) (domain.Location, error) {
+	existing, err := s.repo.FindByID(ctx, input.ID)
+	if err != nil {
+		return domain.Location{}, err
+	}
+
+	if existing.PartnerID != input.PartnerID.String() {
+		return domain.Location{}, errors.ErrLocationNotOwnedByPartner
+	}
+
+	if input.WorkingHours != nil {
+		if _, err := json.Marshal(*input.WorkingHours); err != nil {
+			return domain.Location{}, errors.ErrInvalidWorkingHours
+		}
+	}
+
+	return s.repo.Update(ctx, input)
 }
 
 func (s *locationService) Delete(ctx context.Context, id string) error {

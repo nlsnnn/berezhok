@@ -54,10 +54,16 @@ type ManagedEmployeeResponse struct {
 }
 
 type LocationResponse struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Address   string    `json:"address"`
-	CreatedAt time.Time `json:"created_at"`
+	ID            string            `json:"id"`
+	Name          string            `json:"name"`
+	Address       string            `json:"address"`
+	Phone         string            `json:"phone,omitempty"`
+	CategoryCode  string            `json:"category_code,omitempty"`
+	Status        string            `json:"status,omitempty"`
+	LogoURL       string            `json:"logo_url,omitempty"`
+	CoverImageURL string            `json:"cover_image_url,omitempty"`
+	WorkingHours  map[string]string `json:"working_hours,omitempty"`
+	CreatedAt     time.Time         `json:"created_at"`
 }
 
 type LocationPinResponse struct {
