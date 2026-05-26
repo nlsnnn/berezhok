@@ -34,12 +34,16 @@ function CreateBoxPageBase() {
       pickup_time_start: formData.pickup_time_start,
       pickup_time_end: formData.pickup_time_end,
       image_url: formData.image_url || '',
-      status: !canActivateBoxes && formData.status === 'active' ? 'inactive' : formData.status,
+      status: formData.status,
     }
 
     try {
-      await boxesStore.create(payload)
-      toast.success('Бокс создан')
+      const created = await boxesStore.create(payload)
+      if (formData.status === 'active' && created?.status && created.status !== 'active') {
+        toast.info('Бокс сохранён, но не опубликован — заполните юридические данные')
+      } else {
+        toast.success(formData.status === 'active' ? 'Бокс опубликован' : 'Черновик сохранён')
+      }
       navigate('/partner/boxes')
     } catch (error) {
       toast.error(getErrorMessage(error))
@@ -65,6 +69,7 @@ function CreateBoxPageBase() {
             </div>
           ) : (
             <BoxForm
+              mode="create"
               locations={locationsStore.locations}
               onSubmit={handleSubmit}
               isLoading={boxesStore.submitting}
