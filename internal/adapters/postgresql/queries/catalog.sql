@@ -32,7 +32,10 @@ SELECT * FROM surprise_boxes WHERE location_id = $1;
 -- List active boxes by location ID
 -- name: ListActiveBoxesByLocationID :many
 SELECT * FROM surprise_boxes
-WHERE location_id = $1 AND status = 'active' AND quantity_available > 0;
+WHERE location_id = $1
+  AND status = 'active'
+  AND quantity_available > 0
+  AND pickup_time_end > CURRENT_TIME;
 
 -- List boxes by partner ID
 -- name: ListBoxesByPartnerID :many
