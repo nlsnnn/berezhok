@@ -23,4 +23,5 @@ var (
 	ErrInvalidStatsPeriod        = errors.New("invalid stats period")
 	ErrInvalidStatsDateRange     = errors.New("invalid stats date range")
 	ErrInvalidStatsSort          = errors.New("invalid stats sort")
+	ErrInvalidWorkingHours       = errors.New("invalid working hours")
 )

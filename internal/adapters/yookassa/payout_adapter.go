@@ -63,10 +63,20 @@ func (a *PayoutAdapter) SendSBP(ctx context.Context, in service.SendSBPInput) (s
 	}, nil
 }
 
+// sbpBanksFallback is used when the Yookassa API is unavailable or returns no banks
+// (e.g. the store is in test mode). IDs and BICs match Yookassa production docs.
+var sbpBanksFallback = []service.SBPBank{
+	{BankID: "100000000111", Name: "СберБанк", BIC: "044525225"},
+	{BankID: "100000000004", Name: "Т-Банк", BIC: "044525974"},
+	{BankID: "100000000005", Name: "ВТБ", BIC: "044525187"},
+	{BankID: "100000000008", Name: "Альфа-Банк", BIC: "044525593"},
+	{BankID: "100000000001", Name: "Газпромбанк", BIC: "044525823"},
+}
+
 func (a *PayoutAdapter) GetSBPBanks(ctx context.Context) ([]service.SBPBank, error) {
 	banks, err := a.client.GetSbpBanks(ctx)
-	if err != nil {
-		return nil, wrapYooError(err)
+	if err != nil || len(banks) == 0 {
+		return sbpBanksFallback, nil
 	}
 
 	result := make([]service.SBPBank, len(banks))

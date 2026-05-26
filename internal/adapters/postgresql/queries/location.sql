@@ -19,7 +19,14 @@ SELECT
     lc.color as category_color,
     ST_X(l.location::geometry) as longitude,
     ST_Y(l.location::geometry) as latitude,
-    COALESCE((SELECT COUNT(*) FROM surprise_boxes sb WHERE sb.location_id = l.id AND sb.status = 'active' AND sb.quantity_available > 0), 0)::int as active_boxes_count,
+    COALESCE((SELECT COUNT(*) FROM surprise_boxes sb WHERE sb.location_id = l.id AND sb.status = 'active' AND sb.quantity_available > 0 AND sb.pickup_time_end > CURRENT_TIME), 0)::int as active_boxes_count,
+    COALESCE(
+        (SELECT json_agg(json_build_object('code', lp.code, 'name_ru', lp.name_ru) ORDER BY lp.sort_order)
+         FROM location_selected_pins lsp
+         JOIN location_pins lp ON lp.code = lsp.pin_code
+         WHERE lsp.location_id = l.id),
+        '[]'::json
+    ) AS pins,
     l.created_at,
     l.updated_at
 FROM locations l
@@ -55,6 +62,13 @@ SELECT
     lc.color as category_color,
     ST_X(l.location::geometry) as longitude,
     ST_Y(l.location::geometry) as latitude,
+    COALESCE(
+        (SELECT json_agg(json_build_object('code', lp.code, 'name_ru', lp.name_ru) ORDER BY lp.sort_order)
+         FROM location_selected_pins lsp
+         JOIN location_pins lp ON lp.code = lsp.pin_code
+         WHERE lsp.location_id = l.id),
+        '[]'::json
+    ) AS pins,
     l.created_at,
     l.updated_at
 FROM locations l
@@ -67,4 +81,5 @@ SELECT COUNT(*)
 FROM surprise_boxes
 WHERE location_id = $1
     AND status = 'active'
-    AND quantity_available > 0;
+    AND quantity_available > 0
+    AND pickup_time_end > CURRENT_TIME;

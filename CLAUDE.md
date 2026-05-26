@@ -35,6 +35,9 @@ You are an expert full-stack engineer working on **Berezhok** — a foodsharing 
 
 ### MCP Tools Usage
 Use available MCPs when helpful:
+- **Codegraph** — for symbol lookup, call graphs, impact analysis (see global CLAUDE.md for full usage guide)
+  - Codegraph queries can be slow — always set a **30-second timeout** on requests
+  - If a query times out, retry once; if it fails again, fall back to `Grep`/`Read`
 - **Docker** — for running services, logs, rebuilds
 - **PostgreSQL** — for database queries and schema understanding
 - **Git** — for smart commits and understanding history

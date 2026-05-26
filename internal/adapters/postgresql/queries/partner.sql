@@ -469,13 +469,11 @@ RETURNING *;
 -- name: UpdateLocation :one
 UPDATE locations
 SET
-    name = COALESCE($2, name),
-    address = COALESCE($3, address),
-    category_code = COALESCE($4, category_code),
-    logo_url = COALESCE($5, logo_url),
-    cover_image_url = COALESCE($6, cover_image_url),
-    working_hours = COALESCE($7, working_hours),
-    gallery_urls = COALESCE($8, gallery_urls),
+    logo_url = COALESCE($2, logo_url),
+    cover_image_url = COALESCE($3, cover_image_url),
+    working_hours = COALESCE($4, working_hours),
+    gallery_urls = COALESCE($5, gallery_urls),
+    phone = COALESCE($6, phone),
     updated_at = NOW()
 WHERE id = $1
 RETURNING *;
@@ -501,3 +499,6 @@ DELETE FROM locations WHERE id = $1;
 
 -- name: FindCategoryByCode :one
 SELECT * FROM location_categories WHERE code = $1;
+
+-- name: GetPartnerLegalInfoStatusByPartnerID :one
+SELECT verification_status FROM partner_legal_info WHERE partner_id = $1;

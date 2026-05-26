@@ -7,6 +7,7 @@ import { ordersStore } from '@/stores/partner/ordersStore'
 import { employeesStore } from '@/stores/partner/employeesStore'
 import { chatStore } from '@/stores/partner/chatStore'
 import { payoutsStore } from '@/stores/partner/payoutsStore'
+import { pinsStore } from '@/stores/partner/pinsStore'
 import { adminAuthStore } from '@/stores/admin/adminAuthStore'
 import { adminApplicationsStore } from '@/stores/admin/adminApplicationsStore'
 import {
@@ -32,6 +33,7 @@ export const stores = {
   employeesStore,
   chatStore,
   payoutsStore,
+  pinsStore,
   adminAuthStore,
   adminApplicationsStore,
   adminPartnersStore,

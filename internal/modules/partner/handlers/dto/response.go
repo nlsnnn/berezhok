@@ -54,10 +54,22 @@ type ManagedEmployeeResponse struct {
 }
 
 type LocationResponse struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Address   string    `json:"address"`
-	CreatedAt time.Time `json:"created_at"`
+	ID            string                `json:"id"`
+	Name          string                `json:"name"`
+	Address       string                `json:"address"`
+	Phone         string                `json:"phone,omitempty"`
+	CategoryCode  string                `json:"category_code,omitempty"`
+	Status        string                `json:"status,omitempty"`
+	LogoURL       string                `json:"logo_url,omitempty"`
+	CoverImageURL string                `json:"cover_image_url,omitempty"`
+	WorkingHours  map[string]string     `json:"working_hours,omitempty"`
+	Pins          []LocationPinResponse `json:"pins,omitempty"`
+	CreatedAt     time.Time             `json:"created_at"`
+}
+
+type LocationPinResponse struct {
+	Code   string `json:"code"`
+	NameRu string `json:"name_ru"`
 }
 
 type PartnerDashboardResponse struct {
@@ -70,11 +82,13 @@ type PartnerDashboardResponse struct {
 }
 
 type DashboardPartnerResponse struct {
-	ID             string     `json:"id"`
-	BrandName      string     `json:"brand_name"`
-	Status         string     `json:"status"`
-	CommissionRate float64    `json:"commission_rate"`
-	PromoUntil     *time.Time `json:"promo_until,omitempty"`
+	ID              string     `json:"id"`
+	BrandName       string     `json:"brand_name"`
+	Status          string     `json:"status"`
+	CommissionRate  float64    `json:"commission_rate"`
+	PromoUntil      *time.Time `json:"promo_until,omitempty"`
+	HasLegalInfo    bool       `json:"has_legal_info"`
+	LegalInfoStatus string     `json:"legal_info_status,omitempty"`
 }
 
 type DashboardEmployeeResponse struct {

@@ -1,6 +1,10 @@
 package dto
 
 import (
+	"encoding/json"
+
+	"github.com/google/uuid"
+
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/service"
 	"github.com/nlsnnn/berezhok/internal/shared/authz"
@@ -69,10 +73,33 @@ func FromApplication(a domain.Application) ApplicationResponse {
 }
 
 func FromLocation(l domain.Location) LocationResponse {
+	var workingHours map[string]string
+	if l.WorkingHours != "" {
+		_ = json.Unmarshal([]byte(l.WorkingHours), &workingHours)
+	}
+
 	return LocationResponse{
-		ID:      l.ID,
-		Name:    l.Name,
-		Address: l.Address,
+		ID:            l.ID,
+		Name:          l.Name,
+		Address:       l.Address,
+		Phone:         l.Phone,
+		CategoryCode:  l.Category.Code,
+		Status:        string(l.Status),
+		LogoURL:       l.LogoURL,
+		CoverImageURL: l.CoverImageURL,
+		WorkingHours:  workingHours,
+		CreatedAt:     l.CreatedAt,
+	}
+}
+
+func (r UpdateLocationRequest) ToInput(locationID, partnerID uuid.UUID) service.UpdateLocationInput {
+	return service.UpdateLocationInput{
+		ID:            locationID,
+		PartnerID:     partnerID,
+		Phone:         r.Phone,
+		LogoURL:       r.LogoURL,
+		CoverImageURL: r.CoverImageURL,
+		WorkingHours:  r.WorkingHours,
 	}
 }
 

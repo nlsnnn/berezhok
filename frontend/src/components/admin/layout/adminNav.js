@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   ShoppingBag,
   Store,
+  Tag,
   Users,
 } from 'lucide-react'
 import { canManageAdmins } from '../../../lib/admin.js'
@@ -21,6 +22,7 @@ export const adminLinks = [
   { to: '/admin/customers', label: 'Клиенты', icon: Users },
   { to: '/admin/orders', label: 'Заказы', icon: ShoppingBag },
   { to: '/admin/payments', label: 'Платежи', icon: BadgeRussianRuble },
+  { to: '/admin/pins', label: 'Пины', icon: Tag },
   { to: '/admin/stats', label: 'Статистика', icon: BarChart3 },
   { to: '/admin/audit', label: 'Аудит', icon: FileClock },
   { to: '/admin/admins', label: 'Админы', icon: ShieldCheck, superAdminOnly: true },

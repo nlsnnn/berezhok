@@ -3,12 +3,14 @@ package domain
 import "time"
 
 type PartnerDashboard struct {
-	Partner   Partner
-	Employee  Employee
-	Locations []DashboardLocation
-	Today     DashboardTodayStats
-	Week      DashboardWeekStats
-	Finance   DashboardFinance
+	Partner         Partner
+	Employee        Employee
+	Locations       []DashboardLocation
+	Today           DashboardTodayStats
+	Week            DashboardWeekStats
+	Finance         DashboardFinance
+	HasLegalInfo    bool
+	LegalInfoStatus string
 }
 
 type DashboardLocation struct {

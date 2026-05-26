@@ -91,18 +91,21 @@ func (app *application) mount() http.Handler {
 	employeeRepo := partnerRepos.NewEmployeeRepo(queries)
 	appRepo := partnerRepos.NewApplicationRepo(queries)
 	locationRepo := partnerRepos.NewLocationRepo(queries)
+	pinsRepo := partnerRepos.NewPinsRepo(queries, app.pool)
 
 	// Partner module — services
 	partnerSvc := partnerServices.NewPartnerService(partnerRepo, employeeRepo)
 	employeeSvc := partnerServices.NewEmployeeService(employeeRepo, partnerRepo, locationRepo, notificationAdapter)
 	locationSvc := partnerServices.NewLocationService(locationRepo)
+	pinsSvc := partnerServices.NewPinsService(pinsRepo, locationRepo)
 	appSvc := partnerServices.NewApplicationService(appRepo, partnerSvc, employeeSvc, locationSvc, notificationAdapter)
 
 	// Partner module — handlers
 	partHandler := partnerHandlers.NewPartnerHandler(partnerSvc, app.log)
 	appHandler := partnerHandlers.NewApplicationHandler(app.log, appSvc)
 	employeeHandler := partnerHandlers.NewEmployeeHandler(app.log, employeeSvc)
-	locationHandler := partnerHandlers.NewLocationHandler(app.log, v, locationSvc, partnerSvc)
+	locationHandler := partnerHandlers.NewLocationHandler(app.log, v, locationSvc, pinsSvc)
+	pinsHandler := partnerHandlers.NewPinsHandler(app.log, v, pinsSvc)
 
 	// Catalog module — repositories
 	boxRepo := catalogRepos.NewBoxRepo(queries)
@@ -286,6 +289,12 @@ func (app *application) mount() http.Handler {
 				// Location
 				r.Get("/partner/locations", locationHandler.List)
 				r.Post("/partner/locations", locationHandler.Create)
+				r.Get("/partner/locations/{id}", locationHandler.GetByID)
+				r.Put("/partner/locations/{id}", locationHandler.Update)
+				// Pins
+				r.Get("/partner/pins", pinsHandler.ListAvailable)
+				r.Get("/partner/locations/{id}/pins", pinsHandler.GetLocationPins)
+				r.Put("/partner/locations/{id}/pins", pinsHandler.UpdateLocationPins)
 			})
 
 			r.Group(func(r chi.Router) {
@@ -325,6 +334,7 @@ func (app *application) mount() http.Handler {
 
 			r.Group(func(r chi.Router) {
 				r.Use(authMiddleware.RequireAdminPermission(authz.PermissionAdminOpsView))
+				r.Get("/admin/pins", adminOpsHandler.ListLocationPins)
 				r.Get("/admin/me", adminOpsHandler.Me)
 				r.Get("/admin/applications", adminApplicationHandler.List)
 				r.Get("/admin/applications/{id}", adminApplicationHandler.GetByID)
@@ -355,6 +365,9 @@ func (app *application) mount() http.Handler {
 				r.Post("/admin/partners/{partner_id}/legal-info/reject", adminOpsHandler.RejectPartnerLegalInfo)
 				r.Patch("/admin/locations/{id}/status", adminOpsHandler.UpdateLocationStatus)
 				r.Patch("/admin/boxes/{id}/status", adminOpsHandler.UpdateBoxStatus)
+				// Pins management
+				r.Post("/admin/pins", adminOpsHandler.CreateLocationPin)
+				r.Delete("/admin/pins/{code}", adminOpsHandler.DeleteLocationPin)
 			})
 
 			r.Group(func(r chi.Router) {

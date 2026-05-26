@@ -8,6 +8,7 @@ import { getErrorMessage } from '@/lib/utils'
 import PartnerLayout from '@/components/partner/layout/PartnerLayout'
 import AddressAutocomplete from '@/components/AddressAutocomplete'
 import Input from '@/components/ui/form/Input'
+import PhoneInput from '@/components/ui/form/PhoneInput'
 import Select from '@/components/ui/form/Select'
 import Label from '@/components/ui/form/Label'
 import Button from '@/components/ui/actions/Button'
@@ -113,7 +114,7 @@ function CreateLocationPageBase() {
             <Label>Телефон</Label>
             <div className="relative">
               <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-cream-400" />
-              <Input type="tel" value={form.phone} onChange={setField('phone')} className="pl-9" />
+              <PhoneInput value={form.phone} onChange={setField('phone')} className="pl-9" />
             </div>
           </div>
 

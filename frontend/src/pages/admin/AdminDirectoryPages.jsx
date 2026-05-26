@@ -148,6 +148,31 @@ function PartnerActions({ item, store, canAct }) {
   )
 }
 
+function LocationReviewActions({ item, store, canAct }) {
+  if (!canAct || item.status !== 'pending_review') return null
+
+  const approve = async (status) => {
+    try {
+      await store.updateStatus(item.id, status)
+      toast.success(status === 'active' ? 'Точка опубликована' : 'Точка одобрена')
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    }
+  }
+
+  return (
+    <div className="flex w-full flex-wrap gap-3">
+      <Button type="button" onClick={() => approve('inactive')} disabled={store.actionLoading}>
+        <CheckCircle size={16} />
+        Одобрить
+      </Button>
+      <Button type="button" variant="secondary" onClick={() => approve('active')} disabled={store.actionLoading}>
+        Опубликовать сразу
+      </Button>
+    </div>
+  )
+}
+
 function StatusActions({ item, store, options, canAct, successText }) {
   const [status, setStatus] = useState(item.status || options[0]?.value)
 
@@ -292,6 +317,7 @@ export const AdminLocationsPage = observer(function AdminLocationsPage() {
       bulkActions={
         canAct
           ? [
+              { label: 'Одобрить', onClick: (ids) => bulkStatus(ids, 'inactive', 'Точки одобрены') },
               { label: 'Активировать', onClick: (ids) => bulkStatus(ids, 'active', 'Точки активированы') },
               { label: 'Выключить', variant: 'secondary', onClick: (ids) => bulkStatus(ids, 'inactive', 'Точки выключены') },
               { label: 'Заблокировать', variant: 'danger', onClick: (ids) => bulkStatus(ids, 'blocked', 'Точки заблокированы') },
@@ -299,7 +325,10 @@ export const AdminLocationsPage = observer(function AdminLocationsPage() {
           : []
       }
       renderActions={({ item }) => (
-        <StatusActions item={item} store={adminLocationsStore} options={LOCATION_STATUS_OPTIONS} canAct={canAct} successText="Статус точки обновлён" />
+        <div className="w-full space-y-3">
+          <LocationReviewActions item={item} store={adminLocationsStore} canAct={canAct} />
+          <StatusActions item={item} store={adminLocationsStore} options={LOCATION_STATUS_OPTIONS} canAct={canAct} successText="Статус точки обновлён" />
+        </div>
       )}
     />
   )

@@ -600,6 +600,17 @@ func (q *Queries) GetPartnerDashboardWeekStats(ctx context.Context, id uuid.UUID
 	return i, err
 }
 
+const getPartnerLegalInfoStatusByPartnerID = `-- name: GetPartnerLegalInfoStatusByPartnerID :one
+SELECT verification_status FROM partner_legal_info WHERE partner_id = $1
+`
+
+func (q *Queries) GetPartnerLegalInfoStatusByPartnerID(ctx context.Context, partnerID uuid.UUID) (pgtype.Text, error) {
+	row := q.db.QueryRow(ctx, getPartnerLegalInfoStatusByPartnerID, partnerID)
+	var verification_status pgtype.Text
+	err := row.Scan(&verification_status)
+	return verification_status, err
+}
+
 const getPartnerProfile = `-- name: GetPartnerProfile :one
 SELECT
     e.id as employee_id, e.name as employee_name, e.email, e.role, e.created_at as employee_created_at, e.must_change_password,
@@ -1463,13 +1474,11 @@ func (q *Queries) UpdateApplication(ctx context.Context, arg UpdateApplicationPa
 const updateLocation = `-- name: UpdateLocation :one
 UPDATE locations
 SET
-    name = COALESCE($2, name),
-    address = COALESCE($3, address),
-    category_code = COALESCE($4, category_code),
-    logo_url = COALESCE($5, logo_url),
-    cover_image_url = COALESCE($6, cover_image_url),
-    working_hours = COALESCE($7, working_hours),
-    gallery_urls = COALESCE($8, gallery_urls),
+    logo_url = COALESCE($2, logo_url),
+    cover_image_url = COALESCE($3, cover_image_url),
+    working_hours = COALESCE($4, working_hours),
+    gallery_urls = COALESCE($5, gallery_urls),
+    phone = COALESCE($6, phone),
     updated_at = NOW()
 WHERE id = $1
 RETURNING id, partner_id, category_code, name, address, location, phone, logo_url, cover_image_url, gallery_urls, working_hours, status, created_at, updated_at
@@ -1477,25 +1486,21 @@ RETURNING id, partner_id, category_code, name, address, location, phone, logo_ur
 
 type UpdateLocationParams struct {
 	ID            uuid.UUID   `json:"id"`
-	Name          string      `json:"name"`
-	Address       string      `json:"address"`
-	CategoryCode  string      `json:"category_code"`
 	LogoUrl       pgtype.Text `json:"logo_url"`
 	CoverImageUrl pgtype.Text `json:"cover_image_url"`
 	WorkingHours  []byte      `json:"working_hours"`
 	GalleryUrls   []string    `json:"gallery_urls"`
+	Phone         pgtype.Text `json:"phone"`
 }
 
 func (q *Queries) UpdateLocation(ctx context.Context, arg UpdateLocationParams) (Location, error) {
 	row := q.db.QueryRow(ctx, updateLocation,
 		arg.ID,
-		arg.Name,
-		arg.Address,
-		arg.CategoryCode,
 		arg.LogoUrl,
 		arg.CoverImageUrl,
 		arg.WorkingHours,
 		arg.GalleryUrls,
+		arg.Phone,
 	)
 	var i Location
 	err := row.Scan(
@@ -1611,6 +1616,22 @@ func (q *Queries) UpdatePartnerEmployee(ctx context.Context, arg UpdatePartnerEm
 	return err
 }
 
+const updatePartnerEmployeeName = `-- name: UpdatePartnerEmployeeName :exec
+UPDATE partner_employees
+SET name = $1
+WHERE id = $2
+`
+
+type UpdatePartnerEmployeeNameParams struct {
+	Name pgtype.Text `json:"name"`
+	ID   uuid.UUID   `json:"id"`
+}
+
+func (q *Queries) UpdatePartnerEmployeeName(ctx context.Context, arg UpdatePartnerEmployeeNameParams) error {
+	_, err := q.db.Exec(ctx, updatePartnerEmployeeName, arg.Name, arg.ID)
+	return err
+}
+
 const updatePartnerEmployeePassword = `-- name: UpdatePartnerEmployeePassword :exec
 UPDATE partner_employees
 SET password_hash = $1, must_change_password = $2
@@ -1625,22 +1646,6 @@ type UpdatePartnerEmployeePasswordParams struct {
 
 func (q *Queries) UpdatePartnerEmployeePassword(ctx context.Context, arg UpdatePartnerEmployeePasswordParams) error {
 	_, err := q.db.Exec(ctx, updatePartnerEmployeePassword, arg.PasswordHash, arg.MustChangePassword, arg.ID)
-	return err
-}
-
-const updatePartnerEmployeeName = `-- name: UpdatePartnerEmployeeName :exec
-UPDATE partner_employees
-SET name = $1
-WHERE id = $2
-`
-
-type UpdatePartnerEmployeeNameParams struct {
-	Name pgtype.Text `json:"name"`
-	ID   uuid.UUID   `json:"id"`
-}
-
-func (q *Queries) UpdatePartnerEmployeeName(ctx context.Context, arg UpdatePartnerEmployeeNameParams) error {
-	_, err := q.db.Exec(ctx, updatePartnerEmployeeName, arg.Name, arg.ID)
 	return err
 }
 

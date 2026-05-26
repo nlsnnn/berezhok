@@ -20,10 +20,12 @@ import {
   AdminPaymentsPage,
 } from '@/pages/admin/AdminDirectoryPages'
 import AdminStatsPage from '@/pages/admin/AdminStatsPage'
+import AdminPinsPage from '@/pages/admin/AdminPinsPage'
 import PartnerLoginPage from '@/pages/partner/PartnerLoginPage'
 import PartnerDashboard from '@/pages/partner/PartnerDashboard'
 import ChangePasswordPage from '@/pages/partner/ChangePasswordPage'
 import CreateLocationPage from '@/pages/partner/CreateLocationPage'
+import EditLocationPage from '@/pages/partner/EditLocationPage'
 import LocationsPage from '@/pages/partner/LocationsPage'
 import BoxesPage from '@/pages/partner/BoxesPage'
 import CreateBoxPage from '@/pages/partner/CreateBoxPage'
@@ -65,6 +67,7 @@ export default function App() {
               <Route path="/admin/stats" element={<AdminStatsPage />} />
               <Route path="/admin/audit" element={<AdminAuditPage />} />
               <Route path="/admin/admins" element={<AdminAdminsPage />} />
+              <Route path="/admin/pins" element={<AdminPinsPage />} />
             </Route>
 
             {/* Partner — protected */}
@@ -75,6 +78,7 @@ export default function App() {
               {/* Locations */}
               <Route path="/partner/locations" element={<LocationsPage />} />
               <Route path="/partner/locations/new" element={<CreateLocationPage />} />
+              <Route path="/partner/locations/:id/edit" element={<EditLocationPage />} />
 
               {/* Boxes */}
               <Route path="/partner/boxes" element={<BoxesPage />} />

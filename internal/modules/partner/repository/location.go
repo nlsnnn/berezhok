@@ -2,14 +2,17 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
 	"github.com/nlsnnn/berezhok/internal/modules/partner/domain"
 	partnerErrors "github.com/nlsnnn/berezhok/internal/modules/partner/errors"
+	"github.com/nlsnnn/berezhok/internal/modules/partner/service"
 	sharedDomain "github.com/nlsnnn/berezhok/internal/shared/domain"
 )
 
@@ -57,6 +60,43 @@ func (r *LocationRepo) Delete(ctx context.Context, id string) error {
 	return r.q.DeleteLocation(ctx, uid)
 }
 
+func (r *LocationRepo) Update(ctx context.Context, input service.UpdateLocationInput) (domain.Location, error) {
+	args := sqlc.UpdateLocationParams{
+		ID:    input.ID,
+		Phone: nullableText(input.Phone),
+	}
+	if input.LogoURL != nil {
+		args.LogoUrl = pgtype.Text{String: *input.LogoURL, Valid: true}
+	}
+	if input.CoverImageURL != nil {
+		args.CoverImageUrl = pgtype.Text{String: *input.CoverImageURL, Valid: true}
+	}
+	if input.WorkingHours != nil {
+		raw, err := json.Marshal(*input.WorkingHours)
+		if err != nil {
+			return domain.Location{}, err
+		}
+		args.WorkingHours = raw
+	}
+
+	row, err := r.q.UpdateLocation(ctx, args)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Location{}, partnerErrors.ErrLocationNotFound
+		}
+		return domain.Location{}, err
+	}
+
+	return locationToDomain(row), nil
+}
+
+func nullableText(v *string) pgtype.Text {
+	if v == nil {
+		return pgtype.Text{}
+	}
+	return pgtype.Text{String: *v, Valid: true}
+}
+
 func (r *LocationRepo) FindCategoryByCode(ctx context.Context, code string) (domain.LocationCategory, error) {
 	cat, err := r.q.FindCategoryByCode(ctx, code)
 	if err != nil {
@@ -93,6 +133,7 @@ func locationToDomain(l sqlc.Location) domain.Location {
 		LogoURL:       l.LogoUrl.String,
 		CoverImageURL: l.CoverImageUrl.String,
 		GalleryURLs:   l.GalleryUrls,
+		WorkingHours:  string(l.WorkingHours),
 		Status:        domain.LocationStatus(l.Status),
 		Category:      domain.LocationCategory{Code: l.CategoryCode},
 		Coords:        sharedDomain.GeoPoint{}, // PostGIS geometry не парсится напрямую из sqlc

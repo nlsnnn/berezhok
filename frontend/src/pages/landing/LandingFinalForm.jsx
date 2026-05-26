@@ -7,6 +7,7 @@ import { BUSINESS_CATEGORIES } from '@/lib/constants'
 import { IconArrow } from './LandingStickers'
 import { HedgehogMoney } from './LandingMascot'
 import AddressAutocomplete from '@/components/AddressAutocomplete'
+import { formatPhoneDisplay, parsePhoneInput } from '@/components/ui/form/PhoneInput'
 
 const INITIAL = {
   contact_name: '',
@@ -34,7 +35,7 @@ function LandingFinalFormBase() {
     if (!form.contact_email.trim()) e.contact_email = 'Введите email'
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contact_email)) e.contact_email = 'Некорректный email'
     if (!form.contact_phone.trim()) e.contact_phone = 'Введите телефон'
-    else if (!/^\+7\d{10}$/.test(form.contact_phone)) e.contact_phone = 'Формат: +7XXXXXXXXXX'
+    else if (!/^\+7\d{10}$/.test(form.contact_phone)) e.contact_phone = 'Введите полный номер телефона'
     if (!form.business_name.trim()) e.business_name = 'Введите название'
     if (!form.category_code) e.category_code = 'Выберите тип'
     if (!form.address) e.address = 'Выберите адрес из списка'
@@ -91,7 +92,7 @@ function LandingFinalFormBase() {
         </div>
         <div className="form-field">
           <label>Телефон</label>
-          <input type="tel" placeholder="+7XXXXXXXXXX" required value={form.contact_phone} onChange={set('contact_phone')} />
+          <input type="tel" placeholder="+7 (XXX) XXX-XX-XX" required value={formatPhoneDisplay(form.contact_phone)} onChange={(e) => setForm((prev) => ({ ...prev, contact_phone: parsePhoneInput(e.target.value) }))} />
           {errors.contact_phone && <span style={{ fontSize: 12, color: 'var(--c-warn, #c53030)' }}>{errors.contact_phone}</span>}
         </div>
       </div>

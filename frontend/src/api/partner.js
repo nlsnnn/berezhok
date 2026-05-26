@@ -29,6 +29,23 @@ export const createLocation = (data) =>
 export const listLocations = () =>
   api.get("/partner/locations").then((r) => r.data.data);
 
+export const getLocationById = (locationId) =>
+  api.get(`/partner/locations/${locationId}`).then((r) => r.data.data);
+
+export const updateLocation = (locationId, data) =>
+  api.put(`/partner/locations/${locationId}`, data).then((r) => r.data.data);
+
+export const listAvailablePins = () =>
+  api.get("/partner/pins").then((r) => r.data.data);
+
+export const getLocationPins = (locationId) =>
+  api.get(`/partner/locations/${locationId}/pins`).then((r) => r.data.data);
+
+export const updateLocationPins = (locationId, pinCodes) =>
+  api
+    .put(`/partner/locations/${locationId}/pins`, { pin_codes: pinCodes })
+    .then((r) => r.data.data);
+
 export const listEmployees = () =>
   api.get("/partner/employees").then((r) => r.data.data);
 

@@ -10,10 +10,11 @@ import (
 type LocationStatus string
 
 const (
-	LocationStatusActive   LocationStatus = "active"
-	LocationStatusInactive LocationStatus = "inactive"
-	LocationStatusClosed   LocationStatus = "closed"
-	LocationStatusDraft    LocationStatus = "draft"
+	LocationStatusActive        LocationStatus = "active"
+	LocationStatusInactive      LocationStatus = "inactive"
+	LocationStatusClosed        LocationStatus = "closed"
+	LocationStatusDraft         LocationStatus = "draft"
+	LocationStatusPendingReview LocationStatus = "pending_review"
 )
 
 type Location struct {
@@ -38,6 +39,12 @@ type LocationCategory struct {
 	IconURL string
 	Color   string
 	Sort    int
+}
+
+type LocationPin struct {
+	Code   string
+	NameRu string
+	Sort   int
 }
 
 func NewLocation(partnerID, name, address string, category LocationCategory, status LocationStatus, coords sharedDomain.GeoPoint) (Location, error) {

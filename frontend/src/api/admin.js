@@ -94,3 +94,13 @@ export const listAdminPaymentEvents = (id, params = {}) =>
 
 export const getAdminStats = () =>
   dataOf(adminApi.get('/admin/stats'))
+
+
+export const listAdminLocationPins = () =>
+  dataOf(adminApi.get('/admin/pins'))
+
+export const createAdminLocationPin = (payload) =>
+  dataOf(adminApi.post('/admin/pins', payload))
+
+export const deleteAdminLocationPin = (code) =>
+  dataOf(adminApi.delete(`/admin/pins/${code}`))

@@ -1,14 +1,18 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { uploadMedia } from '@/api/partner'
 import Spinner from '@/components/ui/feedback/Spinner'
 
-export default function ImageUpload({ value, onChange, error }) {
+export default function ImageUpload({ value, onChange, error, label = 'Изображение бокса', hint = 'PNG, JPG до 5 МБ' }) {
   const [isUploading, setIsUploading] = useState(false)
   const [preview, setPreview] = useState(value || null)
   const inputRef = useRef(null)
+
+  useEffect(() => {
+    setPreview(value || null)
+  }, [value])
 
   const handleFile = async (file) => {
     if (!file) return
@@ -46,7 +50,7 @@ export default function ImageUpload({ value, onChange, error }) {
 
   return (
     <div>
-      <label className="block text-sm font-medium text-brand-700 mb-2">Изображение бокса</label>
+      <label className="block text-sm font-medium text-brand-700 mb-2">{label}</label>
       {preview ? (
         <div className="relative w-full h-64 rounded-xl overflow-hidden border border-cream-200">
           <img src={preview} alt="preview" className="w-full h-full object-cover" />
@@ -72,7 +76,7 @@ export default function ImageUpload({ value, onChange, error }) {
         >
           {isUploading ? <Spinner size={28} /> : <Upload size={26} className="text-brand-500" />}
           <span className="text-sm text-brand-700">Нажмите, чтобы загрузить</span>
-          <span className="text-xs text-brand-500">PNG, JPG до 5 МБ</span>
+          <span className="text-xs text-brand-500">{hint}</span>
         </button>
       )}
 

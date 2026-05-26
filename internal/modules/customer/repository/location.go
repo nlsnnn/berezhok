@@ -14,6 +14,11 @@ import (
 	sharedDomain "github.com/nlsnnn/berezhok/internal/shared/domain"
 )
 
+type pinJSON struct {
+	Code   string `json:"code"`
+	NameRu string `json:"name_ru"`
+}
+
 type LocationRepo struct {
 	q *sqlc.Queries
 }
@@ -122,10 +127,35 @@ type LocationWithDetails struct {
 	WorkingHours  map[string]string
 	Status        string
 	Category      partnerDomain.LocationCategory
+	Pins          []partnerDomain.LocationPin
 	Coords        sharedDomain.GeoPoint
 	ActiveBoxes   int
 	CreatedAt     interface{}
 	UpdatedAt     interface{}
+}
+
+func parsePinsJSON(raw interface{}) []partnerDomain.LocationPin {
+	if raw == nil {
+		return nil
+	}
+	var b []byte
+	switch v := raw.(type) {
+	case []byte:
+		b = v
+	case string:
+		b = []byte(v)
+	default:
+		return nil
+	}
+	var items []pinJSON
+	if err := json.Unmarshal(b, &items); err != nil {
+		return nil
+	}
+	pins := make([]partnerDomain.LocationPin, len(items))
+	for i, item := range items {
+		pins[i] = partnerDomain.LocationPin{Code: item.Code, NameRu: item.NameRu}
+	}
+	return pins
 }
 
 // searchRowToLocationWithDetails converts search row to domain model
@@ -156,6 +186,7 @@ func searchRowToLocationWithDetails(r sqlc.SearchLocationsRow) LocationWithDetai
 			IconURL: r.CategoryIconUrl.String,
 			Color:   r.CategoryColor.String,
 		},
+		Pins: parsePinsJSON(r.Pins),
 		Coords: sharedDomain.GeoPoint{
 			Latitude:  lat,
 			Longitude: lng,
@@ -194,6 +225,7 @@ func detailsRowToLocationWithDetails(r sqlc.GetLocationDetailsByIDRow) LocationW
 			IconURL: r.CategoryIconUrl.String,
 			Color:   r.CategoryColor.String,
 		},
+		Pins: parsePinsJSON(r.Pins),
 		Coords: sharedDomain.GeoPoint{
 			Latitude:  lat,
 			Longitude: lng,

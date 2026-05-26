@@ -1,8 +1,9 @@
 import { useEffect } from 'react'
 import { observer } from 'mobx-react-lite'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, Coins, Package, Plus, Star, Store } from 'lucide-react'
+import { CalendarDays, CheckCircle2, Clock3, Coins, Package, Plus, Star, Store } from 'lucide-react'
 import PartnerLayout from '@/components/partner/layout/PartnerLayout'
+import OnboardingChecklist from '@/components/partner/onboarding/OnboardingChecklist'
 import Spinner from '@/components/ui/feedback/Spinner'
 import Button from '@/components/ui/actions/Button'
 import { formatDate } from '@/lib/utils'
@@ -45,46 +46,7 @@ function PartnerDashboardBase() {
 
       {data && (
         <div className="space-y-6">
-          {data?.partner?.status === 'pending_documents' && (
-            <section className="rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 p-5 md:p-6">
-              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div className="space-y-3">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-amber-300 bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-800">
-                    <AlertTriangle size={14} />
-                    Онбординг партнера
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-amber-950">Заполните юридические данные, чтобы начать принимать заказы</h2>
-                    <p className="mt-1 text-sm text-amber-900/90">
-                      Пока данные не заполнены, вы не можете принимать заказы.
-                      Активация будет недоступна до заполнения юридической информации.
-                    </p>
-                  </div>
-                </div>
-
-                <Link to="/partner/legal-info">
-                  <Button className="w-full md:w-auto">Заполнить юридические данные</Button>
-                </Link>
-              </div>
-
-              <div className="mt-5">
-                <div className="mb-2 flex items-center justify-between text-xs font-medium text-amber-900/80">
-                  <span>Шаг 1 из 3</span>
-                  <span>В процессе</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-amber-200/80">
-                  <div className="h-full w-1/3 rounded-full bg-amber-500" />
-                </div>
-              </div>
-
-              <div className="mt-4 grid gap-2 text-sm md:grid-cols-3">
-                <StepBadge label="1. Юр. данные" state="current" />
-                <StepBadge label="2. Первый активный бокс" state="upcoming" />
-                <StepBadge label="3. Быстрый гайд по панели" state="upcoming" />
-              </div>
-            </section>
-          )}
-
+          <OnboardingChecklist data={data} />
 
           <section className="grid md:grid-cols-4 gap-4">
             <StatCard icon={Clock3} label="Ожидают подтверждения" value={data?.today?.pending_confirmation ?? 0} />
@@ -154,14 +116,6 @@ function InfoRow({ icon: Icon, label, value }) {
       </p>
     </div>
   )
-}
-
-function StepBadge({ label, state }) {
-  if (state === 'current') {
-    return <div className="rounded-xl border border-amber-300 bg-white px-3 py-2 font-medium text-amber-900">{label}</div>
-  }
-
-  return <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2 text-amber-900/75">{label}</div>
 }
 
 export default observer(PartnerDashboardBase)

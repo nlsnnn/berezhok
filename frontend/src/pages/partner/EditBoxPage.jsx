@@ -29,16 +29,20 @@ function EditBoxPageBase() {
       description: formData.description,
       original_price: formData.original_price || null,
       discount_price: Number(formData.discount_price),
-      quantity_available: Number(formData.quantity_available),
+      quantity: Number(formData.quantity_available),
       pickup_time_start: formData.pickup_time_start,
       pickup_time_end: formData.pickup_time_end,
       image_url: formData.image_url || '',
-      status: !canActivateBoxes && formData.status === 'active' ? 'inactive' : formData.status,
+      status: formData.status,
     }
 
     try {
-      await boxesStore.update(id, payload)
-      toast.success('Бокс обновлен')
+      const updated = await boxesStore.update(id, payload)
+      if (formData.status === 'active' && updated?.status && updated.status !== 'active') {
+        toast.info('Бокс сохранён, но не опубликован — заполните юридические данные')
+      } else {
+        toast.success('Бокс обновлён')
+      }
       navigate('/partner/boxes')
     } catch (error) {
       toast.error(getErrorMessage(error))
@@ -66,6 +70,7 @@ function EditBoxPageBase() {
             </div>
           ) : boxesStore.current ? (
             <BoxForm
+              mode="edit"
               initialData={boxesStore.current}
               locations={locationsStore.locations}
               onSubmit={handleSubmit}
