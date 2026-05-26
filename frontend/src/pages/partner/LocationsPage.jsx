@@ -12,7 +12,7 @@ function LocationsPageBase() {
   const { locationsStore, boxesStore } = useStores()
 
   useEffect(() => {
-    locationsStore.loadProfile()
+    locationsStore.load()
     boxesStore.load()
   }, [boxesStore, locationsStore])
 

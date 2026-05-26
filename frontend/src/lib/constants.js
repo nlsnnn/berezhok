@@ -28,3 +28,9 @@ export const BOX_STATUS = {
   draft:    { label: 'Черновик',  color: 'bg-yellow-100 text-yellow-800' },
   sold_out: { label: 'Распродан', color: 'bg-red-100 text-red-800' },
 }
+
+export const LOCATION_STATUS = {
+  active:         { label: 'Активно',      color: 'bg-green-100 text-green-800' },
+  inactive:       { label: 'Неактивно',    color: 'bg-gray-100 text-gray-800' },
+  pending_review: { label: 'На проверке',  color: 'bg-yellow-100 text-yellow-800' },
+}

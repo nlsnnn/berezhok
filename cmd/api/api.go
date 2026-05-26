@@ -104,7 +104,7 @@ func (app *application) mount() http.Handler {
 	partHandler := partnerHandlers.NewPartnerHandler(partnerSvc, app.log)
 	appHandler := partnerHandlers.NewApplicationHandler(app.log, appSvc)
 	employeeHandler := partnerHandlers.NewEmployeeHandler(app.log, employeeSvc)
-	locationHandler := partnerHandlers.NewLocationHandler(app.log, v, locationSvc, partnerSvc)
+	locationHandler := partnerHandlers.NewLocationHandler(app.log, v, locationSvc, pinsSvc)
 	pinsHandler := partnerHandlers.NewPinsHandler(app.log, v, pinsSvc)
 
 	// Catalog module — repositories

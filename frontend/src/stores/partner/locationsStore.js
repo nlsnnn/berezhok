@@ -3,11 +3,14 @@ import {
   createLocation,
   getLocationById,
   getPartnerProfile,
+  listLocations,
   updateLocation,
 } from '@/api/partner'
+import { pinsStore } from './pinsStore'
 
 class LocationsStore {
   profile = null
+  items = []
   current = null
   loading = false
   submitting = false
@@ -18,7 +21,27 @@ class LocationsStore {
   }
 
   get locations() {
-    return this.profile?.locations || []
+    return this.items
+  }
+
+  async load() {
+    this.loading = true
+    this.error = null
+    try {
+      const locations = await listLocations()
+      runInAction(() => {
+        this.items = locations
+      })
+      pinsStore.seedFromLocations(locations)
+    } catch (error) {
+      runInAction(() => {
+        this.error = error
+      })
+    } finally {
+      runInAction(() => {
+        this.loading = false
+      })
+    }
   }
 
   async loadProfile() {
@@ -66,7 +89,7 @@ class LocationsStore {
     this.submitting = true
     try {
       const created = await createLocation(payload)
-      await this.loadProfile()
+      await this.load()
       return created
     } finally {
       runInAction(() => {

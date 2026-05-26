@@ -5,6 +5,8 @@ import { MapPin, Package, Tag, ChevronDown, ChevronUp, Check, Settings } from 'l
 import { useStores } from '@/context/StoresContext'
 import LocationPinsSelector from './LocationPinsSelector'
 import Spinner from '@/components/ui/feedback/Spinner'
+import StatusBadge from '@/components/ui/feedback/StatusBadge'
+import { LOCATION_STATUS } from '@/lib/constants'
 
 function LocationCardBase({ location, boxCount = 0 }) {
   const { pinsStore } = useStores()
@@ -15,9 +17,13 @@ function LocationCardBase({ location, boxCount = 0 }) {
   const isSaving = pinsStore.savingFor === location.id
 
   useEffect(() => {
-    if (pinsOpen && currentPins === undefined) {
-      pinsStore.loadAvailable()
-      pinsStore.loadForLocation(location.id)
+    if (pinsOpen) {
+      if (pinsStore.availablePins.length === 0) {
+        pinsStore.loadAvailable()
+      }
+      if (currentPins === undefined) {
+        pinsStore.loadForLocation(location.id)
+      }
     }
   }, [pinsOpen, currentPins, location.id, pinsStore])
 
@@ -43,7 +49,14 @@ function LocationCardBase({ location, boxCount = 0 }) {
           </div>
 
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-brand-900 truncate">{location.name}</h3>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-semibold text-brand-900 truncate">{location.name}</h3>
+              <StatusBadge
+                status={location.status}
+                customLabel={LOCATION_STATUS[location.status]?.label}
+                customColor={LOCATION_STATUS[location.status]?.color}
+              />
+            </div>
             <p className="text-sm text-brand-600 mt-1 line-clamp-2">{location.address}</p>
 
             <div className="mt-4 flex items-center justify-between">

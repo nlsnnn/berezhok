@@ -21,23 +21,59 @@ type locationHandler struct {
 	log       *slog.Logger
 	validator *validator.Validator
 	svc       locationSvc
+	pins      pinsSvc
 }
 
 func NewLocationHandler(
 	log *slog.Logger,
 	validator *validator.Validator,
 	svc locationSvc,
-	partSvc partnerSvc,
+	pins pinsSvc,
 ) locationHandler {
 	return locationHandler{
 		log:       log,
 		svc:       svc,
 		validator: validator,
+		pins:      pins,
 	}
 }
 
 func (h *locationHandler) List(w http.ResponseWriter, r *http.Request) {
-	// TODO: implement
+	const op = "partner.handler.location.List"
+	log := h.log.With(slog.String("op", op))
+
+	partnerID, err := contextx.PartnerID(r)
+	if err != nil {
+		log.Error("partner_id not found in context", sl.Err(err))
+		response.InternalError(w, nil)
+		return
+	}
+
+	locations, err := h.svc.ListByPartner(r.Context(), partnerID.String())
+	if err != nil {
+		log.Error("failed to list locations", sl.Err(err))
+		response.InternalError(w, nil)
+		return
+	}
+
+	res := make([]dto.LocationResponse, len(locations))
+	for i, loc := range locations {
+		locResp := dto.FromLocation(loc)
+
+		pins, err := h.pins.GetForLocation(r.Context(), uuid.MustParse(loc.ID))
+		if err != nil {
+			log.Error("failed to get pins for location", slog.String("location_id", loc.ID), sl.Err(err))
+		} else {
+			locResp.Pins = make([]dto.LocationPinResponse, len(pins))
+			for j, p := range pins {
+				locResp.Pins[j] = dto.LocationPinResponse{Code: p.Code, NameRu: p.NameRu}
+			}
+		}
+
+		res[i] = locResp
+	}
+
+	response.Success(w, res)
 }
 
 func (h *locationHandler) Create(w http.ResponseWriter, r *http.Request) {

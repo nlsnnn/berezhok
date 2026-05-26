@@ -26,6 +26,16 @@ class PinsStore {
     }
   }
 
+  seedFromLocations(locations) {
+    runInAction(() => {
+      for (const loc of locations) {
+        if (loc.pins !== undefined) {
+          this.locationPins[loc.id] = loc.pins || []
+        }
+      }
+    })
+  }
+
   async loadForLocation(locationId) {
     const pins = await getLocationPins(locationId)
     runInAction(() => {
