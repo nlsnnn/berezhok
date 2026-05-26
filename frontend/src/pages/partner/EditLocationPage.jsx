@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { Phone, Save } from 'lucide-react'
 import { getErrorMessage } from '@/lib/utils'
 import PartnerLayout from '@/components/partner/layout/PartnerLayout'
-import Input from '@/components/ui/form/Input'
+import PhoneInput from '@/components/ui/form/PhoneInput'
 import Label from '@/components/ui/form/Label'
 import Button from '@/components/ui/actions/Button'
 import Spinner from '@/components/ui/feedback/Spinner'
@@ -47,8 +47,8 @@ function EditLocationPageBase() {
 
   const validate = () => {
     const next = {}
-    if (form.phone && !/^\+[1-9]\d{1,14}$/.test(form.phone.trim())) {
-      next.phone = 'Формат: +71234567890'
+    if (form.phone && !/^\+7\d{10}$/.test(form.phone)) {
+      next.phone = 'Введите полный номер телефона'
     }
     return next
   }
@@ -120,11 +120,9 @@ function EditLocationPageBase() {
               <Label>Телефон</Label>
               <div className="relative">
                 <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-cream-400" />
-                <Input
-                  type="tel"
+                <PhoneInput
                   value={form.phone}
                   onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                  placeholder="+71234567890"
                   className="pl-9"
                   error={errors.phone}
                 />

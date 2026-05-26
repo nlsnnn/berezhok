@@ -5,6 +5,7 @@ import { Banknote, ChevronRight, Pencil, Save, X } from 'lucide-react'
 
 import PartnerLayout from '@/components/partner/layout/PartnerLayout'
 import Input from '@/components/ui/form/Input'
+import PhoneInput from '@/components/ui/form/PhoneInput'
 import Label from '@/components/ui/form/Label'
 import Select from '@/components/ui/form/Select'
 import Button from '@/components/ui/actions/Button'
@@ -75,7 +76,7 @@ const PartnerPayoutsPage = observer(() => {
   function validate() {
     const errs = {}
     if (!form.sbp_phone.match(/^\+7\d{10}$/)) {
-      errs.sbp_phone = 'Введите номер в формате +7XXXXXXXXXX'
+      errs.sbp_phone = 'Введите полный номер телефона'
     }
     if (!form.sbp_bank_id) {
       errs.sbp_bank_id = 'Выберите банк'
@@ -236,9 +237,8 @@ const PartnerPayoutsPage = observer(() => {
             <form onSubmit={handleSave} className="p-6 space-y-4">
               <div>
                 <Label htmlFor="sbp_phone">Номер телефона СБП</Label>
-                <Input
+                <PhoneInput
                   id="sbp_phone"
-                  placeholder="+79991234567"
                   value={form.sbp_phone}
                   onChange={(e) => handleChange('sbp_phone', e.target.value)}
                   error={errors.sbp_phone}

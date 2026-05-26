@@ -6,6 +6,7 @@ import { BUSINESS_CATEGORIES } from '@/lib/constants'
 import { getErrorMessage } from '@/lib/utils'
 import AddressAutocomplete from '@/components/AddressAutocomplete'
 import Input from '@/components/ui/form/Input'
+import PhoneInput from '@/components/ui/form/PhoneInput'
 import Select from '@/components/ui/form/Select'
 import Label from '@/components/ui/form/Label'
 import Button from '@/components/ui/actions/Button'
@@ -37,7 +38,7 @@ function ApplicationFormBase() {
     if (!form.contact_email.trim()) nextErrors.contact_email = 'Введите email'
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contact_email)) nextErrors.contact_email = 'Некорректный email'
     if (!form.contact_phone.trim()) nextErrors.contact_phone = 'Введите телефон'
-    else if (!/^\+7\d{10}$/.test(form.contact_phone)) nextErrors.contact_phone = 'Формат: +7XXXXXXXXXX'
+    else if (!/^\+7\d{10}$/.test(form.contact_phone)) nextErrors.contact_phone = 'Введите полный номер телефона'
     if (!form.business_name.trim()) nextErrors.business_name = 'Введите название'
     if (!form.category_code) nextErrors.category_code = 'Выберите категорию'
     if (!form.address) nextErrors.address = 'Выберите адрес из списка'
@@ -103,7 +104,7 @@ function ApplicationFormBase() {
         </div>
         <div>
           <Label required>Телефон</Label>
-          <Input type="tel" value={form.contact_phone} onChange={setField('contact_phone')} error={errors.contact_phone} />
+          <PhoneInput value={form.contact_phone} onChange={setField('contact_phone')} error={errors.contact_phone} />
         </div>
       </div>
 
