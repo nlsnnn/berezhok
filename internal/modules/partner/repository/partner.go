@@ -2,10 +2,12 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"math/big"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/nlsnnn/berezhok/internal/adapters/postgresql/sqlc"
@@ -166,10 +168,23 @@ func (r *PartnerRepo) GetDashboard(ctx context.Context, employeeID string) (doma
 
 	nextPayoutDate := nextPartnerPayoutDate()
 
+	legalRow, legalErr := r.q.GetPartnerLegalInfoStatusByPartnerID(ctx, uuid.MustParse(profile.Partner.ID))
+	if legalErr != nil && !errors.Is(legalErr, pgx.ErrNoRows) {
+		return domain.PartnerDashboard{}, legalErr
+	}
+
+	hasLegalInfo := legalErr == nil
+	legalInfoStatus := ""
+	if hasLegalInfo {
+		legalInfoStatus = legalRow.String
+	}
+
 	return domain.PartnerDashboard{
-		Partner:   profile.Partner,
-		Employee:  profile.Employee,
-		Locations: locations,
+		Partner:         profile.Partner,
+		Employee:        profile.Employee,
+		Locations:       locations,
+		HasLegalInfo:    hasLegalInfo,
+		LegalInfoStatus: legalInfoStatus,
 		Today: domain.DashboardTodayStats{
 			PendingConfirmation: findStatusCount(todayStats.StatusBreakdown, "paid"),
 			Confirmed:           findStatusCount(todayStats.StatusBreakdown, "confirmed"),

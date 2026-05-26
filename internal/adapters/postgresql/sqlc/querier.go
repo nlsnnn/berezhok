@@ -109,6 +109,7 @@ type Querier interface {
 	GetPartnerDashboardFinance(ctx context.Context, partnerID uuid.UUID) (GetPartnerDashboardFinanceRow, error)
 	GetPartnerDashboardTodayStats(ctx context.Context, partnerID uuid.UUID) (GetPartnerDashboardTodayStatsRow, error)
 	GetPartnerDashboardWeekStats(ctx context.Context, id uuid.UUID) (GetPartnerDashboardWeekStatsRow, error)
+	GetPartnerLegalInfoStatusByPartnerID(ctx context.Context, partnerID uuid.UUID) (pgtype.Text, error)
 	GetPartnerOrderByID(ctx context.Context, arg GetPartnerOrderByIDParams) (GetPartnerOrderByIDRow, error)
 	GetPartnerOrderByPickupCode(ctx context.Context, arg GetPartnerOrderByPickupCodeParams) (GetPartnerOrderByPickupCodeRow, error)
 	GetPartnerProfile(ctx context.Context, id uuid.UUID) (GetPartnerProfileRow, error)
