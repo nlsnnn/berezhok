@@ -1,18 +1,23 @@
 import { useState, useEffect } from 'react'
 import { observer } from 'mobx-react-lite'
 import { toast } from 'sonner'
-import { CheckCircle2, Eye, EyeOff, Pencil, X, FileText, Building2, User } from 'lucide-react'
+import {
+  CheckCircle2, Eye, EyeOff, Pencil, X, FileText, Building2, User, Lock, Clock, XCircle,
+} from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { getPartnerProfile, updatePartnerProfile, changePassword } from '@/api/partner'
 import { getErrorMessage } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
+import { useStores } from '@/context/StoresContext'
 import PartnerLayout from '@/components/partner/layout/PartnerLayout'
 import Input from '@/components/ui/form/Input'
 import Label from '@/components/ui/form/Label'
 import Button from '@/components/ui/actions/Button'
+import Modal from '@/components/ui/overlay/Modal'
 
 function ProfilePageBase() {
   const { markPasswordChanged } = useAuth()
+  const { dashboardStore } = useStores()
   const navigate = useNavigate()
 
   const [profile, setProfile] = useState(null)
@@ -22,6 +27,7 @@ function ProfilePageBase() {
   const [nameValue, setNameValue] = useState('')
   const [savingName, setSavingName] = useState(false)
 
+  const [pwModalOpen, setPwModalOpen] = useState(false)
   const [pwForm, setPwForm] = useState({ current_password: '', new_password: '', confirm: '' })
   const [pwShow, setPwShow] = useState({ current: false, next: false, confirm: false })
   const [pwErrors, setPwErrors] = useState({})
@@ -35,7 +41,9 @@ function ProfilePageBase() {
       })
       .catch(() => toast.error('Не удалось загрузить профиль'))
       .finally(() => setLoadingProfile(false))
-  }, [])
+
+    if (!dashboardStore.data) dashboardStore.load()
+  }, [dashboardStore])
 
   const handleSaveName = async () => {
     if (!nameValue.trim() || nameValue.trim().length < 2) {
@@ -84,6 +92,7 @@ function ProfilePageBase() {
       await changePassword(pwForm.current_password, pwForm.new_password)
       markPasswordChanged()
       setPwForm({ current_password: '', new_password: '', confirm: '' })
+      setPwModalOpen(false)
       toast.success('Пароль обновлён')
     } catch (error) {
       toast.error(getErrorMessage(error))
@@ -92,7 +101,17 @@ function ProfilePageBase() {
     }
   }
 
+  const handleClosePwModal = () => {
+    setPwModalOpen(false)
+    setPwForm({ current_password: '', new_password: '', confirm: '' })
+    setPwErrors({})
+    setPwShow({ current: false, next: false, confirm: false })
+  }
+
   const roleLabel = { owner: 'Владелец', manager: 'Менеджер', employee: 'Сотрудник' }
+
+  const hasLegalInfo = dashboardStore.data?.partner?.has_legal_info
+  const legalInfoStatus = dashboardStore.data?.partner?.legal_info_status
 
   return (
     <PartnerLayout title="Профиль" subtitle="Настройки аккаунта и данные партнёра">
@@ -173,61 +192,146 @@ function ProfilePageBase() {
             </div>
             <h3 className="text-base font-semibold text-brand-900">Юридические данные</h3>
           </div>
-          <p className="text-sm text-brand-600 flex-1">
-            Заполните реквизиты компании, чтобы активировать боксы и начать принимать заказы без ограничений.
-          </p>
-          <div className="mt-5">
-            <Button onClick={() => navigate('/partner/legal-info')}>
-              <FileText size={15} />
-              Перейти к заполнению
-            </Button>
-          </div>
+          <LegalInfoCardContent
+            hasLegalInfo={hasLegalInfo}
+            legalInfoStatus={legalInfoStatus}
+            loading={dashboardStore.loading && !dashboardStore.data}
+            onNavigate={() => navigate('/partner/legal-info')}
+          />
         </div>
 
         {/* Change password */}
         <div className="card lg:col-span-2 max-w-xl">
-          <div className="flex items-center gap-3 mb-5">
+          <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-xl bg-brand-100 flex items-center justify-center shrink-0">
-              <Eye size={18} className="text-brand-600" />
+              <Lock size={18} className="text-brand-600" />
             </div>
-            <h3 className="text-base font-semibold text-brand-900">Смена пароля</h3>
+            <div>
+              <h3 className="text-base font-semibold text-brand-900">Смена пароля</h3>
+              <p className="text-sm text-brand-500 mt-0.5">Рекомендуем использовать надёжный пароль от 8 символов</p>
+            </div>
           </div>
-
-          <form onSubmit={handleChangePw} className="space-y-4" noValidate>
-            <PasswordField
-              label="Текущий пароль"
-              value={pwForm.current_password}
-              onChange={setPwField('current_password')}
-              error={pwErrors.current_password}
-              show={pwShow.current}
-              onToggle={() => setPwShow((prev) => ({ ...prev, current: !prev.current }))}
-              autoComplete="current-password"
-            />
-            <PasswordField
-              label="Новый пароль"
-              value={pwForm.new_password}
-              onChange={setPwField('new_password')}
-              error={pwErrors.new_password}
-              show={pwShow.next}
-              onToggle={() => setPwShow((prev) => ({ ...prev, next: !prev.next }))}
-              autoComplete="new-password"
-            />
-            <PasswordField
-              label="Повторите новый пароль"
-              value={pwForm.confirm}
-              onChange={setPwField('confirm')}
-              error={pwErrors.confirm}
-              show={pwShow.confirm}
-              onToggle={() => setPwShow((prev) => ({ ...prev, confirm: !prev.confirm }))}
-              autoComplete="new-password"
-            />
-            <Button type="submit" disabled={savingPw}>
-              {savingPw ? 'Сохраняем...' : <><CheckCircle2 size={16} /> Сохранить пароль</>}
-            </Button>
-          </form>
+          <Button variant="secondary" onClick={() => setPwModalOpen(true)}>
+            <Lock size={15} />
+            Изменить пароль
+          </Button>
         </div>
       </div>
+
+      <Modal open={pwModalOpen} onClose={handleClosePwModal} title="Смена пароля">
+        <form onSubmit={handleChangePw} className="space-y-4" noValidate>
+          <PasswordField
+            label="Текущий пароль"
+            value={pwForm.current_password}
+            onChange={setPwField('current_password')}
+            error={pwErrors.current_password}
+            show={pwShow.current}
+            onToggle={() => setPwShow((prev) => ({ ...prev, current: !prev.current }))}
+            autoComplete="current-password"
+          />
+          <PasswordField
+            label="Новый пароль"
+            value={pwForm.new_password}
+            onChange={setPwField('new_password')}
+            error={pwErrors.new_password}
+            show={pwShow.next}
+            onToggle={() => setPwShow((prev) => ({ ...prev, next: !prev.next }))}
+            autoComplete="new-password"
+          />
+          <PasswordField
+            label="Повторите новый пароль"
+            value={pwForm.confirm}
+            onChange={setPwField('confirm')}
+            error={pwErrors.confirm}
+            show={pwShow.confirm}
+            onToggle={() => setPwShow((prev) => ({ ...prev, confirm: !prev.confirm }))}
+            autoComplete="new-password"
+          />
+          <div className="flex gap-3 pt-1">
+            <Button type="submit" disabled={savingPw} className="flex-1">
+              {savingPw ? 'Сохраняем...' : <><CheckCircle2 size={16} /> Сохранить пароль</>}
+            </Button>
+            <Button type="button" variant="secondary" onClick={handleClosePwModal}>
+              Отмена
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </PartnerLayout>
+  )
+}
+
+function LegalInfoCardContent({ hasLegalInfo, legalInfoStatus, loading, onNavigate }) {
+  if (loading) {
+    return <div className="h-16 flex items-center text-sm text-brand-400">Загрузка...</div>
+  }
+
+  if (legalInfoStatus === 'verified') {
+    return (
+      <div className="flex flex-col flex-1 gap-4">
+        <div className="inline-flex items-center gap-2 self-start rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
+          <CheckCircle2 size={13} />
+          Данные подтверждены
+        </div>
+        <p className="text-sm text-brand-600 flex-1">
+          Юридические данные проверены администратором. Аккаунт полностью активен.
+        </p>
+      </div>
+    )
+  }
+
+  if (legalInfoStatus === 'failed') {
+    return (
+      <div className="flex flex-col flex-1 gap-4">
+        <div className="inline-flex items-center gap-2 self-start rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">
+          <XCircle size={13} />
+          Данные отклонены
+        </div>
+        <p className="text-sm text-brand-600 flex-1">
+          Администратор отклонил данные. Проверьте корректность и отправьте снова.
+        </p>
+        <div className="mt-auto">
+          <Button onClick={onNavigate}>
+            <FileText size={15} />
+            Исправить данные
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (hasLegalInfo && legalInfoStatus === 'pending') {
+    return (
+      <div className="flex flex-col flex-1 gap-4">
+        <div className="inline-flex items-center gap-2 self-start rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+          <Clock size={13} />
+          На проверке
+        </div>
+        <p className="text-sm text-brand-600 flex-1">
+          Данные отправлены и ожидают проверки администратором.
+        </p>
+        <div className="mt-auto">
+          <Button variant="secondary" onClick={onNavigate}>
+            <FileText size={15} />
+            Просмотреть / Изменить
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col flex-1 gap-4">
+      <p className="text-sm text-brand-600 flex-1">
+        Заполните реквизиты компании, чтобы активировать боксы и начать принимать заказы без ограничений.
+      </p>
+      <div className="mt-auto">
+        <Button onClick={onNavigate}>
+          <FileText size={15} />
+          Перейти к заполнению
+        </Button>
+      </div>
+    </div>
   )
 }
 
