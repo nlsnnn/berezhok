@@ -98,6 +98,11 @@ type Querier interface {
 	GetAdminStats(ctx context.Context) (GetAdminStatsRow, error)
 	// Get customer profile with stats
 	GetCustomerProfile(ctx context.Context, id uuid.UUID) (GetCustomerProfileRow, error)
+	// Aggregates picked-up orders for a customer grouped by location category.
+	// "Picked up" = orders that physically reached the customer (picked_up_at IS NOT NULL).
+	// Returned per-category counts let the application layer multiply by the
+	// average-weight coefficient that lives in Go code (see internal/modules/eco/coefficients.go).
+	GetEcoAggregateByUserID(ctx context.Context, userID uuid.UUID) ([]GetEcoAggregateByUserIDRow, error)
 	// Get location details by ID with category info
 	GetLocationDetailsByID(ctx context.Context, id uuid.UUID) (GetLocationDetailsByIDRow, error)
 	GetLocationOrderByID(ctx context.Context, arg GetLocationOrderByIDParams) (GetLocationOrderByIDRow, error)

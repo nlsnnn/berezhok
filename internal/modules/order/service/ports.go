@@ -32,6 +32,12 @@ type orderProjectionPublisher interface {
 	PublishOrderStatusChanged(ctx context.Context, projection domain.OrderProjection) error
 }
 
+// EcoCacheInvalidator drops a customer's cached eco-stats so the next read
+// recomputes from the database. Implemented by the eco module's Redis cache.
+type EcoCacheInvalidator interface {
+	Invalidate(ctx context.Context, userID uuid.UUID) error
+}
+
 type paymentProvider interface {
 	EnsurePaymentLink(ctx context.Context, amount decimal.Decimal, orderID uuid.UUID) (string, error)
 }

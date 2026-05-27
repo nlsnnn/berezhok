@@ -30,6 +30,10 @@ import (
 	customerHandlers "github.com/nlsnnn/berezhok/internal/modules/customer/handlers"
 	customerRepos "github.com/nlsnnn/berezhok/internal/modules/customer/repository"
 	customerServices "github.com/nlsnnn/berezhok/internal/modules/customer/service"
+	ecoCache "github.com/nlsnnn/berezhok/internal/modules/eco/cache"
+	ecoHandlers "github.com/nlsnnn/berezhok/internal/modules/eco/handlers"
+	ecoRepos "github.com/nlsnnn/berezhok/internal/modules/eco/repository"
+	ecoServices "github.com/nlsnnn/berezhok/internal/modules/eco/service"
 	mediaHandlers "github.com/nlsnnn/berezhok/internal/modules/media/handlers"
 	mediaRepos "github.com/nlsnnn/berezhok/internal/modules/media/repository"
 	mediaServices "github.com/nlsnnn/berezhok/internal/modules/media/service"
@@ -145,8 +149,16 @@ func (app *application) mount() http.Handler {
 	paymentSvc := paymentServices.NewPaymentService(paymentRepo, yookassaAdapter, orderStatusUpdater)
 	webhookHandler := paymentHandlers.NewWebhookHandler(paymentSvc, app.log, v)
 
+	// Eco module — cache + repo + service (built before order service so we can
+	// wire the cache invalidator into MarkOrderPickedUp).
+	ecoStatsCache := ecoCache.NewEcoStatsCache(app.redis)
+	ecoRepo := ecoRepos.NewEcoRepo(queries)
+	ecoSvc := ecoServices.NewEcoService(ecoRepo, ecoStatsCache, app.log)
+	ecoHandler := ecoHandlers.NewEcoHandler(ecoSvc, app.log)
+
 	// Order module — services
-	orderSvc := orderServices.NewOrderService(orderRepo, orderBoxProvider, paymentSvc, app.log, orderEventAdapter)
+	orderSvc := orderServices.NewOrderService(orderRepo, orderBoxProvider, paymentSvc, app.log, orderEventAdapter).
+		WithEcoInvalidator(ecoStatsCache)
 
 	// Order module — handlers
 	orderHandler := orderHandlers.NewOrderHandler(orderSvc, app.log, v)
@@ -215,6 +227,9 @@ func (app *application) mount() http.Handler {
 			// Profile
 			r.Get("/customer/profile", customerHandler.GetProfile)
 			r.Patch("/customer/profile", customerHandler.UpdateProfile)
+
+			// Eco-stats (gamification)
+			r.Get("/customer/eco-stats", ecoHandler.GetEcoStats)
 
 			// Locations
 			r.Get("/customer/locations", customerLocationHandler.SearchLocations)

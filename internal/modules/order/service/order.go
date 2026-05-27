@@ -17,6 +17,7 @@ type orderService struct {
 	paymentProvider paymentProvider
 	boxProvider     boxProvider
 	eventPublisher  orderProjectionPublisher
+	ecoInvalidator  EcoCacheInvalidator
 	log             *slog.Logger
 }
 
@@ -30,6 +31,13 @@ func NewOrderService(repo orderRepository, boxProvider boxProvider, paymentProvi
 	if len(publishers) > 0 {
 		s.eventPublisher = publishers[0]
 	}
+	return s
+}
+
+// WithEcoInvalidator wires an optional eco-stats cache invalidator that's
+// called after order status changes that affect picked_up_at.
+func (s *orderService) WithEcoInvalidator(inv EcoCacheInvalidator) *orderService {
+	s.ecoInvalidator = inv
 	return s
 }
 
@@ -240,7 +248,7 @@ func (s *orderService) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID,
 }
 
 func (s *orderService) publishProjection(ctx context.Context, orderID uuid.UUID, statusChanged bool) {
-	if s.eventPublisher == nil {
+	if s.eventPublisher == nil && s.ecoInvalidator == nil {
 		return
 	}
 	projection, err := s.repo.GetOrderProjection(ctx, orderID)
@@ -250,12 +258,29 @@ func (s *orderService) publishProjection(ctx context.Context, orderID uuid.UUID,
 		}
 		return
 	}
-	if statusChanged {
-		err = s.eventPublisher.PublishOrderStatusChanged(ctx, *projection)
-	} else {
-		err = s.eventPublisher.PublishOrderCreated(ctx, *projection)
+
+	if s.eventPublisher != nil {
+		if statusChanged {
+			err = s.eventPublisher.PublishOrderStatusChanged(ctx, *projection)
+		} else {
+			err = s.eventPublisher.PublishOrderCreated(ctx, *projection)
+		}
+		if err != nil && s.log != nil {
+			s.log.Warn("failed to publish order projection", slog.String("order_id", orderID.String()), slog.String("err", err.Error()))
+		}
 	}
-	if err != nil && s.log != nil {
-		s.log.Warn("failed to publish order projection", slog.String("order_id", orderID.String()), slog.String("err", err.Error()))
+
+	// Eco-stats aggregate only changes when an order reaches the terminal
+	// "completed" state via MarkOrderPickedUp. Invalidate the customer's
+	// cached read-model so the next request recomputes.
+	if statusChanged && s.ecoInvalidator != nil &&
+		projection.Status == domain.OrderStatusCompleted &&
+		projection.CustomerID != uuid.Nil {
+		if err := s.ecoInvalidator.Invalidate(ctx, projection.CustomerID); err != nil && s.log != nil {
+			s.log.Warn("failed to invalidate eco-stats cache",
+				slog.String("customer_id", projection.CustomerID.String()),
+				slog.String("err", err.Error()),
+			)
+		}
 	}
 }
