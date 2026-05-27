@@ -26,6 +26,7 @@ type OrderDetailResponse struct {
 	PickupTime  OrderPickupTimeResponse `json:"pickup_time"`
 	CreatedAt   time.Time               `json:"created_at"`
 	ConfirmedAt *time.Time              `json:"confirmed_at,omitempty"`
+	HasReview   bool                    `json:"has_review"`
 }
 
 type OrderBoxResponse struct {
@@ -149,6 +150,7 @@ func ToOrderDetailResponse(order *domain.OrderDetails) OrderDetailResponse {
 		},
 		CreatedAt:   order.CreatedAt,
 		ConfirmedAt: order.ConfirmedAt,
+		HasReview:   order.HasReview,
 	}
 }
 

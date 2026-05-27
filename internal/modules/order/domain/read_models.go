@@ -25,6 +25,7 @@ type OrderDetails struct {
 	PickupTimeEnd   time.Time
 	CreatedAt       time.Time
 	ConfirmedAt     *time.Time
+	HasReview       bool
 }
 
 // PartnerOrderByCode represents enriched order data for partner lookup by pickup code.

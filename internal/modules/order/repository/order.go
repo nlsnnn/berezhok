@@ -162,6 +162,7 @@ func (r *OrderRepo) GetOrderDetailsByID(ctx context.Context, orderID uuid.UUID) 
 		PickupTimeEnd:   row.PickupTimeEnd,
 		CreatedAt:       row.CreatedAt,
 		ConfirmedAt:     confirmedAt,
+		HasReview:       row.HasReview,
 	}, nil
 }
 
