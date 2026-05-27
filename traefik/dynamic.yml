@@ -59,6 +59,14 @@ http:
         - chat-api-rewrite
         - api-ratelimit
 
+    portainer:
+      rule: "Host(`portainer.fooday.live`)"
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      service: portainer-service
+
     chat-ws:
       rule: "Host(`fooday.live`) && PathPrefix(`/chat-ws`)"
       entryPoints:
@@ -71,6 +79,11 @@ http:
         - chat-ws-rewrite
 
   services:
+    portainer-service:
+      loadBalancer:
+        servers:
+          - url: "http://berezhok-portainer:9000"
+
     api-service:
       loadBalancer:
         servers:
