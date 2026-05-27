@@ -107,6 +107,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL:-/api/v1}
+        VITE_YANDEX_GEOCODER_API_KEY: ${VITE_YANDEX_GEOCODER_API_KEY:-bca105ec-e532-40dc-8c78-5a3ae701d5bf}
     container_name: berezhok-frontend
     depends_on:
       api:

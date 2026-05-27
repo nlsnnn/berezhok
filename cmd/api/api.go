@@ -69,7 +69,7 @@ func (app *application) mount() http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins: []string{"http://localhost", "http://localhost:5173", "http://localhost:3000", "http://localhost:8000", "http://localhost:64234"},
+		AllowedOrigins: []string{"https://fooday.live", "http://localhost", "http://localhost:5173", "http://localhost:3000", "http://localhost:8000", "http://localhost:55988"},
 		AllowedMethods: []string{"GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders: []string{"Link"},
