@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { observer } from "mobx-react-lite";
 import { useNavigate } from "react-router-dom";
-import { Building2, Save } from "lucide-react";
+import { Building2, Save, CheckCircle2, Clock, XCircle, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { savePartnerLegalInfo } from "@/api/partner";
 import { getErrorMessage, getValidationDetails } from "@/lib/utils";
+import { useStores } from "@/context/StoresContext";
 import PartnerLayout from "@/components/partner/layout/PartnerLayout";
 import Input from "@/components/ui/form/Input";
 import Label from "@/components/ui/form/Label";
@@ -90,9 +91,18 @@ function fieldErrorFromServerMessage(message) {
 
 function PartnerLegalInfoPageBase() {
   const navigate = useNavigate();
+  const { dashboardStore } = useStores();
   const [form, setForm] = useState(INITIAL_FORM);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [formUnlocked, setFormUnlocked] = useState(false);
+
+  useEffect(() => {
+    if (!dashboardStore.data) dashboardStore.load();
+  }, [dashboardStore]);
+
+  const hasLegalInfo = dashboardStore.data?.partner?.has_legal_info;
+  const legalInfoStatus = dashboardStore.data?.partner?.legal_info_status;
 
   const progress = useMemo(
     () =>
@@ -183,12 +193,112 @@ function PartnerLegalInfoPageBase() {
     }
   };
 
+  const layoutProps = {
+    title: "Юридические данные",
+    subtitle: "Заполните реквизиты компании, чтобы активировать боксы и начать принимать заказы",
+  };
+
+  if (dashboardStore.loading && !dashboardStore.data) {
+    return (
+      <PartnerLayout {...layoutProps}>
+        <div className="max-w-3xl">
+          <div className="h-32 flex items-center justify-center text-sm text-brand-400">Загрузка...</div>
+        </div>
+      </PartnerLayout>
+    );
+  }
+
+  if (legalInfoStatus === "verified") {
+    return (
+      <PartnerLayout {...layoutProps}>
+        <div className="max-w-3xl">
+          <div className="rounded-2xl border border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 p-5 md:p-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-green-700">
+                  <CheckCircle2 size={14} />
+                  Данные подтверждены
+                </div>
+                <h2 className="text-lg font-bold text-green-950">Юридические данные приняты</h2>
+                <p className="text-sm text-green-900/90">
+                  Ваши данные проверены администратором — аккаунт полностью активен и готов к работе.
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 pt-4 border-t border-green-200/60">
+              <Button variant="secondary" onClick={() => navigate("/partner/profile")}>
+                Вернуться в профиль
+              </Button>
+            </div>
+          </div>
+        </div>
+      </PartnerLayout>
+    );
+  }
+
+  if (hasLegalInfo && legalInfoStatus === "pending" && !formUnlocked) {
+    return (
+      <PartnerLayout {...layoutProps}>
+        <div className="max-w-3xl">
+          <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-5 md:p-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700">
+                  <Clock size={14} />
+                  На проверке
+                </div>
+                <h2 className="text-lg font-bold text-blue-950">Данные отправлены — ожидайте проверки</h2>
+                <p className="text-sm text-blue-900/90">
+                  Администратор проверит ваши юридические данные и активирует аккаунт.
+                  Это обычно занимает до 1 рабочего дня.
+                </p>
+              </div>
+              <div className="shrink-0 rounded-xl border border-blue-200 bg-white/70 px-4 py-3 text-center">
+                <p className="text-xs text-blue-600 font-medium">Статус</p>
+                <p className="text-sm font-bold text-blue-800 mt-0.5">На рассмотрении</p>
+              </div>
+            </div>
+            <div className="mt-5 pt-4 border-t border-blue-200/60 flex flex-wrap gap-3">
+              <Button variant="secondary" onClick={() => navigate("/partner/profile")}>
+                Вернуться в профиль
+              </Button>
+              <button
+                type="button"
+                onClick={() => setFormUnlocked(true)}
+                className="text-sm text-blue-600 hover:text-blue-800 underline underline-offset-2 transition-colors self-center"
+              >
+                Изменить данные
+              </button>
+            </div>
+          </div>
+        </div>
+      </PartnerLayout>
+    );
+  }
+
   return (
-    <PartnerLayout
-      title="Юридические данные"
-      subtitle="Заполните реквизиты компании, чтобы активировать боксы и начать принимать заказы"
-    >
+    <PartnerLayout {...layoutProps}>
       <div className="max-w-3xl space-y-5">
+        {legalInfoStatus === "failed" && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 flex items-start gap-3 text-sm text-red-900">
+            <XCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
+            <p>
+              <span className="font-semibold">Данные отклонены.</span>{" "}
+              Администратор отклонил ваши данные. Проверьте корректность ИНН, ОГРН и юридического адреса.
+            </p>
+          </div>
+        )}
+
+        {formUnlocked && legalInfoStatus === "pending" && (
+          <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 flex items-start gap-3 text-sm text-amber-900">
+            <AlertTriangle size={16} className="text-amber-500 shrink-0 mt-0.5" />
+            <p>
+              <span className="font-semibold">Данные уже на проверке.</span>{" "}
+              Повторная отправка заменит текущую заявку и сбросит статус проверки.
+            </p>
+          </div>
+        )}
+
         <section className="rounded-2xl border border-brand-200 bg-brand-50/60 p-4">
           <div className="flex items-center justify-between gap-3 text-sm">
             <p className="font-medium text-brand-900">
