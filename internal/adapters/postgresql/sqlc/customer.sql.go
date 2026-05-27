@@ -77,7 +77,7 @@ FROM users u
 LEFT JOIN (
     SELECT
         o.user_id,
-        COUNT(*) AS orders_count,
+        COUNT(*) FILTER (WHERE o.status NOT IN ('cancelled', 'refunded', 'disputed')) AS orders_count,
         COALESCE(SUM(
             CASE
                 WHEN o.status IN ('paid', 'confirmed', 'completed', 'picked_up')
@@ -86,7 +86,7 @@ LEFT JOIN (
             END
         ), 0) AS saved_amount
     FROM orders o
-    JOIN surprise_boxes sb ON sb.id = o.box_id
+    LEFT JOIN surprise_boxes sb ON sb.id = o.box_id
     GROUP BY o.user_id
 ) AS order_stats ON order_stats.user_id = u.id
 LEFT JOIN (
