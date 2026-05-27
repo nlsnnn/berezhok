@@ -24,3 +24,64 @@ http:
       replacePathRegex:
         regex: "^/chat-ws(.*)"
         replacement: "/ws$1"
+
+  routers:
+    api:
+      rule: "Host(`fooday.live`) && PathPrefix(`/api/`)"
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      service: api-service
+      priority: 20
+      middlewares:
+        - api-ratelimit
+        - secure-headers
+
+    frontend:
+      rule: "Host(`fooday.live`)"
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      service: frontend-service
+      priority: 1
+
+    chat-api:
+      rule: "Host(`fooday.live`) && PathPrefix(`/chat-api/`)"
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      service: chat-service
+      priority: 30
+      middlewares:
+        - chat-api-rewrite
+        - api-ratelimit
+
+    chat-ws:
+      rule: "Host(`fooday.live`) && PathPrefix(`/chat-ws`)"
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      service: chat-service
+      priority: 25
+      middlewares:
+        - chat-ws-rewrite
+
+  services:
+    api-service:
+      loadBalancer:
+        servers:
+          - url: "http://berezhok-api:8080"
+
+    frontend-service:
+      loadBalancer:
+        servers:
+          - url: "http://berezhok-frontend:80"
+
+    chat-service:
+      loadBalancer:
+        servers:
+          - url: "http://berezhok-chat:8090"

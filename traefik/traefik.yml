@@ -5,6 +5,25 @@ api:
 entryPoints:
   web:
     address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":443"
+    http:
+      tls:
+        certResolver: letsencrypt
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: admin@fooday.live
+      storage: /etc/traefik/acme.json
+      httpChallenge:
+        entryPoint: web
 
 providers:
   docker:
