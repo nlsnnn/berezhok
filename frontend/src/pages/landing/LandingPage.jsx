@@ -143,7 +143,7 @@ function HeroBackdrop() {
 function Nav() {
   return (
     <nav className="nav">
-      <a href="#" className="nav-brand">
+      <a href="/partners" className="nav-brand">
         <HedgehogMark size={36} />
         Бережок
       </a>
@@ -152,6 +152,9 @@ function Nav() {
         <a className="nav-link" href="#calc">Калькулятор</a>
         <a className="nav-link" href="#reviews">Партнёры</a>
         <a className="nav-link" href="#faq">FAQ</a>
+        <a className="nav-link nav-link--cross" href="/">
+          Для клиентов
+        </a>
         <a className="btn btn-primary" href="#apply" style={{ marginLeft: 6 }}>
           Стать партнёром
         </a>
@@ -671,6 +674,7 @@ function Footer() {
       </div>
       <div>© 2026 Бережок · Меньше отходов — больше добра.</div>
       <div className="footer-links">
+        <a href="/">Для клиентов</a>
         <a href="#">Договор</a>
         <a href="#">Конфиденциальность</a>
         <a href="mailto:support@berezhok.ru">support@berezhok.ru</a>

@@ -56,7 +56,8 @@ SELECT o.id,
   l.address AS location_address,
   COALESCE(l.phone, '') AS location_phone,
   ST_Y(l.location::geometry) AS location_lat,
-  ST_X(l.location::geometry) AS location_lng
+  ST_X(l.location::geometry) AS location_lng,
+  EXISTS(SELECT 1 FROM reviews WHERE order_id = o.id) AS has_review
 FROM orders o
   JOIN surprise_boxes sb ON sb.id = o.box_id
   JOIN locations l ON l.id = o.location_id

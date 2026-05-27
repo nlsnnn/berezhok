@@ -6,6 +6,7 @@ import RequireAdminAuth from '@/components/RequireAdminAuth'
 import InstallPrompt from '@/components/InstallPrompt'
 import OfflineIndicator from '@/components/OfflineIndicator'
 
+import HomePage from '@/pages/landing/HomePage'
 import LandingPage from '@/pages/landing/LandingPage'
 import AdminApplicationsPage from '@/pages/admin/AdminApplicationsPage'
 import AdminLoginPage from '@/pages/admin/AdminLoginPage'
@@ -49,7 +50,8 @@ export default function App() {
         <InstallPrompt />
         <Toaster position="top-right" richColors closeButton />
         <Routes>
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="/partners" element={<LandingPage />} />
           <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="/partner/login" element={<PartnerLoginPage />} />
           <Route path="/partner/offer" element={<PartnerOfferPage />} />

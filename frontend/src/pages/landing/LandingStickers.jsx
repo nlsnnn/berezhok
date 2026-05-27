@@ -167,3 +167,86 @@ export function StarIcon() {
     </svg>
   )
 }
+
+export function StickerApple({ size = 70, tilt = -4 }) {
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} style={{ transform: `rotate(${tilt}deg)` }}>
+      <ellipse cx="50" cy="58" rx="34" ry="36" fill="#fff" stroke="#fff" strokeWidth="6" />
+      <path d="M 50 24 Q 36 28 30 50 Q 26 76 44 88 Q 50 92 56 88 Q 74 76 70 50 Q 64 28 50 24 Z"
+        fill="#D94A4A" stroke="#3D2818" strokeWidth="2.5" />
+      <path d="M 50 24 Q 52 18 56 14" stroke="#3D2818" strokeWidth="3" fill="none" strokeLinecap="round" />
+      <ellipse cx="60" cy="16" rx="8" ry="4" fill="#4A8B4A" stroke="#3D2818" strokeWidth="2" transform="rotate(28 60 16)" />
+      <ellipse cx="40" cy="40" rx="6" ry="3" fill="#fff" opacity="0.4" />
+    </svg>
+  )
+}
+
+export function StickerBag({ size = 80, tilt = 6 }) {
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} style={{ transform: `rotate(${tilt}deg)` }}>
+      <rect x="18" y="28" width="64" height="62" rx="6" fill="#fff" stroke="#fff" strokeWidth="6" />
+      <rect x="18" y="28" width="64" height="62" rx="6" fill="#4A7C50" stroke="#3D2818" strokeWidth="2.5" />
+      <path d="M 32 28 Q 32 10 50 10 Q 68 10 68 28" stroke="#3D2818" strokeWidth="4" fill="none" strokeLinecap="round" />
+      <text x="50" y="68" textAnchor="middle" fill="#fff" fontFamily="Unbounded, system-ui" fontWeight="700" fontSize="14">БОКС</text>
+    </svg>
+  )
+}
+
+export function PulseMark({ size = 16, subtle = false }) {
+  return (
+    <span
+      className={`pulse-mark${subtle ? ' pulse-mark--subtle' : ''}`}
+      style={{ width: size, height: size }}
+      aria-hidden="true"
+    >
+      <svg viewBox="0 0 24 24" width={size} height={size} fill="none">
+        <circle className="pulse-mark__ring" cx="12" cy="13" r="9" fill="currentColor" opacity="0.18" />
+        <path className="pulse-mark__leaf"
+          d="M5 16c0-6 4-10 14-12-1 9-5 13-11 13-1 0-2-.3-3-1z"
+          fill="currentColor" />
+        <path d="M5 16C9 12 14 8 18 5"
+          stroke="rgba(0,0,0,0.32)" strokeWidth="1" strokeLinecap="round" fill="none" />
+        <circle className="pulse-mark__spark" cx="17" cy="6" r="1.4" fill="rgba(255,255,255,0.9)" />
+      </svg>
+    </span>
+  )
+}
+
+export function IconPin({ size = 24 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 21s-7-7.5-7-12a7 7 0 1 1 14 0c0 4.5-7 12-7 12z" />
+      <circle cx="12" cy="9" r="2.5" />
+    </svg>
+  )
+}
+
+export function IconBell({ size = 24 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9z" />
+      <path d="M10 21a2 2 0 0 0 4 0" />
+    </svg>
+  )
+}
+
+export function IconQR({ size = 24 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+      <line x1="14" y1="14" x2="14" y2="17" strokeLinecap="round" /><line x1="14" y1="20" x2="14" y2="21" strokeLinecap="round" />
+      <line x1="17" y1="14" x2="17" y2="15" strokeLinecap="round" />
+      <line x1="20" y1="14" x2="20" y2="17" strokeLinecap="round" />
+      <line x1="17" y1="18" x2="21" y2="18" strokeLinecap="round" />
+      <line x1="20" y1="21" x2="21" y2="21" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function IconEco({ size = 24 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v18M3 12h18" /><path d="M5 5l14 14M19 5L5 19" strokeWidth="1.2" />
+    </svg>
+  )
+}
