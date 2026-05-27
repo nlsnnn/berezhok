@@ -3,6 +3,7 @@ package postgresql
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -19,12 +20,17 @@ func New(ctx context.Context, dbConfig config.Db) (*pgxpool.Pool, error) {
 		dbConfig.Name,
 	)
 
-	config, err := pgxpool.ParseConfig(dbUrl)
+	poolConfig, err := pgxpool.ParseConfig(dbUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse db config: %w", err)
 	}
 
-	pool, err := pgxpool.NewWithConfig(ctx, config)
+	poolConfig.MaxConns = 20
+	poolConfig.MinConns = 2
+	poolConfig.MaxConnLifetime = 30 * time.Minute
+	poolConfig.MaxConnIdleTime = 5 * time.Minute
+
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to db: %w", err)
 	}

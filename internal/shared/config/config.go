@@ -10,6 +10,7 @@ import (
 
 type Config struct {
 	Env            string `yaml:"env" env:"ENV" env-default:"local"`
+	JWTSecret      string `yaml:"jwt_secret" env:"JWT_SECRET"`
 	Db             `yaml:"db"`
 	HTTPServer     `yaml:"http_server"`
 	Redis          `yaml:"redis"`

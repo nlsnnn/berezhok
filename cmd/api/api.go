@@ -83,7 +83,7 @@ func (app *application) mount() http.Handler {
 	// Shared infrastructure
 	queries := sqlc.New(app.pool)
 	v := validator.New()
-	jwtService := jwt.NewTokenService([]byte("supersecretkey"))
+	jwtService := jwt.NewTokenService([]byte(app.cfg.JWTSecret))
 	notificationPublisher := rabbitmq.NewNotificationPublisher(app.rabbitmq)
 	orderPublisher := rabbitmq.NewOrderPublisher(app.rabbitmq)
 

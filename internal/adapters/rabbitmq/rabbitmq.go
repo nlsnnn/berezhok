@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -17,11 +18,13 @@ const (
 )
 
 type Client struct {
-	url    string
-	conn   *amqp.Connection
-	ch     *amqp.Channel
-	mu     sync.Mutex
-	logger *slog.Logger
+	url          string
+	conn         *amqp.Connection
+	ch           *amqp.Channel
+	confirms     chan amqp.Confirmation
+	mu           sync.Mutex
+	reconnecting atomic.Bool
+	logger       *slog.Logger
 }
 
 func New(url string, logger *slog.Logger) (*Client, error) {
@@ -90,25 +93,39 @@ func (c *Client) connect() error {
 
 	c.conn = conn
 	c.ch = ch
+	// NotifyPublish must be called ONCE per channel and the returned channel reused.
+	// Calling it on every publish accumulates listeners and causes CPU spin in the library.
+	c.confirms = ch.NotifyPublish(make(chan amqp.Confirmation, 100))
 	return nil
 }
 
-// reconnect пытается переподключиться с экспоненциальным backoff
-func (c *Client) reconnect() {
-	backoff := time.Second
-	for {
-		c.logger.Warn("rabbitmq reconnecting...", "backoff", backoff)
-		time.Sleep(backoff)
-
-		if err := c.connect(); err == nil {
-			c.logger.Info("rabbitmq reconnected")
-			return
-		}
-
-		if backoff < 30*time.Second {
-			backoff *= 2
-		}
+// reconnect пытается переподключиться с экспоненциальным backoff.
+// Гарантировано запускается не более одной горутины одновременно.
+func (c *Client) maybeReconnect() {
+	if !c.reconnecting.CompareAndSwap(false, true) {
+		return
 	}
+	go func() {
+		defer c.reconnecting.Store(false)
+		backoff := time.Second
+		for {
+			c.logger.Warn("rabbitmq reconnecting...", "backoff", backoff)
+			time.Sleep(backoff)
+
+			c.mu.Lock()
+			err := c.connect()
+			c.mu.Unlock()
+
+			if err == nil {
+				c.logger.Info("rabbitmq reconnected")
+				return
+			}
+
+			if backoff < 30*time.Second {
+				backoff *= 2
+			}
+		}
+	}()
 }
 
 func (c *Client) Publish(ctx context.Context, routingKey string, body []byte) error {
@@ -133,14 +150,18 @@ func (c *Client) PublishToExchange(ctx context.Context, exchange, routingKey str
 	)
 	if err != nil {
 		// Канал после ошибки публикации становится невалидным — переподключаемся
-		go c.reconnect()
+		c.maybeReconnect()
 		return fmt.Errorf("rabbitmq publish: %w", err)
 	}
 
-	// Ждём подтверждения от брокера
-	confirmed, ok := <-c.ch.NotifyPublish(make(chan amqp.Confirmation, 1))
-	if !ok || !confirmed.Ack {
-		return fmt.Errorf("rabbitmq: broker did not confirm message delivery")
+	// Ждём подтверждения от брокера через канал, зарегистрированный один раз в connect().
+	select {
+	case confirmed, ok := <-c.confirms:
+		if !ok || !confirmed.Ack {
+			return fmt.Errorf("rabbitmq: broker did not confirm message delivery")
+		}
+	case <-ctx.Done():
+		return fmt.Errorf("rabbitmq: context cancelled while waiting for confirm: %w", ctx.Err())
 	}
 
 	return nil

@@ -33,6 +33,11 @@ func main() {
 	log := setupLogger(cfg.Env)
 	closer.SetLogger(log)
 
+	if cfg.JWTSecret == "" {
+		log.Error("JWT_SECRET environment variable is required")
+		os.Exit(1)
+	}
+
 	log.Info("start app", slog.String("env", cfg.Env))
 
 	// PostgreSQL database
