@@ -402,6 +402,7 @@ func (app *application) mount() http.Handler {
 	})
 
 	r.Route("/api/internal/v1", func(r chi.Router) {
+		r.Use(middlewares.InternalAuthMiddleware(app.cfg.InternalToken))
 		r.Get("/orders/{order_id}/chat-access", orderHandler.InternalChatAccess)
 	})
 

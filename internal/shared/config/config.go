@@ -9,8 +9,9 @@ import (
 )
 
 type Config struct {
-	Env            string `yaml:"env" env:"ENV" env-default:"local"`
-	JWTSecret      string `yaml:"jwt_secret" env:"JWT_SECRET"`
+	Env                 string `yaml:"env" env:"ENV" env-default:"local"`
+	JWTSecret           string `yaml:"jwt_secret" env:"JWT_SECRET"`
+	InternalToken       string `yaml:"internal_token" env:"MONOLITH_INTERNAL_TOKEN"`
 	Db             `yaml:"db"`
 	HTTPServer     `yaml:"http_server"`
 	Redis          `yaml:"redis"`
