@@ -56,3 +56,8 @@ dist-ssr
 *.sw?
 .vite
 mobile-web
+
+# Traefik secrets (private keys, ACME account)
+traefik/acme.json
+traefik/key.pem
+traefik/cert.pem

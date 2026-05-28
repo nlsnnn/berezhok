@@ -22,8 +22,7 @@ certificatesResolvers:
     acme:
       email: admin@fooday.live
       storage: /etc/traefik/acme.json
-      httpChallenge:
-        entryPoint: web
+      tlsChallenge: {}
 
 providers:
   docker:

@@ -13,6 +13,8 @@ services:
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
       - ./traefik/acme.json:/etc/traefik/acme.json
+      - ./traefik/cert.pem:/etc/traefik/cert.pem:ro
+      - ./traefik/key.pem:/etc/traefik/key.pem:ro
     networks:
       - berezhok-net
     restart: unless-stopped

@@ -98,3 +98,8 @@ http:
       loadBalancer:
         servers:
           - url: "http://berezhok-chat:8090"
+
+tls:
+  certificates:
+    - certFile: /etc/traefik/cert.pem
+      keyFile: /etc/traefik/key.pem
