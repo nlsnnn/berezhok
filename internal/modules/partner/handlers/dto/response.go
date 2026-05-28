@@ -82,13 +82,14 @@ type PartnerDashboardResponse struct {
 }
 
 type DashboardPartnerResponse struct {
-	ID              string     `json:"id"`
-	BrandName       string     `json:"brand_name"`
-	Status          string     `json:"status"`
-	CommissionRate  float64    `json:"commission_rate"`
-	PromoUntil      *time.Time `json:"promo_until,omitempty"`
-	HasLegalInfo    bool       `json:"has_legal_info"`
-	LegalInfoStatus string     `json:"legal_info_status,omitempty"`
+	ID                   string     `json:"id"`
+	BrandName            string     `json:"brand_name"`
+	Status               string     `json:"status"`
+	CommissionRate       float64    `json:"commission_rate"`
+	PromoUntil           *time.Time `json:"promo_until,omitempty"`
+	HasLegalInfo         bool       `json:"has_legal_info"`
+	LegalInfoStatus      string     `json:"legal_info_status,omitempty"`
+	HasPayoutDestination bool       `json:"has_payout_destination"`
 }
 
 type DashboardEmployeeResponse struct {

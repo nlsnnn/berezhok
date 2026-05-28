@@ -192,13 +192,14 @@ func (h *partnerHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 
 	res := dto.PartnerDashboardResponse{
 		Partner: dto.DashboardPartnerResponse{
-			ID:              dashboard.Partner.ID,
-			BrandName:       dashboard.Partner.BrandName,
-			Status:          string(dashboard.Partner.Status),
-			CommissionRate:  dashboard.Partner.Commission.Rate,
-			PromoUntil:      dashboard.Partner.Commission.ValidUntil,
-			HasLegalInfo:    dashboard.HasLegalInfo,
-			LegalInfoStatus: dashboard.LegalInfoStatus,
+			ID:                   dashboard.Partner.ID,
+			BrandName:            dashboard.Partner.BrandName,
+			Status:               string(dashboard.Partner.Status),
+			CommissionRate:       dashboard.Partner.Commission.Rate,
+			PromoUntil:           dashboard.Partner.Commission.ValidUntil,
+			HasLegalInfo:         dashboard.HasLegalInfo,
+			LegalInfoStatus:      dashboard.LegalInfoStatus,
+			HasPayoutDestination: dashboard.HasPayoutDestination,
 		},
 		Employee: dto.DashboardEmployeeResponse{
 			ID:    dashboard.Employee.ID,

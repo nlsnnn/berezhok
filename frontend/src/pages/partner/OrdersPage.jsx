@@ -20,6 +20,12 @@ function OrdersPageBase() {
     ordersStore.loadList().catch(() => {})
   }, [ordersStore])
 
+  useEffect(() => {
+    if (user?.partner_id) {
+      localStorage.setItem(`partner_orders_visited_${user.partner_id}`, 'true')
+    }
+  }, [user?.partner_id])
+
   const handleFilterChange = async (status) => {
     try {
       await ordersStore.loadList({ status })

@@ -23,6 +23,9 @@ export default function OnboardingChecklist({ data }) {
   const locations = data?.locations || []
   const hasActiveBoxes = locations.some((l) => l.active_boxes_count > 0)
 
+  const hasPayoutDestination = data?.partner?.has_payout_destination ?? false
+  const hasVisitedOrders = localStorage.getItem(`partner_orders_visited_${user?.partner_id}`) === 'true'
+
   const dismissedKey = `partner_onboarding_v2_dismissed_${user?.partner_id}`
   const [dismissed, setDismissed] = useState(() => localStorage.getItem(dismissedKey) === 'true')
 
@@ -64,7 +67,7 @@ export default function OnboardingChecklist({ data }) {
         icon: Wallet,
         label: 'Настройте реквизиты для выплат',
         tip: 'Укажите СБП-реквизиты или счёт, чтобы получать выплаты от продаж.',
-        done: false,
+        done: hasPayoutDestination,
         link: '/partner/payouts',
         actionLabel: 'Настроить',
       },
@@ -72,7 +75,7 @@ export default function OnboardingChecklist({ data }) {
         icon: ShoppingBag,
         label: 'Изучите управление заказами',
         tip: 'Подтверждайте заказы и выдавайте боксы клиентам по коду из приложения.',
-        done: false,
+        done: hasVisitedOrders,
         link: '/partner/orders',
         actionLabel: 'Перейти к заказам',
       },

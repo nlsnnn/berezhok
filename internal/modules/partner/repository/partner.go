@@ -144,8 +144,13 @@ func (r *PartnerRepo) GetDashboard(ctx context.Context, employeeID string) (doma
 		}
 	}
 
+	now := time.Now()
+	startOfToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
 	todayStats, err := r.GetStats(ctx, employeeID, domain.StatsFilter{
 		Period:           "today",
+		DateFrom:         startOfToday,
+		DateTo:           startOfToday,
 		TopLocationsSort: "revenue_desc",
 		TopBoxesSort:     "revenue_desc",
 		OrdersSort:       "created_at_desc",
@@ -157,6 +162,8 @@ func (r *PartnerRepo) GetDashboard(ctx context.Context, employeeID string) (doma
 
 	weekStats, err := r.GetStats(ctx, employeeID, domain.StatsFilter{
 		Period:           "last_7_days",
+		DateFrom:         startOfToday.AddDate(0, 0, -6),
+		DateTo:           startOfToday,
 		TopLocationsSort: "revenue_desc",
 		TopBoxesSort:     "revenue_desc",
 		OrdersSort:       "created_at_desc",
@@ -179,12 +186,17 @@ func (r *PartnerRepo) GetDashboard(ctx context.Context, employeeID string) (doma
 		legalInfoStatus = legalRow.String
 	}
 
+	partnerID := uuid.MustParse(profile.Partner.ID)
+	_, payoutErr := r.q.GetPayoutDestination(ctx, partnerID)
+	hasPayoutDestination := payoutErr == nil
+
 	return domain.PartnerDashboard{
-		Partner:         profile.Partner,
-		Employee:        profile.Employee,
-		Locations:       locations,
-		HasLegalInfo:    hasLegalInfo,
-		LegalInfoStatus: legalInfoStatus,
+		Partner:              profile.Partner,
+		Employee:             profile.Employee,
+		Locations:            locations,
+		HasLegalInfo:         hasLegalInfo,
+		LegalInfoStatus:      legalInfoStatus,
+		HasPayoutDestination: hasPayoutDestination,
 		Today: domain.DashboardTodayStats{
 			PendingConfirmation: findStatusCount(todayStats.StatusBreakdown, "paid"),
 			Confirmed:           findStatusCount(todayStats.StatusBreakdown, "confirmed"),
